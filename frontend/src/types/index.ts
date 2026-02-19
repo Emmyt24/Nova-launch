@@ -15,6 +15,7 @@ export interface DeploymentResult {
     transactionHash: string;
     totalFee: string;
     timestamp: number;
+    metadataUrl?: string;
 }
 
 export interface WalletState {
