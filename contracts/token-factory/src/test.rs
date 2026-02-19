@@ -82,15 +82,23 @@ fn test_update_fees() {
 
     client.initialize(&admin, &treasury, &70_000_000, &30_000_000);
 
-    // Update base fee
+    // Update base fee only
     client.update_fees(&admin, &Some(100_000_000), &None);
     let state = client.get_state();
     assert_eq!(state.base_fee, 100_000_000);
+    assert_eq!(state.metadata_fee, 30_000_000); // Verify metadata fee unchanged
 
-    // Update metadata fee
+    // Update metadata fee only
     client.update_fees(&admin, &None, &Some(50_000_000));
     let state = client.get_state();
     assert_eq!(state.metadata_fee, 50_000_000);
+    assert_eq!(state.base_fee, 100_000_000); // Verify base fee unchanged
+
+    // Update both fees simultaneously
+    client.update_fees(&admin, &Some(80_000_000), &Some(40_000_000));
+    let state = client.get_state();
+    assert_eq!(state.base_fee, 80_000_000);
+    assert_eq!(state.metadata_fee, 40_000_000);
 }
 
 #[test]
