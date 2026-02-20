@@ -1,13 +1,33 @@
-import { Header, Container } from "./components/Layout";
-import { Card, ErrorBoundary } from "./components/UI";
+import { lazy, Suspense, useEffect, useMemo, useState } from "react";
+import { Header } from "./components/Layout";
+import { ErrorBoundary, Spinner } from "./components/UI";
 import { ConnectButton } from "./components/WalletConnect";
-import {
-  PWAInstallButton,
-  PWAUpdateNotification,
-  PWAConnectionStatus,
-} from "./components/PWA";
+
+const HomeRoute = lazy(() => import("./routes/HomeRoute"));
+const NotFoundRoute = lazy(() => import("./routes/NotFoundRoute"));
+
+function usePathname() {
+  const [pathname, setPathname] = useState(() => window.location.pathname);
+
+  useEffect(() => {
+    const onPopState = () => setPathname(window.location.pathname);
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, []);
+
+  return pathname;
+}
 
 function App() {
+  const pathname = usePathname();
+  const RouteComponent = useMemo(() => {
+    if (pathname === "/") {
+      return HomeRoute;
+    }
+
+    return NotFoundRoute;
+  }, [pathname]);
+
   return (
     <ErrorBoundary>
       <a href="#main-content" className="skip-to-main">
@@ -15,23 +35,19 @@ function App() {
       </a>
       <div className="min-h-screen bg-gray-50">
         <Header>
-          <div className="flex flex-wrap items-center justify-end gap-2 sm:gap-4">
-            <PWAConnectionStatus />
-            <PWAInstallButton />
-            <ConnectButton />
-          </div>
+          <ConnectButton />
         </Header>
         <main id="main-content">
-          <Container>
-            <Card title="Deploy Your Token">
-              <p className="text-gray-600">
-                Welcome to Stellar Token Deployer. Connect your wallet to get
-                started.
-              </p>
-            </Card>
-          </Container>
+          <Suspense
+            fallback={
+              <div className="flex items-center justify-center py-16">
+                <Spinner size="lg" className="text-gray-500" />
+              </div>
+            }
+          >
+            <RouteComponent />
+          </Suspense>
         </main>
-        <PWAUpdateNotification />
       </div>
     </ErrorBoundary>
   );
