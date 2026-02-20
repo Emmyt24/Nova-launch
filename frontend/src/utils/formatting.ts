@@ -84,19 +84,6 @@ export function xlmToStroops(xlm: number | string): number {
 }
 
 /**
- * Format file size for display
- */
-export function formatFileSize(bytes: number): string {
-    if (bytes < 1024) {
-        return `${bytes} B`;
-    }
-    if (bytes < 1024 * 1024) {
-        return `${(bytes / 1024).toFixed(2)} KB`;
-    }
-    return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
-}
-
-/**
  * Get error message from error object
  */
 export function getErrorMessage(error: unknown): string {

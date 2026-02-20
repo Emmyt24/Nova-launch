@@ -10,6 +10,15 @@ export interface TokenDeployParams {
     };
 }
 
+export interface ImageValidationResult {
+    valid: boolean;
+    error?: string;
+    warnings?: string[];
+    dimensions?: { width: number; height: number };
+    size: number;
+    type: string;
+}
+
 export interface DeploymentResult {
     tokenAddress: string;
     transactionHash: string;

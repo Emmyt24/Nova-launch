@@ -91,10 +91,10 @@ describe('Validation Utilities - Comprehensive Tests', () => {
 
     describe('isValidImageFile', () => {
         it('should accept valid image types under 5MB', () => {
-            const pngFile = new File([''], 'test.png', { type: 'image/png' });
+            const pngFile = new File(['test'], 'test.png', { type: 'image/png' });
             expect(isValidImageFile(pngFile).valid).toBe(true);
             
-            const svgFile = new File([''], 'test.svg', { type: 'image/svg+xml' });
+            const svgFile = new File(['test'], 'test.svg', { type: 'image/svg+xml' });
             expect(isValidImageFile(svgFile).valid).toBe(true);
         });
 
@@ -102,7 +102,7 @@ describe('Validation Utilities - Comprehensive Tests', () => {
             const pdfFile = new File([''], 'test.pdf', { type: 'application/pdf' });
             const result = isValidImageFile(pdfFile);
             expect(result.valid).toBe(false);
-            expect(result.error).toContain('PNG, JPG, or SVG');
+            expect(result.error).toContain('Invalid file type');
         });
 
         it('should reject files exceeding 5MB', () => {
