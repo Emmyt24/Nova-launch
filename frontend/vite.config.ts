@@ -1,26 +1,39 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
-import compression from 'vite-plugin-compression'
-import { visualizer } from 'rollup-plugin-visualizer'
 
 // https://vite.dev/config/
-export default defineConfig(() => {
+export default defineConfig(async ({ command }) => {
   const isAnalyze = process.env.ANALYZE === 'true'
-  const plugins = [
-    react(),
-    compression({ algorithm: 'gzip' }),
-    compression({ algorithm: 'brotliCompress', ext: '.br' }),
-  ]
+  const plugins = [react()]
+
+  if (command === 'build') {
+    try {
+      const { default: compression } = await import('vite-plugin-compression')
+      plugins.push(compression({ algorithm: 'gzip' }))
+      plugins.push(compression({ algorithm: 'brotliCompress', ext: '.br' }))
+    } catch {
+      console.warn(
+        'vite-plugin-compression is not installed; skipping compression plugins for this build.',
+      )
+    }
+  }
 
   if (isAnalyze) {
-    plugins.push(
-      visualizer({
-        filename: 'dist/stats.html',
-        gzipSize: true,
-        brotliSize: true,
-        open: true,
-      }),
-    )
+    try {
+      const { visualizer } = await import('rollup-plugin-visualizer')
+      plugins.push(
+        visualizer({
+          filename: 'dist/stats.html',
+          gzipSize: true,
+          brotliSize: true,
+          open: true,
+        }),
+      )
+    } catch {
+      console.warn(
+        'rollup-plugin-visualizer is not installed; skipping bundle analysis plugin.',
+      )
+    }
   }
 
   return {
