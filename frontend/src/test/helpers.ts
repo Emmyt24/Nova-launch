@@ -20,5 +20,29 @@ export const mockWalletAddress = () =>
 export const mockTransactionHash = () =>
     'a'.repeat(64);
 
+export const mockTransactionHashWithPrefix = (prefix: string = 'a') =>
+    prefix.repeat(64).slice(0, 64);
+
 export const mockTokenAddress = () =>
     'CXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX';
+
+/**
+ * Generate a transaction hash with a specific pattern
+ */
+export const generateTransactionHash = (seed: number = 0): string => {
+    const chars = 'abcdef0123456789';
+    let result = '';
+    for (let i = 0; i < 64; i++) {
+        result += chars[(seed + i) % chars.length];
+    }
+    return result;
+};
+
+/**
+ * Create multiple unique transaction hashes
+ */
+export const generateTransactionHashes = (count: number): string[] => {
+    return Array.from({ length: count }, (_, i) =>
+        generateTransactionHash(i)
+    );
+};

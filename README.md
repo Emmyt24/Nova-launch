@@ -2,6 +2,10 @@
 
 <div align="center">
 
+![CI](https://github.com/Emmyt24/Nova-launch/workflows/CI/badge.svg)
+![Security](https://github.com/Emmyt24/Nova-launch/workflows/Security%20Scan/badge.svg)
+![Coverage](https://codecov.io/gh/Emmyt24/Nova-launch/branch/main/graph/badge.svg)
+
 ![Stellar](https://img.shields.io/badge/Stellar-Soroban-7D00FF?style=for-the-badge&logo=stellar)
 ![React](https://img.shields.io/badge/React-19-61DAFB?style=for-the-badge&logo=react)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.9-3178C6?style=for-the-badge&logo=typescript)

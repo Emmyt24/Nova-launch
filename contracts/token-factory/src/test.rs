@@ -25,41 +25,31 @@ fn test_initialize() {
 }
 
 #[test]
-fn test_initialize_with_various_fees() {
+#[should_panic(expected = "Error(Contract, #3)")]
+fn test_negative_base_fee_rejected() {
     let env = Env::default();
-    
-    // Test with minimum fees
-    let contract_id_1 = env.register_contract(None, TokenFactory);
-    let client_1 = TokenFactoryClient::new(&env, &contract_id_1);
-    let admin_1 = Address::generate(&env);
-    let treasury_1 = Address::generate(&env);
-    
-    client_1.initialize(&admin_1, &treasury_1, &1, &1);
-    let state_1 = client_1.get_state();
-    assert_eq!(state_1.base_fee, 1);
-    assert_eq!(state_1.metadata_fee, 1);
-    
-    // Test with high fees
-    let contract_id_2 = env.register_contract(None, TokenFactory);
-    let client_2 = TokenFactoryClient::new(&env, &contract_id_2);
-    let admin_2 = Address::generate(&env);
-    let treasury_2 = Address::generate(&env);
-    
-    client_2.initialize(&admin_2, &treasury_2, &1_000_000_000, &500_000_000);
-    let state_2 = client_2.get_state();
-    assert_eq!(state_2.base_fee, 1_000_000_000);
-    assert_eq!(state_2.metadata_fee, 500_000_000);
-    
-    // Test with zero metadata fee
-    let contract_id_3 = env.register_contract(None, TokenFactory);
-    let client_3 = TokenFactoryClient::new(&env, &contract_id_3);
-    let admin_3 = Address::generate(&env);
-    let treasury_3 = Address::generate(&env);
-    
-    client_3.initialize(&admin_3, &treasury_3, &50_000_000, &0);
-    let state_3 = client_3.get_state();
-    assert_eq!(state_3.base_fee, 50_000_000);
-    assert_eq!(state_3.metadata_fee, 0);
+    let contract_id = env.register_contract(None, TokenFactory);
+    let client = TokenFactoryClient::new(&env, &contract_id);
+
+    let admin = Address::generate(&env);
+    let treasury = Address::generate(&env);
+
+    // Negative base fee should be rejected
+    client.initialize(&admin, &treasury, &-1, &30_000_000);
+}
+
+#[test]
+#[should_panic(expected = "Error(Contract, #3)")]
+fn test_negative_metadata_fee_rejected() {
+    let env = Env::default();
+    let contract_id = env.register_contract(None, TokenFactory);
+    let client = TokenFactoryClient::new(&env, &contract_id);
+
+    let admin = Address::generate(&env);
+    let treasury = Address::generate(&env);
+
+    // Negative metadata fee should be rejected
+    client.initialize(&admin, &treasury, &70_000_000, &-1);
 }
 
 #[test]
@@ -135,6 +125,42 @@ fn test_update_fees() {
     client.update_fees(&admin, &None, &Some(50_000_000));
     let state = client.get_state();
     assert_eq!(state.metadata_fee, 50_000_000);
+}
+
+#[test]
+#[should_panic(expected = "Error(Contract, #3)")]
+fn test_update_fees_negative_base_fee_rejected() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let contract_id = env.register_contract(None, TokenFactory);
+    let client = TokenFactoryClient::new(&env, &contract_id);
+
+    let admin = Address::generate(&env);
+    let treasury = Address::generate(&env);
+
+    client.initialize(&admin, &treasury, &70_000_000, &30_000_000);
+
+    // Negative base fee should be rejected
+    client.update_fees(&admin, &Some(-1), &None);
+}
+
+#[test]
+#[should_panic(expected = "Error(Contract, #3)")]
+fn test_update_fees_negative_metadata_fee_rejected() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let contract_id = env.register_contract(None, TokenFactory);
+    let client = TokenFactoryClient::new(&env, &contract_id);
+
+    let admin = Address::generate(&env);
+    let treasury = Address::generate(&env);
+
+    client.initialize(&admin, &treasury, &70_000_000, &30_000_000);
+
+    // Negative metadata fee should be rejected
+    client.update_fees(&admin, &None, &Some(-1));
 }
 
 #[test]
