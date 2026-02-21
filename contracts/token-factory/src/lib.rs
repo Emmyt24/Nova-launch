@@ -83,7 +83,75 @@ impl TokenFactory {
     pub fn get_token_info(env: Env, index: u32) -> Result<TokenInfo, Error> {
         storage::get_token_info(&env, index).ok_or(Error::TokenNotFound)
     }
+
+    /// Create a new token (Simulated for registry)
+    pub fn create_token(
+        env: Env,
+        creator: Address,
+        name: soroban_sdk::String,
+        symbol: soroban_sdk::String,
+        decimals: u32,
+        initial_supply: i128,
+        metadata_uri: Option<soroban_sdk::String>,
+        fee_paid: i128,
+    ) -> Result<Address, Error> {
+        // Validate fees
+        let base_fee = storage::get_base_fee(&env);
+        let metadata_fee = if metadata_uri.is_some() { storage::get_metadata_fee(&env) } else { 0 };
+        let required_fee = base_fee + metadata_fee;
+
+        if fee_paid < required_fee {
+            return Err(Error::InsufficientFee);
+        }
+
+        // Validate params
+        if initial_supply <= 0 {
+            return Err(Error::InvalidParameters);
+        }
+
+        // In a real implementation, this would deploy a contract
+        // For the simulated registry, we use the current contract address as a placeholder
+        let token_address = env.current_contract_address();
+
+        let info = TokenInfo {
+            address: token_address.clone(),
+            creator,
+            name,
+            symbol,
+            decimals,
+            total_supply: initial_supply,
+            metadata_uri,
+            created_at: env.ledger().timestamp(),
+        };
+
+        let index = storage::get_token_count(&env);
+        storage::set_token_info(&env, index, &info);
+        storage::increment_token_count(&env);
+
+        Ok(token_address)
+    }
+
+    /// Update metadata for a token (must not be set already)
+    pub fn set_metadata(
+        env: Env,
+        index: u32,
+        new_metadata_uri: soroban_sdk::String,
+    ) -> Result<(), Error> {
+        let mut info = storage::get_token_info(&env, index).ok_or(Error::TokenNotFound)?;
+
+        if info.metadata_uri.is_some() {
+            return Err(Error::MetadataAlreadySet);
+        }
+
+        info.metadata_uri = Some(new_metadata_uri);
+        storage::set_token_info(&env, index, &info);
+
+        Ok(())
+    }
 }
+
+#[cfg(test)]
+extern crate std;
 
 #[cfg(test)]
 mod test;
@@ -102,3 +170,9 @@ mod fee_validation_test;
 
 #[cfg(test)]
 mod atomic_token_creation_test;
+
+#[cfg(test)]
+mod metadata_immutability_test;
+
+#[cfg(test)]
+mod token_registry_test;

@@ -81,7 +81,7 @@ proptest! {
 
         let admin = Address::generate(&env);
         let treasury = Address::generate(&env);
-        
+
         // Generate multiple random non-admin addresses
         let non_admin_1 = Address::generate(&env);
         let non_admin_2 = Address::generate(&env);
@@ -127,7 +127,7 @@ proptest! {
 
         let admin = Address::generate(&env);
         let treasury = Address::generate(&env);
-        
+
         // Each iteration generates a new random address
         let random_caller = Address::generate(&env);
 
@@ -160,7 +160,7 @@ proptest! {
 
         let admin = Address::generate(&env);
         let treasury = Address::generate(&env);
-        
+
         // Generate 10 distinct non-admin addresses
         let non_admin_1 = Address::generate(&env);
         let non_admin_2 = Address::generate(&env);
@@ -214,7 +214,7 @@ proptest! {
         if new_base >= 0 && new_metadata >= 0 {
             let admin_result = client.try_update_fees(&admin, &Some(new_base), &Some(new_metadata));
             prop_assert!(admin_result.is_ok(), "Admin should update fees with valid values");
-            
+
             let state = client.get_state();
             prop_assert_eq!(state.base_fee, new_base);
             prop_assert_eq!(state.metadata_fee, new_metadata);
@@ -228,7 +228,7 @@ proptest! {
         let admin2 = Address::generate(&env2);
         let treasury2 = Address::generate(&env2);
         let non_admin2 = Address::generate(&env2);
-        
+
         client2.initialize(&admin2, &treasury2, &initial_base, &initial_metadata);
 
         // Non-admin always fails regardless of fee values
@@ -289,7 +289,7 @@ proptest! {
         // Admin: update only base_fee
         let result1 = client.try_update_fees(&admin, &Some(base_fee + 100), &None);
         prop_assert!(result1.is_ok());
-        
+
         let state1 = client.get_state();
         prop_assert_eq!(state1.base_fee, base_fee + 100);
         prop_assert_eq!(state1.metadata_fee, metadata_fee); // unchanged
@@ -297,7 +297,7 @@ proptest! {
         // Admin: update only metadata_fee
         let result2 = client.try_update_fees(&admin, &None, &Some(metadata_fee + 100));
         prop_assert!(result2.is_ok());
-        
+
         let state2 = client.get_state();
         prop_assert_eq!(state2.base_fee, base_fee + 100); // unchanged
         prop_assert_eq!(state2.metadata_fee, metadata_fee + 100);

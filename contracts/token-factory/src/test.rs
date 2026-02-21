@@ -116,9 +116,9 @@ fn test_cannot_initialize_twice_with_different_params() {
     );
 }
 
-    /// Tests for updating factory fee structure including base and metadata fees.
-    #[test]
-    fn test_update_fees() {
+/// Tests for updating factory fee structure including base and metadata fees.
+#[test]
+fn test_update_fees() {
     let env = Env::default();
     env.mock_all_auths();
 
