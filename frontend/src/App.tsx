@@ -3,6 +3,27 @@ import LandingPage from "./pages/LandingPage";
 import NotFoundRoute from "./routes/NotFoundRoute";
 import { useNetwork } from "./hooks/useNetwork";
 import { useWallet } from "./hooks/useWallet";
+<<<<<<< HEAD
+import { useAnalytics } from "./hooks/useAnalytics";
+import { truncateAddress } from "./utils/formatting";
+
+function App() {
+  const { wallet, connect, disconnect, isConnecting, error } = useWallet();
+  const [showCelebration, setShowCelebration] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const tutorial = useTutorial(deploymentTutorialSteps);
+  const { trackTutorialStarted, trackTutorialCompleted, trackTutorialSkipped } = useAnalytics();
+
+  const handleTutorialComplete = () => {
+    tutorial.complete();
+    setShowCelebration(true);
+    trackTutorialCompleted();
+  };
+
+  const handleCelebrationClose = () => {
+    setShowCelebration(false);
+  };
+=======
 
 function normalizePath(pathname: string): string {
   if (pathname.length > 1 && pathname.endsWith("/")) {
@@ -15,6 +36,11 @@ function App() {
   const [pathname, setPathname] = useState(() => normalizePath(window.location.pathname));
   const { network, setNetwork } = useNetwork();
   const { wallet, connect, disconnect, isConnecting } = useWallet({ network });
+>>>>>>> 9702b23d78db15e0072bc972a9a0f1a484f0dd3d
+
+  const handleTutorialSkip = () => {
+    trackTutorialSkipped();
+  };
 
   useEffect(() => {
     const handlePopState = () => {

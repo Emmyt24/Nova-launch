@@ -5,6 +5,7 @@ import { formatXLM, truncateAddress } from '../../utils/formatting';
 import { BasicInfoStep, type BasicInfoData } from './BasicInfoStep';
 import { FeeDisplay } from './FeeDisplay';
 import { Button } from '../UI/Button';
+import { analytics } from '../../services/analytics';
 import { Input } from '../UI/Input';
 
 interface TokenDeployFormProps {
@@ -77,6 +78,10 @@ export function TokenDeployForm({
         };
 
         try {
+            try {
+                analytics.track('deploy_button_click', { network: wallet.network });
+            } catch {}
+
             const deployment = await deploy(params);
             setResult(deployment);
         } catch {
@@ -86,6 +91,9 @@ export function TokenDeployForm({
 
     const handleRetry = async () => {
         reset();
+        try {
+            analytics.track('deploy_retry', { network: wallet.network });
+        } catch {}
         await handleDeploy();
     };
 
@@ -97,6 +105,9 @@ export function TokenDeployForm({
         setLocalError(null);
         setResult(null);
         reset();
+        try {
+            analytics.track('deploy_another_reset');
+        } catch {}
     };
 
     if (result && status === 'success') {
@@ -181,7 +192,13 @@ export function TokenDeployForm({
                 <h4 className="font-medium text-gray-900">Optional Metadata</h4>
                 <Input
                     value={metadataDescription}
-                    onChange={(event) => setMetadataDescription(event.target.value)}
+                    onChange={(event) => {
+                        const v = event.target.value;
+                        setMetadataDescription(v);
+                        try {
+                            if (v.trim()) analytics.track('metadata_description_added', { length: v.length });
+                        } catch {}
+                    }}
                     label="Description"
                     placeholder="Describe your token"
                     maxLength={500}
@@ -194,6 +211,9 @@ export function TokenDeployForm({
                         onChange={(event) => {
                             const file = event.target.files?.[0] ?? null;
                             setMetadataImage(file);
+                            try {
+                                if (file) analytics.track('metadata_image_added', { size: file.size, type: file.type });
+                            } catch {}
                         }}
                         className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
                     />

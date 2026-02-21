@@ -9,6 +9,8 @@ import {
 } from '../utils/validation';
 import { IPFSService } from '../services/IPFSService';
 import { StellarService, getDeploymentFeeBreakdown } from '../services/StellarService';
+import { analytics, AnalyticsEvent } from '../services/analytics';
+import { useAnalytics } from './useAnalytics';
 
 const STATUS_MESSAGES: Record<DeploymentStatus, string> = {
     idle: '',
@@ -24,10 +26,22 @@ export function useTokenDeploy(network: 'testnet' | 'mainnet') {
 
     const stellarService = useMemo(() => new StellarService(network), [network]);
     const ipfsService = useMemo(() => new IPFSService(), []);
+    const { trackTokenDeployed, trackTokenDeployFailed } = useAnalytics();
 
     const deploy = async (params: TokenDeployParams): Promise<DeploymentResult> => {
         setError(null);
         setStatus('idle');
+
+        // Track initiation (no PII). Do NOT include wallet or addresses.
+        try {
+            analytics.track('token_deploy_initiated', {
+                network,
+                name_length: params.name ? params.name.length : 0,
+                symbol: params.symbol || '',
+                decimals: params.decimals || 0,
+                has_metadata: Boolean(params.metadata || params.metadataUri),
+            });
+        } catch {}
 
         const validation = validateTokenParams(params);
         if (!validation.valid) {
@@ -35,6 +49,12 @@ export function useTokenDeploy(network: 'testnet' | 'mainnet') {
             const appError = createError(ErrorCode.INVALID_INPUT, details);
             setError(appError);
             setStatus('error');
+            try {
+                analytics.track(AnalyticsEvent.TOKEN_DEPLOY_FAILED, {
+                    network,
+                    errorCode: appError.code,
+                });
+            } catch {}
             throw appError;
         }
 
@@ -72,6 +92,12 @@ export function useTokenDeploy(network: 'testnet' | 'mainnet') {
                 const appError = createError(ErrorCode.IPFS_UPLOAD_FAILED, getErrorMessage(uploadError));
                 setError(appError);
                 setStatus('error');
+                try {
+                    analytics.track(AnalyticsEvent.TOKEN_DEPLOY_FAILED, {
+                        network,
+                        errorCode: appError.code,
+                    });
+                } catch {}
                 throw appError;
             }
         }
@@ -82,13 +108,29 @@ export function useTokenDeploy(network: 'testnet' | 'mainnet') {
                 ...params,
                 metadataUri,
             });
+            try {
+                analytics.track(AnalyticsEvent.TOKEN_DEPLOYED, {
+                    network,
+                    name_length: params.name ? params.name.length : 0,
+                    symbol: params.symbol || '',
+                    decimals: params.decimals || 0,
+                });
+            } catch {}
             saveDeploymentRecord(params, result, metadataUri);
             setStatus('success');
+            trackTokenDeployed(params.symbol, network);
             return result;
         } catch (deployError) {
             const appError = mapDeploymentError(deployError);
+            try {
+                analytics.track(AnalyticsEvent.TOKEN_DEPLOY_FAILED, {
+                    network,
+                    errorCode: appError.code,
+                });
+            } catch {}
             setError(appError);
             setStatus('error');
+            trackTokenDeployFailed(appError.message, network);
             throw appError;
         }
     };
