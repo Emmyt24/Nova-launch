@@ -1,8 +1,21 @@
-import { useEffect, useMemo, useState } from "react";
-import LandingPage from "./pages/LandingPage";
-import NotFoundRoute from "./routes/NotFoundRoute";
+import { Suspense, lazy, useEffect, useMemo, useState } from "react";
 import { useNetwork } from "./hooks/useNetwork";
 import { useWallet } from "./hooks/useWallet";
+import { Spinner } from "./components/UI";
+
+// Lazy load below-the-fold components for performance
+const LandingPage = lazy(() => import("./pages/LandingPage").then(module => ({ default: module.default })));
+const NotFoundRoute = lazy(() => import("./routes/NotFoundRoute").then(module => ({ default: module.default })));
+
+// Loading fallback for lazy-loaded components
+function PageLoader() {
+  return (
+    <div className="flex items-center justify-center min-h-screen bg-background-dark" role="status" aria-label="Loading page">
+      <Spinner size="lg" />
+      <span className="sr-only">Loading...</span>
+    </div>
+  );
+}
 
 function normalizePath(pathname: string): string {
   if (pathname.length > 1 && pathname.endsWith("/")) {
@@ -13,7 +26,7 @@ function normalizePath(pathname: string): string {
 
 function App() {
   const [pathname, setPathname] = useState(() => normalizePath(window.location.pathname));
-  const { network, setNetwork } = useNetwork();
+  const { network } = useNetwork();
   const { wallet, connect, disconnect, isConnecting } = useWallet({ network });
 
   useEffect(() => {
@@ -70,8 +83,6 @@ function App() {
     if (pathname === "/" || pathname === "/deploy") {
       return (
         <LandingPage
-          network={network}
-          setNetwork={setNetwork}
           wallet={wallet}
           connect={connect}
           disconnect={disconnect}
@@ -81,9 +92,15 @@ function App() {
     }
 
     return <NotFoundRoute />;
-  }, [pathname, network, setNetwork, wallet, connect, disconnect, isConnecting]);
+  }, [pathname, wallet, connect, disconnect, isConnecting]);
 
-  return page;
+  return (
+    <Suspense fallback={<PageLoader />}>
+      <div id="main-content" tabIndex={-1}>
+        {page}
+      </div>
+    </Suspense>
+  );
 }
 
 export default App;

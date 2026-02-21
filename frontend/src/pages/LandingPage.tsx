@@ -1,19 +1,23 @@
 import { useCallback, useEffect, useRef } from "react";
-import { Hero, HowItWorks } from "../components/landing";
+import { Hero, HowItWorks, Features, FAQ } from "../components/landing";
 import { LANDING_SECTION_IDS } from "../components/landing/sectionIds";
 import { WalletInfo } from "../components/WalletConnect";
 import { Button } from "../components/UI";
 import { useToast } from "../hooks/useToast";
+import { useIntersectionObserver } from "../hooks/useIntersectionObserver";
 import type { WalletState } from "../types";
+import { lazy, Suspense } from "react";
+import { Spinner } from "../components/UI";
 
 const SCROLL_DURATION_MS = 700;
 const ACTIVE_LANDING_SECTIONS = [
   LANDING_SECTION_IDS.hero,
 ] as const;
 
+// Lazy load below-the-fold components
+const Footer = lazy(() => import("../components/landing/Footer").then(module => ({ default: module.Footer })));
+
 interface LandingPageProps {
-  network: "testnet" | "mainnet";
-  setNetwork: (network: "testnet" | "mainnet") => void;
   wallet: WalletState;
   connect: () => Promise<void>;
   disconnect: () => void;
@@ -27,8 +31,6 @@ function easeInOutCubic(progress: number): number {
 }
 
 export default function LandingPage({
-  network,
-  setNetwork,
   wallet,
   connect,
   disconnect,
@@ -136,14 +138,29 @@ export default function LandingPage({
     return undefined;
   }, [scrollToSection]);
 
+  const [featuresRef, featuresVisible] = useIntersectionObserver<HTMLDivElement>({
+    threshold: 0.1,
+    rootMargin: '200px',
+  });
+
+  const [faqRef, faqVisible] = useIntersectionObserver<HTMLDivElement>({
+    threshold: 0.1,
+    rootMargin: '200px',
+  });
+
+  const [footerRef, footerVisible] = useIntersectionObserver<HTMLDivElement>({
+    threshold: 0.1,
+    rootMargin: '200px',
+  });
+
   return (
-    <main className="landing-page dark bg-background-dark text-left text-text-primary">
-      <header className="sticky top-0 z-20 border-b border-white/5 bg-transparent backdrop-blur-md">
+    <main className="landing-page dark bg-background-dark text-left text-text-primary" role="main">
+      <header className="sticky top-0 z-20 border-b border-white/5 bg-transparent backdrop-blur-md" role="banner">
         <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8">
-          <a href={`#${LANDING_SECTION_IDS.hero}`} data-scroll-link="true" className="text-2xl font-semibold tracking-tight text-text-primary">
+          <a href={`#${LANDING_SECTION_IDS.hero}`} data-scroll-link="true" className="text-2xl font-semibold tracking-tight text-text-primary" aria-label="NovaLaunch Home">
             NovaLaunch
           </a>
-          <nav aria-label="Primary" className="hidden items-center gap-8 md:flex">
+          <nav aria-label="Primary" className="hidden items-center gap-8 md:flex" role="navigation">
             <a href={`#${LANDING_SECTION_IDS.hero}`} data-scroll-link="true" className="text-lg text-text-secondary transition hover:text-primary">Home</a>
             <a href={`#${LANDING_SECTION_IDS.features}`} data-scroll-link="true" className="text-lg text-text-secondary transition hover:text-primary">Features</a>
             <a href={`#${LANDING_SECTION_IDS.howItWorks}`} data-scroll-link="true" className="text-lg text-text-secondary transition hover:text-primary">How It Works</a>
@@ -158,6 +175,7 @@ export default function LandingPage({
                 onClick={handleConnect} 
                 loading={isConnecting}
                 className="bg-primary hover:bg-[#E63428]"
+                aria-label="Connect wallet to start deploying tokens"
               >
                 Connect Wallet
               </Button>
@@ -172,6 +190,31 @@ export default function LandingPage({
         isConnecting={isConnecting}
       />
       <HowItWorks />
+      
+      {/* Lazy loaded below-the-fold components */}
+      <div ref={featuresRef}>
+        {featuresVisible && (
+          <Suspense fallback={<div className="flex justify-center py-20" aria-label="Loading features"><Spinner /></div>}>
+            <Features />
+          </Suspense>
+        )}
+      </div>
+      
+      <div ref={faqRef}>
+        {faqVisible && (
+          <Suspense fallback={<div className="flex justify-center py-20" aria-label="Loading FAQ"><Spinner /></div>}>
+            <FAQ />
+          </Suspense>
+        )}
+      </div>
+      
+      <div ref={footerRef}>
+        {footerVisible && (
+          <Suspense fallback={<div className="flex justify-center py-10" aria-label="Loading footer"><Spinner /></div>}>
+            <Footer />
+          </Suspense>
+        )}
+      </div>
     </main>
   );
 }
