@@ -11,7 +11,7 @@
 
 **A user-friendly dApp for quick token deployment on Stellar, targeting creators in Nigeria and emerging markets.**
 
-[Features](#-features) • [Quick Start](#-quick-start) • [Documentation](#-documentation) • [Contributing](#-contributing) • [Roadmap](#-roadmap)
+[Features](#-features) • [Quick Start](#-quick-start) • [User Guides](docs/user-guides/README.md) • [Documentation](#-documentation) • [Contributing](#-contributing) • [Roadmap](#-roadmap)
 
 </div>
 

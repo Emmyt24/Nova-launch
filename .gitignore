@@ -39,6 +39,7 @@ npm-debug.log*
 !DEPLOYMENT_CHECKLIST.md
 !CONFLICT_AND_CI_REPORT.md
 !GLOBAL_ERROR_HANDLING.md
+!docs/user-guides/*.md
 
 # Deployment artifacts (generated during deployment)
 deployment-testnet.json
