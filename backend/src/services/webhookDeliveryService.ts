@@ -1,15 +1,15 @@
-import axios, { AxiosError } from 'axios';
+import axios, { AxiosError } from "axios";
 import {
   WebhookSubscription,
   WebhookPayload,
   WebhookEventType,
   WebhookEventData,
-} from '../types/webhook';
-import webhookService from './webhookService';
+} from "../types/webhook";
+import webhookService from "./webhookService";
 
-const TIMEOUT_MS = parseInt(process.env.WEBHOOK_TIMEOUT_MS || '5000');
-const MAX_RETRIES = parseInt(process.env.WEBHOOK_MAX_RETRIES || '3');
-const RETRY_DELAY_MS = parseInt(process.env.WEBHOOK_RETRY_DELAY_MS || '1000');
+const TIMEOUT_MS = parseInt(process.env.WEBHOOK_TIMEOUT_MS || "5000");
+const MAX_RETRIES = parseInt(process.env.WEBHOOK_MAX_RETRIES || "3");
+const RETRY_DELAY_MS = parseInt(process.env.WEBHOOK_RETRY_DELAY_MS || "1000");
 
 export class WebhookDeliveryService {
   /**
@@ -45,7 +45,11 @@ export class WebhookDeliveryService {
     event: WebhookEventType,
     data: WebhookEventData
   ): Promise<void> {
-    const payload = webhookService.createPayload(event, data, subscription.secret);
+    const payload = webhookService.createPayload(
+      event,
+      data,
+      subscription.secret
+    );
 
     let lastError: string | null = null;
     let statusCode: number | null = null;
@@ -60,10 +64,10 @@ export class WebhookDeliveryService {
         const response = await axios.post(subscription.url, payload, {
           timeout: TIMEOUT_MS,
           headers: {
-            'Content-Type': 'application/json',
-            'X-Webhook-Signature': payload.signature,
-            'X-Webhook-Event': event,
-            'User-Agent': 'Nova-Launch-Webhook/1.0',
+            "Content-Type": "application/json",
+            "X-Webhook-Signature": payload.signature,
+            "X-Webhook-Event": event,
+            "User-Agent": "Nova-Launch-Webhook/1.0",
           },
           validateStatus: (status) => status >= 200 && status < 300,
         });
@@ -136,13 +140,13 @@ export class WebhookDeliveryService {
     const testPayload = webhookService.createPayload(
       WebhookEventType.TOKEN_CREATED,
       {
-        tokenAddress: 'GTEST...',
-        creator: 'GTEST...',
-        name: 'Test Token',
-        symbol: 'TEST',
+        tokenAddress: "GTEST...",
+        creator: "GTEST...",
+        name: "Test Token",
+        symbol: "TEST",
         decimals: 7,
-        initialSupply: '1000000',
-        transactionHash: 'test-hash',
+        initialSupply: "1000000",
+        transactionHash: "test-hash",
         ledger: 12345,
       },
       subscription.secret
@@ -152,16 +156,16 @@ export class WebhookDeliveryService {
       const response = await axios.post(subscription.url, testPayload, {
         timeout: TIMEOUT_MS,
         headers: {
-          'Content-Type': 'application/json',
-          'X-Webhook-Signature': testPayload.signature,
-          'X-Webhook-Event': 'test',
-          'User-Agent': 'Nova-Launch-Webhook/1.0',
+          "Content-Type": "application/json",
+          "X-Webhook-Signature": testPayload.signature,
+          "X-Webhook-Event": "test",
+          "User-Agent": "Nova-Launch-Webhook/1.0",
         },
       });
 
       return response.status >= 200 && response.status < 300;
     } catch (error) {
-      console.error('Test webhook failed:', error);
+      console.error("Test webhook failed:", error);
       return false;
     }
   }

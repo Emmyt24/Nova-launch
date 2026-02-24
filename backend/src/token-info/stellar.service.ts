@@ -1,8 +1,8 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { HttpService } from '@nestjs/axios';
-import { firstValueFrom } from 'rxjs';
-import { StellarTokenData } from './interfaces/token.interface';
+import { Injectable, Logger } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
+import { HttpService } from "@nestjs/axios";
+import { firstValueFrom } from "rxjs";
+import { StellarTokenData } from "./interfaces/token.interface";
 
 interface StellarAssetResponse {
   _embedded: {
@@ -37,28 +37,28 @@ export class StellarService {
 
   constructor(
     private readonly configService: ConfigService,
-    private readonly httpService: HttpService,
+    private readonly httpService: HttpService
   ) {
     this.horizonUrl =
-      this.configService.get<string>('STELLAR_HORIZON_URL') ||
-      'https://horizon.stellar.org';
+      this.configService.get<string>("STELLAR_HORIZON_URL") ||
+      "https://horizon.stellar.org";
   }
 
   async getAssetData(
     assetCode: string,
-    assetIssuer: string,
+    assetIssuer: string
   ): Promise<StellarTokenData | null> {
     try {
       const url = `${this.horizonUrl}/assets?asset_code=${assetCode}&asset_issuer=${assetIssuer}&limit=1`;
       const response = await firstValueFrom(
-        this.httpService.get<StellarAssetResponse>(url),
+        this.httpService.get<StellarAssetResponse>(url)
       );
       const records = response.data?._embedded?.records;
       return records?.length > 0 ? records[0] : null;
     } catch (error) {
       this.logger.error(
         `Failed to fetch asset data for ${assetCode}:${assetIssuer}`,
-        error,
+        error
       );
       return null;
     }
@@ -66,12 +66,12 @@ export class StellarService {
 
   async getAssetCreationInfo(
     assetCode: string,
-    assetIssuer: string,
+    assetIssuer: string
   ): Promise<{ creatorAddress: string; createdAt: string } | null> {
     try {
       const url = `${this.horizonUrl}/accounts/${assetIssuer}/operations?type=create_account&order=asc&limit=1`;
       const response = await firstValueFrom(
-        this.httpService.get<StellarOperationsResponse>(url),
+        this.httpService.get<StellarOperationsResponse>(url)
       );
       const records = response.data?._embedded?.records;
       if (records?.length > 0) {
@@ -88,7 +88,7 @@ export class StellarService {
     } catch (error) {
       this.logger.warn(
         `Could not fetch creation info for ${assetCode}:${assetIssuer}`,
-        error,
+        error
       );
       return {
         creatorAddress: assetIssuer,
@@ -100,8 +100,12 @@ export class StellarService {
   async getBurnStatistics(
     assetCode: string,
     assetIssuer: string,
-    totalSupply: string,
-  ): Promise<{ totalBurned: string; burnCount: number; percentBurned: string }> {
+    totalSupply: string
+  ): Promise<{
+    totalBurned: string;
+    burnCount: number;
+    percentBurned: string;
+  }> {
     try {
       // Burns on Stellar = payments to the issuer account (which removes them from circulation)
       const url = `${this.horizonUrl}/accounts/${assetIssuer}/payments?limit=200&order=desc`;
@@ -115,19 +119,19 @@ export class StellarService {
               to: string;
             }>;
           };
-        }>(url),
+        }>(url)
       );
 
       const burnPayments =
         response.data?._embedded?.records?.filter(
           (r) =>
-            r.type === 'payment' &&
+            r.type === "payment" &&
             r.asset_code === assetCode &&
-            r.to === assetIssuer,
+            r.to === assetIssuer
         ) || [];
 
       const totalBurned = burnPayments
-        .reduce((sum, r) => sum + parseFloat(r.amount || '0'), 0)
+        .reduce((sum, r) => sum + parseFloat(r.amount || "0"), 0)
         .toFixed(7);
 
       const totalSupplyNum = parseFloat(totalSupply) || 0;
@@ -135,7 +139,7 @@ export class StellarService {
       const percentBurned =
         totalSupplyNum > 0
           ? ((burnedNum / totalSupplyNum) * 100).toFixed(4)
-          : '0.0000';
+          : "0.0000";
 
       return {
         totalBurned,
@@ -145,27 +149,27 @@ export class StellarService {
     } catch (error) {
       this.logger.warn(
         `Could not fetch burn stats for ${assetCode}:${assetIssuer}`,
-        error,
+        error
       );
-      return { totalBurned: '0', burnCount: 0, percentBurned: '0.0000' };
+      return { totalBurned: "0", burnCount: 0, percentBurned: "0.0000" };
     }
   }
 
   async getVolumeData(
     assetCode: string,
-    assetIssuer: string,
+    assetIssuer: string
   ): Promise<{ volume24h: string; volume7d: string; txCount24h: number }> {
     try {
       const now = Date.now();
       const oneDayAgo = new Date(now - 24 * 60 * 60 * 1000).toISOString();
       const sevenDaysAgo = new Date(
-        now - 7 * 24 * 60 * 60 * 1000,
+        now - 7 * 24 * 60 * 60 * 1000
       ).toISOString();
 
       const url7d = `${this.horizonUrl}/trades?base_asset_type=credit_alphanum4&base_asset_code=${assetCode}&base_asset_issuer=${assetIssuer}&start_time=${sevenDaysAgo}&limit=200&order=desc`;
 
       const response = await firstValueFrom(
-        this.httpService.get<StellarTradesResponse>(url7d),
+        this.httpService.get<StellarTradesResponse>(url7d)
       );
 
       const trades = response.data?._embedded?.records || [];
@@ -177,7 +181,7 @@ export class StellarService {
 
       trades.forEach((trade) => {
         const tradeTime = new Date(trade.ledger_close_time).getTime();
-        const amount = parseFloat(trade.base_amount || '0');
+        const amount = parseFloat(trade.base_amount || "0");
         volume7d += amount;
         if (tradeTime >= cutoff24h) {
           volume24h += amount;
@@ -193,18 +197,18 @@ export class StellarService {
     } catch (error) {
       this.logger.warn(
         `Could not fetch volume for ${assetCode}:${assetIssuer}`,
-        error,
+        error
       );
-      return { volume24h: '0', volume7d: '0', txCount24h: 0 };
+      return { volume24h: "0", volume7d: "0", txCount24h: 0 };
     }
   }
 
   parseAddress(address: string): { assetCode: string; assetIssuer: string } {
-    if (address.includes(':')) {
-      const [assetCode, assetIssuer] = address.split(':');
+    if (address.includes(":")) {
+      const [assetCode, assetIssuer] = address.split(":");
       return { assetCode, assetIssuer };
     }
     // Pure Stellar address treated as issuer of native-like asset
-    return { assetCode: 'UNKNOWN', assetIssuer: address };
+    return { assetCode: "UNKNOWN", assetIssuer: address };
   }
 }

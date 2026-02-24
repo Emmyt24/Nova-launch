@@ -4,9 +4,9 @@ import {
   ExecutionContext,
   UnauthorizedException,
   Logger,
-} from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import * as crypto from 'crypto';
+} from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
+import * as crypto from "crypto";
 
 @Injectable()
 export class ApiKeyGuard implements CanActivate {
@@ -14,28 +14,31 @@ export class ApiKeyGuard implements CanActivate {
   private readonly validApiKeys: Set<string>;
 
   constructor(private readonly configService: ConfigService) {
-    const raw = this.configService.get<string>('API_KEYS', '');
-    this.validApiKeys = new Set(raw.split(',').map((k) => k.trim()).filter(Boolean));
+    const raw = this.configService.get<string>("API_KEYS", "");
+    this.validApiKeys = new Set(
+      raw
+        .split(",")
+        .map((k) => k.trim())
+        .filter(Boolean)
+    );
   }
 
   canActivate(context: ExecutionContext): boolean {
     const request = context.switchToHttp().getRequest();
-    const apiKey =
-      request.headers['x-api-key'] ||
-      request.query['api_key'];
+    const apiKey = request.headers["x-api-key"] || request.query["api_key"];
 
     if (!apiKey) {
-      throw new UnauthorizedException('API key is required');
+      throw new UnauthorizedException("API key is required");
     }
 
     // Constant-time comparison to prevent timing attacks
     const isValid = [...this.validApiKeys].some((key) =>
-      this.safeCompare(apiKey as string, key),
+      this.safeCompare(apiKey as string, key)
     );
 
     if (!isValid) {
       this.logger.warn(`Invalid API key attempt from ${request.ip}`);
-      throw new UnauthorizedException('Invalid API key');
+      throw new UnauthorizedException("Invalid API key");
     }
 
     request.apiKey = apiKey;

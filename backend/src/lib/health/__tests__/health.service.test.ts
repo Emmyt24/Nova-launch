@@ -1,9 +1,9 @@
-import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
-import { HealthService } from '../health.service';
-import { prisma } from '../../prisma';
+import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
+import { HealthService } from "../health.service";
+import { prisma } from "../../prisma";
 
 // Mock dependencies
-vi.mock('../../prisma', () => ({
+vi.mock("../../prisma", () => ({
   prisma: {
     $queryRaw: vi.fn(),
   },
@@ -11,22 +11,22 @@ vi.mock('../../prisma', () => ({
 
 let mockCacheStore = new Map();
 
-vi.mock('node-cache', () => {
+vi.mock("node-cache", () => {
   return {
     default: class MockNodeCache {
       get(key: string) {
         return mockCacheStore.get(key);
       }
-      
+
       set(key: string, value: any) {
         mockCacheStore.set(key, value);
         return true;
       }
-      
+
       del(key: string) {
         return mockCacheStore.delete(key);
       }
-      
+
       flushAll() {
         mockCacheStore.clear();
       }
@@ -36,7 +36,7 @@ vi.mock('node-cache', () => {
 
 global.fetch = vi.fn();
 
-describe('HealthService', () => {
+describe("HealthService", () => {
   let healthService: HealthService;
 
   beforeEach(() => {
@@ -49,48 +49,48 @@ describe('HealthService', () => {
     vi.restoreAllMocks();
   });
 
-  describe('getInstance', () => {
-    it('should return singleton instance', () => {
+  describe("getInstance", () => {
+    it("should return singleton instance", () => {
       const instance1 = HealthService.getInstance();
       const instance2 = HealthService.getInstance();
       expect(instance1).toBe(instance2);
     });
   });
 
-  describe('getUptime', () => {
-    it('should return uptime in seconds', () => {
+  describe("getUptime", () => {
+    it("should return uptime in seconds", () => {
       const uptime = healthService.getUptime();
       expect(uptime).toBeGreaterThanOrEqual(0);
-      expect(typeof uptime).toBe('number');
+      expect(typeof uptime).toBe("number");
     });
   });
 
-  describe('getVersion', () => {
-    it('should return version string', () => {
+  describe("getVersion", () => {
+    it("should return version string", () => {
       const version = healthService.getVersion();
-      expect(typeof version).toBe('string');
+      expect(typeof version).toBe("string");
       expect(version).toMatch(/^\d+\.\d+\.\d+$/);
     });
   });
 
-  describe('incrementRequestCount', () => {
-    it('should increment request counter', () => {
+  describe("incrementRequestCount", () => {
+    it("should increment request counter", () => {
       const initialCount = (healthService as any).requestCount;
       healthService.incrementRequestCount();
       expect((healthService as any).requestCount).toBe(initialCount + 1);
     });
   });
 
-  describe('incrementErrorCount', () => {
-    it('should increment error counter', () => {
+  describe("incrementErrorCount", () => {
+    it("should increment error counter", () => {
       const initialCount = (healthService as any).errorCount;
       healthService.incrementErrorCount();
       expect((healthService as any).errorCount).toBe(initialCount + 1);
     });
   });
 
-  describe('checkHealth', () => {
-    it('should return healthy status when all services are up', async () => {
+  describe("checkHealth", () => {
+    it("should return healthy status when all services are up", async () => {
       // Mock all services as healthy
       vi.mocked(prisma.$queryRaw).mockResolvedValue([{ count: 1n }]);
       vi.mocked(global.fetch).mockResolvedValue({
@@ -100,20 +100,22 @@ describe('HealthService', () => {
 
       const result = await healthService.checkHealth();
 
-      expect(result.status).toBe('healthy');
+      expect(result.status).toBe("healthy");
       expect(result.timestamp).toBeDefined();
       expect(result.uptime).toBeGreaterThanOrEqual(0);
       expect(result.version).toBeDefined();
       expect(result.services).toBeDefined();
-      expect(result.services.database.status).toBe('up');
-      expect(result.services.stellarHorizon.status).toBe('up');
-      expect(result.services.stellarSoroban.status).toBe('up');
-      expect(result.services.ipfs.status).toBe('up');
-      expect(result.services.cache.status).toBe('up');
+      expect(result.services.database.status).toBe("up");
+      expect(result.services.stellarHorizon.status).toBe("up");
+      expect(result.services.stellarSoroban.status).toBe("up");
+      expect(result.services.ipfs.status).toBe("up");
+      expect(result.services.cache.status).toBe("up");
     });
 
-    it('should return unhealthy status when database is down', async () => {
-      vi.mocked(prisma.$queryRaw).mockRejectedValue(new Error('Connection failed'));
+    it("should return unhealthy status when database is down", async () => {
+      vi.mocked(prisma.$queryRaw).mockRejectedValue(
+        new Error("Connection failed")
+      );
       vi.mocked(global.fetch).mockResolvedValue({
         ok: true,
         status: 200,
@@ -121,15 +123,15 @@ describe('HealthService', () => {
 
       const result = await healthService.checkHealth();
 
-      expect(result.status).toBe('unhealthy');
-      expect(result.services.database.status).toBe('down');
+      expect(result.status).toBe("unhealthy");
+      expect(result.services.database.status).toBe("down");
       expect(result.services.database.error).toBeDefined();
     });
 
-    it('should return degraded status when non-critical service is degraded', async () => {
+    it("should return degraded status when non-critical service is degraded", async () => {
       vi.mocked(prisma.$queryRaw).mockResolvedValue([{ count: 1n }]);
       vi.mocked(global.fetch).mockImplementation((url) => {
-        if (typeof url === 'string' && url.includes('horizon')) {
+        if (typeof url === "string" && url.includes("horizon")) {
           return Promise.resolve({
             ok: false,
             status: 429,
@@ -143,11 +145,11 @@ describe('HealthService', () => {
 
       const result = await healthService.checkHealth();
 
-      expect(result.status).toBe('degraded');
-      expect(result.services.stellarHorizon.status).toBe('degraded');
+      expect(result.status).toBe("degraded");
+      expect(result.services.stellarHorizon.status).toBe("degraded");
     });
 
-    it('should include response times for all services', async () => {
+    it("should include response times for all services", async () => {
       vi.mocked(prisma.$queryRaw).mockResolvedValue([{ count: 1n }]);
       vi.mocked(global.fetch).mockResolvedValue({
         ok: true,
@@ -157,13 +159,17 @@ describe('HealthService', () => {
       const result = await healthService.checkHealth();
 
       expect(result.services.database.responseTime).toBeGreaterThanOrEqual(0);
-      expect(result.services.stellarHorizon.responseTime).toBeGreaterThanOrEqual(0);
-      expect(result.services.stellarSoroban.responseTime).toBeGreaterThanOrEqual(0);
+      expect(
+        result.services.stellarHorizon.responseTime
+      ).toBeGreaterThanOrEqual(0);
+      expect(
+        result.services.stellarSoroban.responseTime
+      ).toBeGreaterThanOrEqual(0);
       expect(result.services.ipfs.responseTime).toBeGreaterThanOrEqual(0);
       expect(result.services.cache.responseTime).toBeGreaterThanOrEqual(0);
     });
 
-    it('should handle service timeouts gracefully', async () => {
+    it("should handle service timeouts gracefully", async () => {
       vi.mocked(prisma.$queryRaw).mockImplementation(
         () => new Promise((resolve) => setTimeout(resolve, 10000))
       );
@@ -174,11 +180,11 @@ describe('HealthService', () => {
 
       const result = await healthService.checkHealth({ timeout: 100 });
 
-      expect(result.services.database.status).toBe('down');
-      expect(result.services.database.error).toContain('timeout');
+      expect(result.services.database.status).toBe("down");
+      expect(result.services.database.error).toContain("timeout");
     });
 
-    it('should use cached results when available', async () => {
+    it("should use cached results when available", async () => {
       vi.mocked(prisma.$queryRaw).mockResolvedValue([{ count: 1n }]);
       vi.mocked(global.fetch).mockResolvedValue({
         ok: true,
@@ -189,11 +195,11 @@ describe('HealthService', () => {
       mockCacheStore.clear();
 
       const result1 = await healthService.checkHealth();
-      
+
       // Mock calls should have been made
       const callCount = vi.mocked(prisma.$queryRaw).mock.calls.length;
       expect(callCount).toBeGreaterThan(0);
-      
+
       const result2 = await healthService.checkHealth();
 
       // Second call should use cache
@@ -202,8 +208,8 @@ describe('HealthService', () => {
     });
   });
 
-  describe('checkDetailedHealth', () => {
-    it('should return detailed health with metrics', async () => {
+  describe("checkDetailedHealth", () => {
+    it("should return detailed health with metrics", async () => {
       vi.mocked(prisma.$queryRaw).mockResolvedValue([{ count: 1n }]);
       vi.mocked(global.fetch).mockResolvedValue({
         ok: true,
@@ -212,7 +218,7 @@ describe('HealthService', () => {
 
       const result = await healthService.checkDetailedHealth();
 
-      expect(result.status).toBe('healthy');
+      expect(result.status).toBe("healthy");
       expect(result.metrics).toBeDefined();
       expect(result.metrics.memory).toBeDefined();
       expect(result.metrics.memory.used).toBeGreaterThan(0);
@@ -226,7 +232,7 @@ describe('HealthService', () => {
       expect(result.metrics.requests.errorRate).toBeGreaterThanOrEqual(0);
     });
 
-    it('should calculate error rate correctly', async () => {
+    it("should calculate error rate correctly", async () => {
       vi.mocked(prisma.$queryRaw).mockResolvedValue([{ count: 1n }]);
       vi.mocked(global.fetch).mockResolvedValue({
         ok: true,
@@ -244,8 +250,8 @@ describe('HealthService', () => {
       expect(result.metrics.requests.errorRate).toBeLessThanOrEqual(100);
     });
 
-    it('should handle metrics collection failures gracefully', async () => {
-      vi.mocked(prisma.$queryRaw).mockRejectedValue(new Error('Query failed'));
+    it("should handle metrics collection failures gracefully", async () => {
+      vi.mocked(prisma.$queryRaw).mockRejectedValue(new Error("Query failed"));
       vi.mocked(global.fetch).mockResolvedValue({
         ok: true,
         status: 200,
@@ -259,9 +265,9 @@ describe('HealthService', () => {
     });
   });
 
-  describe('service checks', () => {
-    describe('database', () => {
-      it('should mark database as up when query succeeds', async () => {
+  describe("service checks", () => {
+    describe("database", () => {
+      it("should mark database as up when query succeeds", async () => {
         vi.mocked(prisma.$queryRaw).mockResolvedValue([{ count: 1n }]);
         vi.mocked(global.fetch).mockResolvedValue({
           ok: true,
@@ -270,12 +276,14 @@ describe('HealthService', () => {
 
         const result = await healthService.checkHealth();
 
-        expect(result.services.database.status).toBe('up');
+        expect(result.services.database.status).toBe("up");
         expect(result.services.database.responseTime).toBeGreaterThanOrEqual(0);
       });
 
-      it('should mark database as down when query fails', async () => {
-        vi.mocked(prisma.$queryRaw).mockRejectedValue(new Error('Connection error'));
+      it("should mark database as down when query fails", async () => {
+        vi.mocked(prisma.$queryRaw).mockRejectedValue(
+          new Error("Connection error")
+        );
         vi.mocked(global.fetch).mockResolvedValue({
           ok: true,
           status: 200,
@@ -283,13 +291,13 @@ describe('HealthService', () => {
 
         const result = await healthService.checkHealth();
 
-        expect(result.services.database.status).toBe('down');
-        expect(result.services.database.error).toBe('Connection error');
+        expect(result.services.database.status).toBe("down");
+        expect(result.services.database.error).toBe("Connection error");
       });
     });
 
-    describe('stellarHorizon', () => {
-      it('should mark Horizon as up when request succeeds', async () => {
+    describe("stellarHorizon", () => {
+      it("should mark Horizon as up when request succeeds", async () => {
         vi.mocked(prisma.$queryRaw).mockResolvedValue([{ count: 1n }]);
         vi.mocked(global.fetch).mockResolvedValue({
           ok: true,
@@ -298,13 +306,13 @@ describe('HealthService', () => {
 
         const result = await healthService.checkHealth();
 
-        expect(result.services.stellarHorizon.status).toBe('up');
+        expect(result.services.stellarHorizon.status).toBe("up");
       });
 
-      it('should mark Horizon as degraded on non-200 status', async () => {
+      it("should mark Horizon as degraded on non-200 status", async () => {
         vi.mocked(prisma.$queryRaw).mockResolvedValue([{ count: 1n }]);
         vi.mocked(global.fetch).mockImplementation((url) => {
-          if (typeof url === 'string' && url.includes('horizon')) {
+          if (typeof url === "string" && url.includes("horizon")) {
             return Promise.resolve({
               ok: false,
               status: 503,
@@ -318,13 +326,13 @@ describe('HealthService', () => {
 
         const result = await healthService.checkHealth();
 
-        expect(result.services.stellarHorizon.status).toBe('degraded');
-        expect(result.services.stellarHorizon.message).toContain('503');
+        expect(result.services.stellarHorizon.status).toBe("degraded");
+        expect(result.services.stellarHorizon.message).toContain("503");
       });
     });
 
-    describe('cache', () => {
-      it('should mark cache as up when operations succeed', async () => {
+    describe("cache", () => {
+      it("should mark cache as up when operations succeed", async () => {
         vi.mocked(prisma.$queryRaw).mockResolvedValue([{ count: 1n }]);
         vi.mocked(global.fetch).mockResolvedValue({
           ok: true,
@@ -333,14 +341,14 @@ describe('HealthService', () => {
 
         const result = await healthService.checkHealth();
 
-        expect(result.services.cache.status).toBe('up');
+        expect(result.services.cache.status).toBe("up");
         expect(result.services.cache.responseTime).toBeGreaterThanOrEqual(0);
       });
     });
   });
 
-  describe('schema validation', () => {
-    it('should return valid HealthCheckResult schema', async () => {
+  describe("schema validation", () => {
+    it("should return valid HealthCheckResult schema", async () => {
       vi.mocked(prisma.$queryRaw).mockResolvedValue([{ count: 1n }]);
       vi.mocked(global.fetch).mockResolvedValue({
         ok: true,
@@ -349,23 +357,23 @@ describe('HealthService', () => {
 
       const result = await healthService.checkHealth();
 
-      expect(result).toHaveProperty('status');
-      expect(result).toHaveProperty('timestamp');
-      expect(result).toHaveProperty('uptime');
-      expect(result).toHaveProperty('version');
-      expect(result).toHaveProperty('services');
-      expect(result.services).toHaveProperty('database');
-      expect(result.services).toHaveProperty('stellarHorizon');
-      expect(result.services).toHaveProperty('stellarSoroban');
-      expect(result.services).toHaveProperty('ipfs');
-      expect(result.services).toHaveProperty('cache');
-      
+      expect(result).toHaveProperty("status");
+      expect(result).toHaveProperty("timestamp");
+      expect(result).toHaveProperty("uptime");
+      expect(result).toHaveProperty("version");
+      expect(result).toHaveProperty("services");
+      expect(result.services).toHaveProperty("database");
+      expect(result.services).toHaveProperty("stellarHorizon");
+      expect(result.services).toHaveProperty("stellarSoroban");
+      expect(result.services).toHaveProperty("ipfs");
+      expect(result.services).toHaveProperty("cache");
+
       // Validate timestamp is ISO format
       expect(() => new Date(result.timestamp)).not.toThrow();
       expect(result.timestamp).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/);
     });
 
-    it('should return valid DetailedHealthCheckResult schema', async () => {
+    it("should return valid DetailedHealthCheckResult schema", async () => {
       vi.mocked(prisma.$queryRaw).mockResolvedValue([{ count: 1n }]);
       vi.mocked(global.fetch).mockResolvedValue({
         ok: true,
@@ -374,17 +382,17 @@ describe('HealthService', () => {
 
       const result = await healthService.checkDetailedHealth();
 
-      expect(result).toHaveProperty('metrics');
-      expect(result.metrics).toHaveProperty('memory');
-      expect(result.metrics).toHaveProperty('cpu');
-      expect(result.metrics).toHaveProperty('database');
-      expect(result.metrics).toHaveProperty('requests');
-      expect(result.metrics.memory).toHaveProperty('used');
-      expect(result.metrics.memory).toHaveProperty('total');
-      expect(result.metrics.memory).toHaveProperty('percentage');
-      expect(result.metrics.cpu).toHaveProperty('usage');
-      expect(result.metrics.requests).toHaveProperty('total');
-      expect(result.metrics.requests).toHaveProperty('errorRate');
+      expect(result).toHaveProperty("metrics");
+      expect(result.metrics).toHaveProperty("memory");
+      expect(result.metrics).toHaveProperty("cpu");
+      expect(result.metrics).toHaveProperty("database");
+      expect(result.metrics).toHaveProperty("requests");
+      expect(result.metrics.memory).toHaveProperty("used");
+      expect(result.metrics.memory).toHaveProperty("total");
+      expect(result.metrics.memory).toHaveProperty("percentage");
+      expect(result.metrics.cpu).toHaveProperty("usage");
+      expect(result.metrics.requests).toHaveProperty("total");
+      expect(result.metrics.requests).toHaveProperty("errorRate");
     });
   });
 });

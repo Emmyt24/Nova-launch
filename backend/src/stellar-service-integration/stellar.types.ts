@@ -48,7 +48,7 @@ export interface TransactionDetails {
   resultMetaXdr: string;
 }
 
-export type TransactionStatus = 'pending' | 'success' | 'failed' | 'not_found';
+export type TransactionStatus = "pending" | "success" | "failed" | "not_found";
 
 export interface MonitorTransactionResult {
   hash: string;
@@ -66,15 +66,15 @@ export interface StellarError {
 }
 
 export enum StellarErrorCode {
-  NETWORK_ERROR = 'NETWORK_ERROR',
-  INVALID_ADDRESS = 'INVALID_ADDRESS',
-  CONTRACT_ERROR = 'CONTRACT_ERROR',
-  TRANSACTION_FAILED = 'TRANSACTION_FAILED',
-  RATE_LIMITED = 'RATE_LIMITED',
-  TIMEOUT = 'TIMEOUT',
-  NOT_FOUND = 'NOT_FOUND',
-  PARSE_ERROR = 'PARSE_ERROR',
-  UNKNOWN = 'UNKNOWN',
+  NETWORK_ERROR = "NETWORK_ERROR",
+  INVALID_ADDRESS = "INVALID_ADDRESS",
+  CONTRACT_ERROR = "CONTRACT_ERROR",
+  TRANSACTION_FAILED = "TRANSACTION_FAILED",
+  RATE_LIMITED = "RATE_LIMITED",
+  TIMEOUT = "TIMEOUT",
+  NOT_FOUND = "NOT_FOUND",
+  PARSE_ERROR = "PARSE_ERROR",
+  UNKNOWN = "UNKNOWN",
 }
 
 export interface ContractCallOptions {

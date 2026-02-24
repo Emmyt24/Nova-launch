@@ -1,5 +1,5 @@
-import { HttpException, HttpStatus } from '@nestjs/common';
-import { StellarErrorCode } from './stellar.types';
+import { HttpException, HttpStatus } from "@nestjs/common";
+import { StellarErrorCode } from "./stellar.types";
 
 export class StellarException extends HttpException {
   public readonly code: StellarErrorCode;
@@ -9,7 +9,7 @@ export class StellarException extends HttpException {
     code: StellarErrorCode,
     message: string,
     details?: unknown,
-    status: HttpStatus = HttpStatus.BAD_GATEWAY,
+    status: HttpStatus = HttpStatus.BAD_GATEWAY
   ) {
     super({ code, message, details }, status);
     this.code = code;
@@ -29,7 +29,7 @@ export class StellarInvalidAddressException extends StellarException {
       StellarErrorCode.INVALID_ADDRESS,
       `Invalid Stellar address: ${address}`,
       { address },
-      HttpStatus.BAD_REQUEST,
+      HttpStatus.BAD_REQUEST
     );
   }
 }
@@ -45,7 +45,7 @@ export class StellarTransactionFailedException extends StellarException {
     super(
       StellarErrorCode.TRANSACTION_FAILED,
       `Transaction failed: ${txHash}`,
-      details,
+      details
     );
   }
 }
@@ -54,9 +54,9 @@ export class StellarRateLimitException extends StellarException {
   constructor() {
     super(
       StellarErrorCode.RATE_LIMITED,
-      'Rate limit exceeded. Please try again later.',
+      "Rate limit exceeded. Please try again later.",
       undefined,
-      HttpStatus.TOO_MANY_REQUESTS,
+      HttpStatus.TOO_MANY_REQUESTS
     );
   }
 }
@@ -67,7 +67,7 @@ export class StellarTimeoutException extends StellarException {
       StellarErrorCode.TIMEOUT,
       `Operation timed out: ${operation}`,
       undefined,
-      HttpStatus.GATEWAY_TIMEOUT,
+      HttpStatus.GATEWAY_TIMEOUT
     );
   }
 }
@@ -78,7 +78,7 @@ export class StellarNotFoundException extends StellarException {
       StellarErrorCode.NOT_FOUND,
       `${resource} not found: ${identifier}`,
       { resource, identifier },
-      HttpStatus.NOT_FOUND,
+      HttpStatus.NOT_FOUND
     );
   }
 }
@@ -89,7 +89,7 @@ export class StellarParseException extends StellarException {
       StellarErrorCode.PARSE_ERROR,
       `Parse error: ${message}`,
       details,
-      HttpStatus.INTERNAL_SERVER_ERROR,
+      HttpStatus.INTERNAL_SERVER_ERROR
     );
   }
 }

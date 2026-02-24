@@ -1,6 +1,6 @@
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import * as StellarSdk from '@stellar/stellar-sdk';
+import { Injectable, Logger, OnModuleInit } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
+import * as StellarSdk from "@stellar/stellar-sdk";
 import {
   StellarConfig,
   DEFAULT_STELLAR_CONFIG,
@@ -11,7 +11,7 @@ import {
   TransactionDetails,
   TransactionStatus,
   MonitorTransactionResult,
-} from './stellar.config';
+} from "./stellar.config";
 import {
   StellarNetworkException,
   StellarContractException,
@@ -19,14 +19,14 @@ import {
   StellarParseException,
   StellarTimeoutException,
   StellarTransactionFailedException,
-} from './stellar.exceptions';
-import { RateLimiter } from './rate-limiter';
+} from "./stellar.exceptions";
+import { RateLimiter } from "./rate-limiter";
 import {
   assertValidAddress,
   isValidAddress,
   calculateBackoff,
   sleep,
-} from './stellar.utils';
+} from "./stellar.utils";
 
 @Injectable()
 export class StellarService implements OnModuleInit {
@@ -39,62 +39,62 @@ export class StellarService implements OnModuleInit {
   constructor(private readonly configService: ConfigService) {
     this.config = {
       network:
-        this.configService.get<'testnet' | 'mainnet'>('STELLAR_NETWORK') ??
+        this.configService.get<"testnet" | "mainnet">("STELLAR_NETWORK") ??
         DEFAULT_STELLAR_CONFIG.network,
       horizonUrl:
-        this.configService.get<string>('STELLAR_HORIZON_URL') ??
+        this.configService.get<string>("STELLAR_HORIZON_URL") ??
         DEFAULT_STELLAR_CONFIG.horizonUrl,
       sorobanRpcUrl:
-        this.configService.get<string>('STELLAR_SOROBAN_RPC_URL') ??
+        this.configService.get<string>("STELLAR_SOROBAN_RPC_URL") ??
         DEFAULT_STELLAR_CONFIG.sorobanRpcUrl,
       factoryContractId:
-        this.configService.get<string>('STELLAR_FACTORY_CONTRACT_ID') ??
+        this.configService.get<string>("STELLAR_FACTORY_CONTRACT_ID") ??
         DEFAULT_STELLAR_CONFIG.factoryContractId,
       requestTimeout:
-        this.configService.get<number>('STELLAR_REQUEST_TIMEOUT') ??
+        this.configService.get<number>("STELLAR_REQUEST_TIMEOUT") ??
         DEFAULT_STELLAR_CONFIG.requestTimeout,
       retry: {
         maxAttempts:
-          this.configService.get<number>('STELLAR_RETRY_MAX_ATTEMPTS') ??
+          this.configService.get<number>("STELLAR_RETRY_MAX_ATTEMPTS") ??
           DEFAULT_STELLAR_CONFIG.retry.maxAttempts,
         initialDelay:
-          this.configService.get<number>('STELLAR_RETRY_INITIAL_DELAY') ??
+          this.configService.get<number>("STELLAR_RETRY_INITIAL_DELAY") ??
           DEFAULT_STELLAR_CONFIG.retry.initialDelay,
         maxDelay:
-          this.configService.get<number>('STELLAR_RETRY_MAX_DELAY') ??
+          this.configService.get<number>("STELLAR_RETRY_MAX_DELAY") ??
           DEFAULT_STELLAR_CONFIG.retry.maxDelay,
         backoffFactor:
-          this.configService.get<number>('STELLAR_RETRY_BACKOFF_FACTOR') ??
+          this.configService.get<number>("STELLAR_RETRY_BACKOFF_FACTOR") ??
           DEFAULT_STELLAR_CONFIG.retry.backoffFactor,
       },
       rateLimit: {
         maxRequests:
-          this.configService.get<number>('STELLAR_RATE_LIMIT_MAX') ??
+          this.configService.get<number>("STELLAR_RATE_LIMIT_MAX") ??
           DEFAULT_STELLAR_CONFIG.rateLimit.maxRequests,
         windowMs:
-          this.configService.get<number>('STELLAR_RATE_LIMIT_WINDOW_MS') ??
+          this.configService.get<number>("STELLAR_RATE_LIMIT_WINDOW_MS") ??
           DEFAULT_STELLAR_CONFIG.rateLimit.windowMs,
       },
     };
 
     this.rateLimiter = new RateLimiter(
       this.config.rateLimit.maxRequests,
-      this.config.rateLimit.windowMs,
+      this.config.rateLimit.windowMs
     );
   }
 
   onModuleInit(): void {
     this.horizon = new StellarSdk.Horizon.Server(this.config.horizonUrl, {
-      allowHttp: this.config.network === 'testnet',
+      allowHttp: this.config.network === "testnet",
     });
 
     this.soroban = new StellarSdk.rpc.Server(this.config.sorobanRpcUrl, {
-      allowHttp: this.config.network === 'testnet',
+      allowHttp: this.config.network === "testnet",
     });
 
     this.logger.log(
       `StellarService initialized on ${this.config.network}. ` +
-        `Horizon: ${this.config.horizonUrl}, Soroban: ${this.config.sorobanRpcUrl}`,
+        `Horizon: ${this.config.horizonUrl}, Soroban: ${this.config.sorobanRpcUrl}`
     );
   }
 
@@ -121,22 +121,32 @@ export class StellarService implements OnModuleInit {
       this.rateLimiter.checkLimit();
       try {
         const [name, symbol, decimals, totalSupply, admin] = await Promise.all([
-          this.callContract<string>(tokenAddress, 'name', []),
-          this.callContract<string>(tokenAddress, 'symbol', []),
-          this.callContract<number>(tokenAddress, 'decimals', []),
-          this.callContract<string>(tokenAddress, 'total_supply', []),
-          this.callContract<string>(tokenAddress, 'admin', []),
+          this.callContract<string>(tokenAddress, "name", []),
+          this.callContract<string>(tokenAddress, "symbol", []),
+          this.callContract<number>(tokenAddress, "decimals", []),
+          this.callContract<string>(tokenAddress, "total_supply", []),
+          this.callContract<string>(tokenAddress, "admin", []),
         ]);
 
-        return { address: tokenAddress, name, symbol, decimals, totalSupply, admin };
+        return {
+          address: tokenAddress,
+          name,
+          symbol,
+          decimals,
+          totalSupply,
+          admin,
+        };
       } catch (error) {
-        this.logger.error(`Failed to fetch token info for ${tokenAddress}`, error);
+        this.logger.error(
+          `Failed to fetch token info for ${tokenAddress}`,
+          error
+        );
         throw new StellarContractException(
           `Failed to fetch token info for ${tokenAddress}`,
-          error,
+          error
         );
       }
-    }, 'getTokenInfo');
+    }, "getTokenInfo");
   }
 
   /**
@@ -153,22 +163,27 @@ export class StellarService implements OnModuleInit {
           startLedger: 1,
           filters: [
             {
-              type: 'contract',
+              type: "contract",
               contractIds: [tokenAddress],
-              topics: [['burn']],
+              topics: [["burn"]],
             },
           ],
         });
 
-        return response.events.map((event) => this.parseBurnEvent(event, tokenAddress));
+        return response.events.map((event) =>
+          this.parseBurnEvent(event, tokenAddress)
+        );
       } catch (error) {
-        this.logger.error(`Failed to fetch burn history for ${tokenAddress}`, error);
+        this.logger.error(
+          `Failed to fetch burn history for ${tokenAddress}`,
+          error
+        );
         throw new StellarContractException(
           `Failed to fetch burn history for ${tokenAddress}`,
-          error,
+          error
         );
       }
-    }, 'getBurnHistory');
+    }, "getBurnHistory");
   }
 
   /**
@@ -176,7 +191,9 @@ export class StellarService implements OnModuleInit {
    */
   async getFactoryState(): Promise<FactoryState> {
     if (!this.config.factoryContractId) {
-      throw new StellarContractException('Factory contract ID is not configured');
+      throw new StellarContractException(
+        "Factory contract ID is not configured"
+      );
     }
 
     this.logger.log(`Fetching factory state: ${this.config.factoryContractId}`);
@@ -185,10 +202,26 @@ export class StellarService implements OnModuleInit {
       this.rateLimiter.checkLimit();
       try {
         const [admin, totalTokens, tokens, isPaused] = await Promise.all([
-          this.callContract<string>(this.config.factoryContractId, 'get_admin', []),
-          this.callContract<number>(this.config.factoryContractId, 'get_token_count', []),
-          this.callContract<string[]>(this.config.factoryContractId, 'get_tokens', []),
-          this.callContract<boolean>(this.config.factoryContractId, 'is_paused', []),
+          this.callContract<string>(
+            this.config.factoryContractId,
+            "get_admin",
+            []
+          ),
+          this.callContract<number>(
+            this.config.factoryContractId,
+            "get_token_count",
+            []
+          ),
+          this.callContract<string[]>(
+            this.config.factoryContractId,
+            "get_tokens",
+            []
+          ),
+          this.callContract<boolean>(
+            this.config.factoryContractId,
+            "is_paused",
+            []
+          ),
         ]);
 
         return {
@@ -199,16 +232,21 @@ export class StellarService implements OnModuleInit {
           isPaused,
         };
       } catch (error) {
-        this.logger.error('Failed to fetch factory state', error);
-        throw new StellarContractException('Failed to fetch factory state', error);
+        this.logger.error("Failed to fetch factory state", error);
+        throw new StellarContractException(
+          "Failed to fetch factory state",
+          error
+        );
       }
-    }, 'getFactoryState');
+    }, "getFactoryState");
   }
 
   /**
    * Parses a raw Soroban contract event into a structured format.
    */
-  parseContractEvent(event: StellarSdk.rpc.Api.EventResponse): ParsedContractEvent {
+  parseContractEvent(
+    event: StellarSdk.rpc.Api.EventResponse
+  ): ParsedContractEvent {
     try {
       const topics = event.topic.map((t) => StellarSdk.scValToNative(t));
       const data = StellarSdk.scValToNative(event.value);
@@ -223,8 +261,8 @@ export class StellarService implements OnModuleInit {
         timestamp: new Date(event.ledgerClosedAt).toISOString(),
       };
     } catch (error) {
-      this.logger.error('Failed to parse contract event', error);
-      throw new StellarParseException('Failed to parse contract event', error);
+      this.logger.error("Failed to parse contract event", error);
+      throw new StellarParseException("Failed to parse contract event", error);
     }
   }
 
@@ -232,8 +270,8 @@ export class StellarService implements OnModuleInit {
    * Retrieves full transaction details from Horizon.
    */
   async getTransaction(txHash: string): Promise<TransactionDetails> {
-    if (!txHash || typeof txHash !== 'string') {
-      throw new StellarNotFoundException('Transaction', txHash);
+    if (!txHash || typeof txHash !== "string") {
+      throw new StellarNotFoundException("Transaction", txHash);
     }
 
     this.logger.log(`Fetching transaction: ${txHash}`);
@@ -249,7 +287,7 @@ export class StellarService implements OnModuleInit {
           createdAt: tx.created_at,
           sourceAccount: tx.source_account,
           fee: tx.fee_charged,
-          status: tx.successful ? 'success' : 'failed',
+          status: tx.successful ? "success" : "failed",
           memo: tx.memo,
           operationCount: tx.operation_count,
           envelopeXdr: tx.envelope_xdr,
@@ -258,12 +296,15 @@ export class StellarService implements OnModuleInit {
         };
       } catch (error: any) {
         if (error?.response?.status === 404) {
-          throw new StellarNotFoundException('Transaction', txHash);
+          throw new StellarNotFoundException("Transaction", txHash);
         }
         this.logger.error(`Failed to fetch transaction ${txHash}`, error);
-        throw new StellarNetworkException(`Failed to fetch transaction ${txHash}`, error);
+        throw new StellarNetworkException(
+          `Failed to fetch transaction ${txHash}`,
+          error
+        );
       }
-    }, 'getTransaction');
+    }, "getTransaction");
   }
 
   /**
@@ -273,7 +314,7 @@ export class StellarService implements OnModuleInit {
   async monitorTransaction(
     txHash: string,
     maxAttempts = 20,
-    pollIntervalMs = 3000,
+    pollIntervalMs = 3000
   ): Promise<MonitorTransactionResult> {
     this.logger.log(`Monitoring transaction: ${txHash}`);
     let attempts = 0;
@@ -284,13 +325,13 @@ export class StellarService implements OnModuleInit {
 
       try {
         const tx = await this.horizon.transactions().transaction(txHash).call();
-        const status: TransactionStatus = tx.successful ? 'success' : 'failed';
+        const status: TransactionStatus = tx.successful ? "success" : "failed";
 
         this.logger.log(
-          `Transaction ${txHash} reached status: ${status} after ${attempts} attempt(s)`,
+          `Transaction ${txHash} reached status: ${status} after ${attempts} attempt(s)`
         );
 
-        if (status === 'failed') {
+        if (status === "failed") {
           return {
             hash: txHash,
             status,
@@ -311,24 +352,29 @@ export class StellarService implements OnModuleInit {
       } catch (error: any) {
         if (error?.response?.status === 404) {
           this.logger.debug(
-            `Transaction ${txHash} not found yet (attempt ${attempts}/${maxAttempts})`,
+            `Transaction ${txHash} not found yet (attempt ${attempts}/${maxAttempts})`
           );
           if (attempts < maxAttempts) {
             await sleep(pollIntervalMs);
             continue;
           }
-          return { hash: txHash, status: 'not_found', attempts };
+          return { hash: txHash, status: "not_found", attempts };
         }
 
-        this.logger.warn(`Error polling transaction ${txHash}:`, error?.message);
+        this.logger.warn(
+          `Error polling transaction ${txHash}:`,
+          error?.message
+        );
         if (attempts < maxAttempts) {
           await sleep(pollIntervalMs);
         }
       }
     }
 
-    this.logger.warn(`Transaction ${txHash} monitoring timed out after ${attempts} attempts`);
-    return { hash: txHash, status: 'pending', attempts };
+    this.logger.warn(
+      `Transaction ${txHash} monitoring timed out after ${attempts} attempts`
+    );
+    return { hash: txHash, status: "pending", attempts };
   }
 
   // ---------------------------------------------------------------------------
@@ -341,20 +387,24 @@ export class StellarService implements OnModuleInit {
   private async callContract<T>(
     contractId: string,
     method: string,
-    args: StellarSdk.xdr.ScVal[],
+    args: StellarSdk.xdr.ScVal[]
   ): Promise<T> {
-    const account = await this.soroban.getAccount(
-      StellarSdk.Keypair.random().publicKey(),
-    ).catch(() => {
-      // Use a dummy account for read-only simulations
-      return { accountId: () => StellarSdk.Keypair.random().publicKey(), sequenceNumber: () => '0', incrementSequenceNumber: () => {} } as any;
-    });
+    const account = await this.soroban
+      .getAccount(StellarSdk.Keypair.random().publicKey())
+      .catch(() => {
+        // Use a dummy account for read-only simulations
+        return {
+          accountId: () => StellarSdk.Keypair.random().publicKey(),
+          sequenceNumber: () => "0",
+          incrementSequenceNumber: () => {},
+        } as any;
+      });
 
     const contract = new StellarSdk.Contract(contractId);
     const tx = new StellarSdk.TransactionBuilder(account as any, {
       fee: StellarSdk.BASE_FEE,
       networkPassphrase:
-        this.config.network === 'mainnet'
+        this.config.network === "mainnet"
           ? StellarSdk.Networks.PUBLIC
           : StellarSdk.Networks.TESTNET,
     })
@@ -367,15 +417,18 @@ export class StellarService implements OnModuleInit {
     if (StellarSdk.rpc.Api.isSimulationError(simulation)) {
       throw new StellarContractException(
         `Contract call failed: ${method}`,
-        simulation.error,
+        simulation.error
       );
     }
 
-    const result = (simulation as StellarSdk.rpc.Api.SimulateTransactionSuccessResponse)
-      .result;
+    const result = (
+      simulation as StellarSdk.rpc.Api.SimulateTransactionSuccessResponse
+    ).result;
 
     if (!result) {
-      throw new StellarContractException(`No result from contract call: ${method}`);
+      throw new StellarContractException(
+        `No result from contract call: ${method}`
+      );
     }
 
     return StellarSdk.scValToNative(result.retval) as T;
@@ -386,7 +439,7 @@ export class StellarService implements OnModuleInit {
    */
   private async withRetry<T>(
     operation: () => Promise<T>,
-    operationName: string,
+    operationName: string
   ): Promise<T> {
     let lastError: unknown;
 
@@ -397,8 +450,8 @@ export class StellarService implements OnModuleInit {
           new Promise<never>((_, reject) =>
             setTimeout(
               () => reject(new StellarTimeoutException(operationName)),
-              this.config.requestTimeout,
-            ),
+              this.config.requestTimeout
+            )
           ),
         ]);
         return result;
@@ -408,7 +461,7 @@ export class StellarService implements OnModuleInit {
         // Don't retry on validation or not-found errors
         if (
           error instanceof StellarTimeoutException ||
-          (error as any)?.code === 'INVALID_ADDRESS' ||
+          (error as any)?.code === "INVALID_ADDRESS" ||
           (error as any)?.status === 404
         ) {
           throw error;
@@ -419,17 +472,19 @@ export class StellarService implements OnModuleInit {
             attempt,
             this.config.retry.initialDelay,
             this.config.retry.maxDelay,
-            this.config.retry.backoffFactor,
+            this.config.retry.backoffFactor
           );
           this.logger.warn(
-            `${operationName} failed (attempt ${attempt + 1}/${this.config.retry.maxAttempts}). Retrying in ${delay}ms...`,
+            `${operationName} failed (attempt ${attempt + 1}/${this.config.retry.maxAttempts}). Retrying in ${delay}ms...`
           );
           await sleep(delay);
         }
       }
     }
 
-    this.logger.error(`${operationName} failed after ${this.config.retry.maxAttempts} attempts`);
+    this.logger.error(
+      `${operationName} failed after ${this.config.retry.maxAttempts} attempts`
+    );
     throw lastError;
   }
 
@@ -438,7 +493,7 @@ export class StellarService implements OnModuleInit {
    */
   private parseBurnEvent(
     event: StellarSdk.rpc.Api.EventResponse,
-    tokenAddress: string,
+    tokenAddress: string
   ): BurnEvent {
     try {
       const parsed = this.parseContractEvent(event);
@@ -451,7 +506,7 @@ export class StellarService implements OnModuleInit {
         tokenAddress,
       };
     } catch (error) {
-      throw new StellarParseException('Failed to parse burn event', error);
+      throw new StellarParseException("Failed to parse burn event", error);
     }
   }
 }

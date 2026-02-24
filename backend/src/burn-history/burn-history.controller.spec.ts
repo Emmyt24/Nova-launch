@@ -1,28 +1,33 @@
-import { Test, TestingModule } from '@nestjs/testing';
-import { BurnHistoryController } from './burn-history.controller';
-import { BurnHistoryService } from './burn-history.service';
-import { BurnHistoryQueryDto, BurnType, SortBy, SortOrder } from './dto/burn-history-query.dto';
-import { BurnHistoryResponse } from './interfaces/burn-history.interface';
+import { Test, TestingModule } from "@nestjs/testing";
+import { BurnHistoryController } from "./burn-history.controller";
+import { BurnHistoryService } from "./burn-history.service";
+import {
+  BurnHistoryQueryDto,
+  BurnType,
+  SortBy,
+  SortOrder,
+} from "./dto/burn-history-query.dto";
+import { BurnHistoryResponse } from "./interfaces/burn-history.interface";
 
 const mockResponse: BurnHistoryResponse = {
   success: true,
   data: [
     {
-      id: 'uuid-1',
-      tokenAddress: '0xToken',
-      amount: '1000',
-      from: '0xFrom',
-      type: 'self',
-      transactionHash: '0xHash',
-      blockNumber: '100',
-      timestamp: new Date('2024-01-15T10:00:00Z'),
+      id: "uuid-1",
+      tokenAddress: "0xToken",
+      amount: "1000",
+      from: "0xFrom",
+      type: "self",
+      transactionHash: "0xHash",
+      blockNumber: "100",
+      timestamp: new Date("2024-01-15T10:00:00Z"),
     },
   ],
   pagination: { page: 1, limit: 10, total: 1, totalPages: 1 },
-  filters: { sortBy: 'timestamp', sortOrder: 'desc' },
+  filters: { sortBy: "timestamp", sortOrder: "desc" },
 };
 
-describe('BurnHistoryController', () => {
+describe("BurnHistoryController", () => {
   let controller: BurnHistoryController;
   let service: jest.Mocked<BurnHistoryService>;
 
@@ -45,10 +50,10 @@ describe('BurnHistoryController', () => {
 
   afterEach(() => jest.clearAllMocks());
 
-  describe('getBurnHistory', () => {
-    it('should call service with query params', async () => {
+  describe("getBurnHistory", () => {
+    it("should call service with query params", async () => {
       const query: BurnHistoryQueryDto = {
-        tokenAddress: '0xToken',
+        tokenAddress: "0xToken",
         type: BurnType.SELF,
         page: 1,
         limit: 10,
@@ -62,43 +67,47 @@ describe('BurnHistoryController', () => {
       expect(result).toEqual(mockResponse);
     });
 
-    it('should return response with success = true', async () => {
+    it("should return response with success = true", async () => {
       const result = await controller.getBurnHistory({});
 
       expect(result.success).toBe(true);
     });
 
-    it('should return data array', async () => {
+    it("should return data array", async () => {
       const result = await controller.getBurnHistory({});
 
       expect(Array.isArray(result.data)).toBe(true);
     });
 
-    it('should return pagination metadata', async () => {
+    it("should return pagination metadata", async () => {
       const result = await controller.getBurnHistory({});
 
       expect(result.pagination).toBeDefined();
-      expect(result.pagination).toHaveProperty('page');
-      expect(result.pagination).toHaveProperty('limit');
-      expect(result.pagination).toHaveProperty('total');
-      expect(result.pagination).toHaveProperty('totalPages');
+      expect(result.pagination).toHaveProperty("page");
+      expect(result.pagination).toHaveProperty("limit");
+      expect(result.pagination).toHaveProperty("total");
+      expect(result.pagination).toHaveProperty("totalPages");
     });
 
-    it('should return filters object', async () => {
+    it("should return filters object", async () => {
       const result = await controller.getBurnHistory({});
 
       expect(result.filters).toBeDefined();
     });
 
-    it('should pass empty query without error', async () => {
+    it("should pass empty query without error", async () => {
       await expect(controller.getBurnHistory({})).resolves.not.toThrow();
       expect(service.getHistory).toHaveBeenCalledWith({});
     });
 
-    it('should propagate service errors', async () => {
-      service.getHistory.mockRejectedValueOnce(new Error('DB connection failed'));
+    it("should propagate service errors", async () => {
+      service.getHistory.mockRejectedValueOnce(
+        new Error("DB connection failed")
+      );
 
-      await expect(controller.getBurnHistory({})).rejects.toThrow('DB connection failed');
+      await expect(controller.getBurnHistory({})).rejects.toThrow(
+        "DB connection failed"
+      );
     });
   });
 });

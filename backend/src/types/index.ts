@@ -1,7 +1,7 @@
 export interface User {
   id: string;
   address: string;
-  role: 'user' | 'admin' | 'super_admin';
+  role: "user" | "admin" | "super_admin";
   banned: boolean;
   createdAt: Date;
   updatedAt: Date;

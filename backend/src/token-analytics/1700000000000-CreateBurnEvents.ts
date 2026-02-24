@@ -1,7 +1,7 @@
-import { MigrationInterface, QueryRunner } from 'typeorm';
+import { MigrationInterface, QueryRunner } from "typeorm";
 
 export class CreateBurnEvents1700000000000 implements MigrationInterface {
-  name = 'CreateBurnEvents1700000000000';
+  name = "CreateBurnEvents1700000000000";
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`

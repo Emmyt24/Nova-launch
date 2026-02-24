@@ -2,9 +2,9 @@
  * Health check types and interfaces
  */
 
-export type HealthStatus = 'healthy' | 'degraded' | 'unhealthy';
+export type HealthStatus = "healthy" | "degraded" | "unhealthy";
 
-export type ServiceStatus = 'up' | 'down' | 'degraded';
+export type ServiceStatus = "up" | "down" | "degraded";
 
 export interface ServiceHealth {
   status: ServiceStatus;

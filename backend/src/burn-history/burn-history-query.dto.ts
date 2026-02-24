@@ -1,21 +1,29 @@
-import { IsOptional, IsString, IsEnum, IsDateString, IsInt, Min, Max } from 'class-validator';
-import { Type } from 'class-transformer';
+import {
+  IsOptional,
+  IsString,
+  IsEnum,
+  IsDateString,
+  IsInt,
+  Min,
+  Max,
+} from "class-validator";
+import { Type } from "class-transformer";
 
 export enum BurnType {
-  ALL = 'all',
-  SELF = 'self',
-  ADMIN = 'admin',
+  ALL = "all",
+  SELF = "self",
+  ADMIN = "admin",
 }
 
 export enum SortBy {
-  TIMESTAMP = 'timestamp',
-  AMOUNT = 'amount',
-  FROM = 'from',
+  TIMESTAMP = "timestamp",
+  AMOUNT = "amount",
+  FROM = "from",
 }
 
 export enum SortOrder {
-  ASC = 'asc',
-  DESC = 'desc',
+  ASC = "asc",
+  DESC = "desc",
 }
 
 export class BurnHistoryQueryDto {

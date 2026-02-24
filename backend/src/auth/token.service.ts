@@ -1,9 +1,9 @@
-import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
-import { JwtService } from '@nestjs/jwt';
-import { ConfigService } from '@nestjs/config';
-import { v4 as uuidv4 } from 'uuid';
-import { AUTH_CONSTANTS } from '../auth.constants';
-import { AuthResponseDto, JwtPayloadDto } from './dto/auth.dto';
+import { Injectable, Logger, UnauthorizedException } from "@nestjs/common";
+import { JwtService } from "@nestjs/jwt";
+import { ConfigService } from "@nestjs/config";
+import { v4 as uuidv4 } from "uuid";
+import { AUTH_CONSTANTS } from "../auth.constants";
+import { AuthResponseDto, JwtPayloadDto } from "./dto/auth.dto";
 
 @Injectable()
 export class TokenService {
@@ -13,7 +13,7 @@ export class TokenService {
 
   constructor(
     private readonly jwtService: JwtService,
-    private readonly configService: ConfigService,
+    private readonly configService: ConfigService
   ) {}
 
   generateTokenPair(walletAddress: string): AuthResponseDto {
@@ -22,32 +22,32 @@ export class TokenService {
     const accessPayload: JwtPayloadDto = {
       sub: walletAddress,
       walletAddress,
-      type: 'access',
+      type: "access",
       jti,
     };
 
     const refreshPayload: JwtPayloadDto = {
       sub: walletAddress,
       walletAddress,
-      type: 'refresh',
+      type: "refresh",
       jti: uuidv4(),
     };
 
     const accessToken = this.jwtService.sign(accessPayload, {
       expiresIn: AUTH_CONSTANTS.JWT_ACCESS_EXPIRY,
-      secret: this.configService.get<string>('JWT_ACCESS_SECRET'),
+      secret: this.configService.get<string>("JWT_ACCESS_SECRET"),
     });
 
     const refreshToken = this.jwtService.sign(refreshPayload, {
       expiresIn: AUTH_CONSTANTS.JWT_REFRESH_EXPIRY,
-      secret: this.configService.get<string>('JWT_REFRESH_SECRET'),
+      secret: this.configService.get<string>("JWT_REFRESH_SECRET"),
     });
 
     return {
       accessToken,
       refreshToken,
       expiresIn: 15 * 60, // 15 minutes in seconds
-      tokenType: 'Bearer',
+      tokenType: "Bearer",
       walletAddress,
     };
   }
@@ -55,42 +55,46 @@ export class TokenService {
   verifyAccessToken(token: string): JwtPayloadDto {
     try {
       const payload = this.jwtService.verify<JwtPayloadDto>(token, {
-        secret: this.configService.get<string>('JWT_ACCESS_SECRET'),
+        secret: this.configService.get<string>("JWT_ACCESS_SECRET"),
       });
 
-      if (payload.type !== 'access') {
-        throw new UnauthorizedException('Invalid token type');
+      if (payload.type !== "access") {
+        throw new UnauthorizedException("Invalid token type");
       }
 
       if (payload.jti && this.revokedTokens.has(payload.jti)) {
-        throw new UnauthorizedException('Token has been revoked');
+        throw new UnauthorizedException("Token has been revoked");
       }
 
       return payload;
     } catch (error) {
       if (error instanceof UnauthorizedException) throw error;
-      throw new UnauthorizedException(`Token verification failed: ${error.message}`);
+      throw new UnauthorizedException(
+        `Token verification failed: ${error.message}`
+      );
     }
   }
 
   verifyRefreshToken(token: string): JwtPayloadDto {
     try {
       const payload = this.jwtService.verify<JwtPayloadDto>(token, {
-        secret: this.configService.get<string>('JWT_REFRESH_SECRET'),
+        secret: this.configService.get<string>("JWT_REFRESH_SECRET"),
       });
 
-      if (payload.type !== 'refresh') {
-        throw new UnauthorizedException('Invalid token type');
+      if (payload.type !== "refresh") {
+        throw new UnauthorizedException("Invalid token type");
       }
 
       if (payload.jti && this.revokedTokens.has(payload.jti)) {
-        throw new UnauthorizedException('Refresh token has been revoked');
+        throw new UnauthorizedException("Refresh token has been revoked");
       }
 
       return payload;
     } catch (error) {
       if (error instanceof UnauthorizedException) throw error;
-      throw new UnauthorizedException(`Refresh token verification failed: ${error.message}`);
+      throw new UnauthorizedException(
+        `Refresh token verification failed: ${error.message}`
+      );
     }
   }
 

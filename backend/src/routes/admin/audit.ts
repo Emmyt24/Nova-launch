@@ -1,7 +1,7 @@
-import { Router } from 'express';
-import { z } from 'zod';
-import { Database } from '../../config/database';
-import { authenticateAdmin } from '../../middleware/auth';
+import { Router } from "express";
+import { z } from "zod";
+import { Database } from "../../config/database";
+import { authenticateAdmin } from "../../middleware/auth";
 
 const router = Router();
 
@@ -13,14 +13,14 @@ const auditFilterSchema = z.object({
   startDate: z.string().datetime().optional(),
   endDate: z.string().datetime().optional(),
   limit: z.string().regex(/^\d+$/).optional(),
-  offset: z.string().regex(/^\d+$/).optional()
+  offset: z.string().regex(/^\d+$/).optional(),
 });
 
 // GET /api/admin/audit - Get audit logs with filters
-router.get('/', authenticateAdmin, async (req, res) => {
+router.get("/", authenticateAdmin, async (req, res) => {
   try {
     const filters = auditFilterSchema.parse(req.query);
-    
+
     const auditFilters: any = {};
     if (filters.adminId) auditFilters.adminId = filters.adminId;
     if (filters.action) auditFilters.action = filters.action;
@@ -42,23 +42,25 @@ router.get('/', authenticateAdmin, async (req, res) => {
         total,
         limit,
         offset,
-        hasMore: offset + limit < total
-      }
+        hasMore: offset + limit < total,
+      },
     });
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return res.status(400).json({ error: 'Invalid filters', details: error.errors });
+      return res
+        .status(400)
+        .json({ error: "Invalid filters", details: error.errors });
     }
-    console.error('Error fetching audit logs:', error);
-    res.status(500).json({ error: 'Failed to fetch audit logs' });
+    console.error("Error fetching audit logs:", error);
+    res.status(500).json({ error: "Failed to fetch audit logs" });
   }
 });
 
 // GET /api/admin/audit/export - Export audit logs
-router.get('/export', authenticateAdmin, async (req, res) => {
+router.get("/export", authenticateAdmin, async (req, res) => {
   try {
     const filters = auditFilterSchema.parse(req.query);
-    
+
     const auditFilters: any = {};
     if (filters.adminId) auditFilters.adminId = filters.adminId;
     if (filters.action) auditFilters.action = filters.action;
@@ -72,15 +74,18 @@ router.get('/export', authenticateAdmin, async (req, res) => {
       logs,
       exportedAt: new Date(),
       exportedBy: req.admin?.id,
-      filters: auditFilters
+      filters: auditFilters,
     };
 
-    res.setHeader('Content-Type', 'application/json');
-    res.setHeader('Content-Disposition', `attachment; filename="audit_logs_${Date.now()}.json"`);
+    res.setHeader("Content-Type", "application/json");
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="audit_logs_${Date.now()}.json"`
+    );
     res.json(exportData);
   } catch (error) {
-    console.error('Error exporting audit logs:', error);
-    res.status(500).json({ error: 'Failed to export audit logs' });
+    console.error("Error exporting audit logs:", error);
+    res.status(500).json({ error: "Failed to export audit logs" });
   }
 });
 

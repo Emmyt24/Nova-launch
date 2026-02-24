@@ -3,11 +3,11 @@ import {
   Logger,
   NotFoundException,
   BadRequestException,
-} from '@nestjs/common';
-import { StellarService } from './stellar.service';
-import { IpfsService } from './ipfs.service';
-import { TokenCacheService } from './token-cache.service';
-import { TokenInclude } from './dto/get-token-query.dto';
+} from "@nestjs/common";
+import { StellarService } from "./stellar.service";
+import { IpfsService } from "./ipfs.service";
+import { TokenCacheService } from "./token-cache.service";
+import { TokenInclude } from "./dto/get-token-query.dto";
 import {
   Token,
   TokenAnalytics,
@@ -15,7 +15,7 @@ import {
   TokenCreator,
   TokenMetadata,
   TokenSupplyInfo,
-} from './interfaces/token.interface';
+} from "./interfaces/token.interface";
 
 export interface GetTokenOptions {
   include?: TokenInclude[];
@@ -28,12 +28,12 @@ export class TokensService {
   constructor(
     private readonly stellarService: StellarService,
     private readonly ipfsService: IpfsService,
-    private readonly tokenCacheService: TokenCacheService,
+    private readonly tokenCacheService: TokenCacheService
   ) {}
 
   async getToken(
     address: string,
-    options: GetTokenOptions = {},
+    options: GetTokenOptions = {}
   ): Promise<{ token: Token; cached: boolean }> {
     const include = options.include || [];
     const cacheKey = this.tokenCacheService.buildKey(address, include);
@@ -55,31 +55,31 @@ export class TokensService {
 
   private async fetchTokenData(
     address: string,
-    include: TokenInclude[],
+    include: TokenInclude[]
   ): Promise<Token> {
     const { assetCode, assetIssuer } =
       this.stellarService.parseAddress(address);
 
     if (!assetCode || !assetIssuer) {
-      throw new BadRequestException('Invalid token address format');
+      throw new BadRequestException("Invalid token address format");
     }
 
     // Fetch base asset data from Stellar
     const assetData = await this.stellarService.getAssetData(
       assetCode,
-      assetIssuer,
+      assetIssuer
     );
 
     if (!assetData) {
       throw new NotFoundException(
-        `Token not found on Stellar network: ${address}`,
+        `Token not found on Stellar network: ${address}`
       );
     }
 
     // Fetch creator info
     const creationInfo = await this.stellarService.getAssetCreationInfo(
       assetCode,
-      assetIssuer,
+      assetIssuer
     );
 
     const creator: TokenCreator = {
@@ -88,18 +88,13 @@ export class TokensService {
     };
 
     // Calculate supply info
-    const totalSupply = parseFloat(assetData.amount || '0');
-    const authorizedBalance = parseFloat(
-      assetData.balances?.authorized || '0',
-    );
-    const circulatingSupply = Math.max(
-      0,
-      authorizedBalance,
-    ).toString();
+    const totalSupply = parseFloat(assetData.amount || "0");
+    const authorizedBalance = parseFloat(assetData.balances?.authorized || "0");
+    const circulatingSupply = Math.max(0, authorizedBalance).toString();
 
     const supplyInfo: TokenSupplyInfo = {
-      total: assetData.amount || '0',
-      initial: assetData.amount || '0', // Stellar doesn't expose initial; use current total
+      total: assetData.amount || "0",
+      initial: assetData.amount || "0", // Stellar doesn't expose initial; use current total
       circulating: circulatingSupply,
     };
 
@@ -113,14 +108,14 @@ export class TokensService {
       },
       supplyInfo,
       burnInfo: {
-        totalBurned: '0',
+        totalBurned: "0",
         burnCount: 0,
-        percentBurned: '0.0000',
+        percentBurned: "0.0000",
       },
       creator,
       analytics: {
-        volume24h: '0',
-        volume7d: '0',
+        volume24h: "0",
+        volume7d: "0",
         txCount24h: 0,
       },
     };
@@ -134,7 +129,7 @@ export class TokensService {
           .getBurnStatistics(assetCode, assetIssuer, supplyInfo.total)
           .then((burnInfo: TokenBurnInfo) => {
             token.burnInfo = burnInfo;
-          }),
+          })
       );
     }
 
@@ -149,8 +144,8 @@ export class TokensService {
               txCount24h: number;
             }) => {
               token.analytics = volumeData as TokenAnalytics;
-            },
-          ),
+            }
+          )
       );
     }
 
@@ -159,8 +154,8 @@ export class TokensService {
         this.fetchMetadataForAsset(assetIssuer).then(
           (metadata: TokenMetadata | null) => {
             if (metadata) token.metadata = metadata;
-          },
-        ),
+          }
+        )
       );
     }
 
@@ -172,7 +167,7 @@ export class TokensService {
   }
 
   private async fetchMetadataForAsset(
-    assetIssuer: string,
+    assetIssuer: string
   ): Promise<TokenMetadata | null> {
     try {
       // Try fetching toml file from the issuer's home domain

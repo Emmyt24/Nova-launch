@@ -1,19 +1,19 @@
-import { IsEnum, IsOptional, IsEthereumAddress } from 'class-validator';
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { IsEnum, IsOptional, IsEthereumAddress } from "class-validator";
+import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 
 export enum TimePeriod {
-  H24 = '24h',
-  D7 = '7d',
-  D30 = '30d',
-  D90 = '90d',
-  ALL = 'all',
+  H24 = "24h",
+  D7 = "7d",
+  D30 = "30d",
+  D90 = "90d",
+  ALL = "all",
 }
 
 export class GetAnalyticsQueryDto {
   @ApiPropertyOptional({
     enum: TimePeriod,
     default: TimePeriod.D7,
-    description: 'Time period for analytics data',
+    description: "Time period for analytics data",
   })
   @IsOptional()
   @IsEnum(TimePeriod)
@@ -68,8 +68,10 @@ export class TokenAnalyticsResponseDto {
   @ApiProperty() countChangePercent: number;
 
   // Chart data
-  @ApiProperty({ type: [TimeSeriesDataPoint] }) timeSeries: TimeSeriesDataPoint[];
+  @ApiProperty({ type: [TimeSeriesDataPoint] })
+  timeSeries: TimeSeriesDataPoint[];
 
   // Distribution
-  @ApiProperty({ type: BurnTypeDistribution }) burnTypeDistribution: BurnTypeDistribution;
+  @ApiProperty({ type: BurnTypeDistribution })
+  burnTypeDistribution: BurnTypeDistribution;
 }

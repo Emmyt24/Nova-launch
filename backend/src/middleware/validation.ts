@@ -1,7 +1,7 @@
-import { body, param, validationResult } from 'express-validator';
-import { Request, Response, NextFunction } from 'express';
-import { WebhookEventType } from '../types/webhook';
-import { isValidUrl, isValidStellarAddress } from '../utils/crypto';
+import { body, param, validationResult } from "express-validator";
+import { Request, Response, NextFunction } from "express";
+import { WebhookEventType } from "../types/webhook";
+import { isValidUrl, isValidStellarAddress } from "../utils/crypto";
 
 /**
  * Validation middleware to check for errors
@@ -21,44 +21,46 @@ export const validate = (req: Request, res: Response, next: NextFunction) => {
  * Validation rules for webhook subscription creation
  */
 export const validateSubscriptionCreate = [
-  body('url')
+  body("url")
     .isString()
     .trim()
     .notEmpty()
-    .withMessage('URL is required')
+    .withMessage("URL is required")
     .custom((value) => {
       if (!isValidUrl(value)) {
-        throw new Error('Invalid URL format');
+        throw new Error("Invalid URL format");
       }
       return true;
     }),
-  body('tokenAddress')
+  body("tokenAddress")
     .optional({ nullable: true })
     .custom((value) => {
       if (value && !isValidStellarAddress(value)) {
-        throw new Error('Invalid Stellar address format');
+        throw new Error("Invalid Stellar address format");
       }
       return true;
     }),
-  body('events')
+  body("events")
     .isArray({ min: 1 })
-    .withMessage('At least one event type is required')
+    .withMessage("At least one event type is required")
     .custom((value: string[]) => {
       const validEvents = Object.values(WebhookEventType);
-      const invalidEvents = value.filter((e) => !validEvents.includes(e as WebhookEventType));
+      const invalidEvents = value.filter(
+        (e) => !validEvents.includes(e as WebhookEventType)
+      );
       if (invalidEvents.length > 0) {
-        throw new Error(`Invalid event types: ${invalidEvents.join(', ')}`);
+        throw new Error(`Invalid event types: ${invalidEvents.join(", ")}`);
       }
       return true;
     }),
-  body('createdBy')
+  body("createdBy")
     .isString()
     .trim()
     .notEmpty()
-    .withMessage('Creator address is required')
+    .withMessage("Creator address is required")
     .custom((value) => {
       if (!isValidStellarAddress(value)) {
-        throw new Error('Invalid creator Stellar address');
+        throw new Error("Invalid creator Stellar address");
       }
       return true;
     }),
@@ -69,9 +71,7 @@ export const validateSubscriptionCreate = [
  * Validation rules for subscription ID parameter
  */
 export const validateSubscriptionId = [
-  param('id')
-    .isUUID()
-    .withMessage('Invalid subscription ID format'),
+  param("id").isUUID().withMessage("Invalid subscription ID format"),
   validate,
 ];
 
@@ -79,14 +79,14 @@ export const validateSubscriptionId = [
  * Validation rules for listing subscriptions
  */
 export const validateListSubscriptions = [
-  body('createdBy')
+  body("createdBy")
     .isString()
     .trim()
     .notEmpty()
-    .withMessage('Creator address is required')
+    .withMessage("Creator address is required")
     .custom((value) => {
       if (!isValidStellarAddress(value)) {
-        throw new Error('Invalid creator Stellar address');
+        throw new Error("Invalid creator Stellar address");
       }
       return true;
     }),

@@ -1,12 +1,12 @@
-import { Router, Request, Response } from 'express';
-import webhookService from '../services/webhookService';
-import webhookDeliveryService from '../services/webhookDeliveryService';
+import { Router, Request, Response } from "express";
+import webhookService from "../services/webhookService";
+import webhookDeliveryService from "../services/webhookDeliveryService";
 import {
   validateSubscriptionCreate,
   validateSubscriptionId,
   validateListSubscriptions,
-} from '../middleware/validation';
-import { webhookRateLimiter } from '../middleware/rateLimiter';
+} from "../middleware/validation";
+import { webhookRateLimiter } from "../middleware/rateLimiter";
 
 const router = Router();
 
@@ -15,7 +15,7 @@ const router = Router();
  * Create a new webhook subscription
  */
 router.post(
-  '/subscribe',
+  "/subscribe",
   webhookRateLimiter,
   validateSubscriptionCreate,
   async (req: Request, res: Response) => {
@@ -31,13 +31,13 @@ router.post(
           ...publicData,
           secret: `${secret.substring(0, 8)}...`, // Show only first 8 chars
         },
-        message: 'Webhook subscription created successfully',
+        message: "Webhook subscription created successfully",
       });
     } catch (error) {
-      console.error('Error creating subscription:', error);
+      console.error("Error creating subscription:", error);
       res.status(500).json({
         success: false,
-        error: 'Failed to create webhook subscription',
+        error: "Failed to create webhook subscription",
       });
     }
   }
@@ -48,7 +48,7 @@ router.post(
  * Delete a webhook subscription
  */
 router.delete(
-  '/unsubscribe/:id',
+  "/unsubscribe/:id",
   webhookRateLimiter,
   validateSubscriptionId,
   async (req: Request, res: Response) => {
@@ -59,7 +59,7 @@ router.delete(
       if (!createdBy) {
         return res.status(400).json({
           success: false,
-          error: 'createdBy address is required',
+          error: "createdBy address is required",
         });
       }
 
@@ -68,19 +68,19 @@ router.delete(
       if (!deleted) {
         return res.status(404).json({
           success: false,
-          error: 'Subscription not found or unauthorized',
+          error: "Subscription not found or unauthorized",
         });
       }
 
       res.json({
         success: true,
-        message: 'Webhook subscription deleted successfully',
+        message: "Webhook subscription deleted successfully",
       });
     } catch (error) {
-      console.error('Error deleting subscription:', error);
+      console.error("Error deleting subscription:", error);
       res.status(500).json({
         success: false,
-        error: 'Failed to delete webhook subscription',
+        error: "Failed to delete webhook subscription",
       });
     }
   }
@@ -91,7 +91,7 @@ router.delete(
  * List webhook subscriptions for a user
  */
 router.post(
-  '/list',
+  "/list",
   validateListSubscriptions,
   async (req: Request, res: Response) => {
     try {
@@ -117,10 +117,10 @@ router.post(
         count: publicSubscriptions.length,
       });
     } catch (error) {
-      console.error('Error listing subscriptions:', error);
+      console.error("Error listing subscriptions:", error);
       res.status(500).json({
         success: false,
-        error: 'Failed to list webhook subscriptions',
+        error: "Failed to list webhook subscriptions",
       });
     }
   }
@@ -131,7 +131,7 @@ router.post(
  * Get a specific webhook subscription
  */
 router.get(
-  '/:id',
+  "/:id",
   validateSubscriptionId,
   async (req: Request, res: Response) => {
     try {
@@ -141,7 +141,7 @@ router.get(
       if (!subscription) {
         return res.status(404).json({
           success: false,
-          error: 'Subscription not found',
+          error: "Subscription not found",
         });
       }
 
@@ -156,10 +156,10 @@ router.get(
         },
       });
     } catch (error) {
-      console.error('Error fetching subscription:', error);
+      console.error("Error fetching subscription:", error);
       res.status(500).json({
         success: false,
-        error: 'Failed to fetch webhook subscription',
+        error: "Failed to fetch webhook subscription",
       });
     }
   }
@@ -170,7 +170,7 @@ router.get(
  * Toggle webhook subscription active status
  */
 router.patch(
-  '/:id/toggle',
+  "/:id/toggle",
   webhookRateLimiter,
   validateSubscriptionId,
   async (req: Request, res: Response) => {
@@ -178,10 +178,10 @@ router.patch(
       const { id } = req.params;
       const { active } = req.body;
 
-      if (typeof active !== 'boolean') {
+      if (typeof active !== "boolean") {
         return res.status(400).json({
           success: false,
-          error: 'active field must be a boolean',
+          error: "active field must be a boolean",
         });
       }
 
@@ -190,19 +190,19 @@ router.patch(
       if (!updated) {
         return res.status(404).json({
           success: false,
-          error: 'Subscription not found',
+          error: "Subscription not found",
         });
       }
 
       res.json({
         success: true,
-        message: `Subscription ${active ? 'activated' : 'deactivated'} successfully`,
+        message: `Subscription ${active ? "activated" : "deactivated"} successfully`,
       });
     } catch (error) {
-      console.error('Error toggling subscription:', error);
+      console.error("Error toggling subscription:", error);
       res.status(500).json({
         success: false,
-        error: 'Failed to toggle webhook subscription',
+        error: "Failed to toggle webhook subscription",
       });
     }
   }
@@ -213,7 +213,7 @@ router.patch(
  * Get delivery logs for a subscription
  */
 router.get(
-  '/:id/logs',
+  "/:id/logs",
   validateSubscriptionId,
   async (req: Request, res: Response) => {
     try {
@@ -228,10 +228,10 @@ router.get(
         count: logs.length,
       });
     } catch (error) {
-      console.error('Error fetching delivery logs:', error);
+      console.error("Error fetching delivery logs:", error);
       res.status(500).json({
         success: false,
-        error: 'Failed to fetch delivery logs',
+        error: "Failed to fetch delivery logs",
       });
     }
   }
@@ -242,7 +242,7 @@ router.get(
  * Test a webhook subscription
  */
 router.post(
-  '/:id/test',
+  "/:id/test",
   webhookRateLimiter,
   validateSubscriptionId,
   async (req: Request, res: Response) => {
@@ -253,7 +253,7 @@ router.post(
       if (!subscription) {
         return res.status(404).json({
           success: false,
-          error: 'Subscription not found',
+          error: "Subscription not found",
         });
       }
 
@@ -262,14 +262,14 @@ router.post(
       res.json({
         success,
         message: success
-          ? 'Test webhook delivered successfully'
-          : 'Test webhook delivery failed',
+          ? "Test webhook delivered successfully"
+          : "Test webhook delivery failed",
       });
     } catch (error) {
-      console.error('Error testing webhook:', error);
+      console.error("Error testing webhook:", error);
       res.status(500).json({
         success: false,
-        error: 'Failed to test webhook',
+        error: "Failed to test webhook",
       });
     }
   }

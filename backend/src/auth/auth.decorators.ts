@@ -4,17 +4,18 @@ import {
   ExecutionContext,
   applyDecorators,
   UseGuards,
-} from '@nestjs/common';
-import { ApiBearerAuth, ApiUnauthorizedResponse } from '@nestjs/swagger';
-import { DECORATORS } from '../auth.constants';
-import { JwtAuthGuard } from '../guards/jwt-auth.guard';
-import { RolesGuard } from '../guards/roles.guard';
+} from "@nestjs/common";
+import { ApiBearerAuth, ApiUnauthorizedResponse } from "@nestjs/swagger";
+import { DECORATORS } from "../auth.constants";
+import { JwtAuthGuard } from "../guards/jwt-auth.guard";
+import { RolesGuard } from "../guards/roles.guard";
 
 // Mark a route as public (skip JWT auth)
 export const Public = () => SetMetadata(DECORATORS.IS_PUBLIC, true);
 
 // Assign required roles to a route
-export const Roles = (...roles: string[]) => SetMetadata(DECORATORS.ROLES, roles);
+export const Roles = (...roles: string[]) =>
+  SetMetadata(DECORATORS.ROLES, roles);
 
 // Mark route as requiring API key auth
 export const RequireApiKey = () => SetMetadata(DECORATORS.API_KEY, true);
@@ -29,7 +30,7 @@ export const Protected = (...roles: string[]) =>
     UseGuards(JwtAuthGuard, RolesGuard),
     ...(roles.length ? [Roles(...roles)] : []),
     ApiBearerAuth(),
-    ApiUnauthorizedResponse({ description: 'Unauthorized' }),
+    ApiUnauthorizedResponse({ description: "Unauthorized" })
   );
 
 // Extract authenticated user from request
@@ -38,7 +39,7 @@ export const CurrentUser = createParamDecorator(
     const request = ctx.switchToHttp().getRequest();
     const user = request.user;
     return data ? user?.[data] : user;
-  },
+  }
 );
 
 // Extract wallet address from authenticated request
@@ -46,5 +47,5 @@ export const WalletAddress = createParamDecorator(
   (_data: unknown, ctx: ExecutionContext): string => {
     const request = ctx.switchToHttp().getRequest();
     return request.user?.walletAddress;
-  },
+  }
 );

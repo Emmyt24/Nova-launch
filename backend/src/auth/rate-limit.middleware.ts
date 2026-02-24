@@ -1,11 +1,6 @@
-import {
-  Injectable,
-  NestMiddleware,
-  HttpStatus,
-  Logger,
-} from '@nestjs/common';
-import { Request, Response, NextFunction } from 'express';
-import { AUTH_CONSTANTS } from '../../auth.constants';
+import { Injectable, NestMiddleware, HttpStatus, Logger } from "@nestjs/common";
+import { Request, Response, NextFunction } from "express";
+import { AUTH_CONSTANTS } from "../../auth.constants";
 
 interface RateLimitEntry {
   count: number;
@@ -37,15 +32,15 @@ export class RateLimitMiddleware implements NestMiddleware {
     const remaining = Math.max(0, max - entry.count);
     const resetAt = Math.ceil((entry.windowStart + windowMs) / 1000);
 
-    res.setHeader('X-RateLimit-Limit', max);
-    res.setHeader('X-RateLimit-Remaining', remaining);
-    res.setHeader('X-RateLimit-Reset', resetAt);
+    res.setHeader("X-RateLimit-Limit", max);
+    res.setHeader("X-RateLimit-Remaining", remaining);
+    res.setHeader("X-RateLimit-Reset", resetAt);
 
     if (entry.count > max) {
       this.logger.warn(`Rate limit exceeded for key: ${key}`);
       res.status(HttpStatus.TOO_MANY_REQUESTS).json({
         statusCode: HttpStatus.TOO_MANY_REQUESTS,
-        message: 'Too many requests, please try again later',
+        message: "Too many requests, please try again later",
         retryAfter: resetAt - Math.floor(now / 1000),
       });
       return;
@@ -63,7 +58,7 @@ export class RateLimitMiddleware implements NestMiddleware {
 
   private resolveMax(req: Request): number {
     const isAuthEndpoint =
-      req.path.includes('/auth/login') || req.path.includes('/auth/nonce');
+      req.path.includes("/auth/login") || req.path.includes("/auth/nonce");
     return isAuthEndpoint
       ? AUTH_CONSTANTS.RATE_LIMIT_AUTH_MAX
       : AUTH_CONSTANTS.RATE_LIMIT_MAX_REQUESTS;

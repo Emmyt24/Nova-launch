@@ -1,32 +1,41 @@
-import { IsString, IsNotEmpty, IsOptional, IsEnum } from 'class-validator';
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { IsString, IsNotEmpty, IsOptional, IsEnum } from "class-validator";
+import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 
 export class WalletAuthDto {
-  @ApiProperty({ description: 'Stellar wallet public key', example: 'GXXXXXXXX...' })
+  @ApiProperty({
+    description: "Stellar wallet public key",
+    example: "GXXXXXXXX...",
+  })
   @IsString()
   @IsNotEmpty()
   publicKey: string;
 
-  @ApiProperty({ description: 'Signed message (base64 encoded signature)', example: 'abc123...' })
+  @ApiProperty({
+    description: "Signed message (base64 encoded signature)",
+    example: "abc123...",
+  })
   @IsString()
   @IsNotEmpty()
   signature: string;
 
-  @ApiProperty({ description: 'The nonce that was signed', example: 'nonce-uuid-here' })
+  @ApiProperty({
+    description: "The nonce that was signed",
+    example: "nonce-uuid-here",
+  })
   @IsString()
   @IsNotEmpty()
   nonce: string;
 }
 
 export class RefreshTokenDto {
-  @ApiProperty({ description: 'Refresh token' })
+  @ApiProperty({ description: "Refresh token" })
   @IsString()
   @IsNotEmpty()
   refreshToken: string;
 }
 
 export class ApiKeyAuthDto {
-  @ApiProperty({ description: 'API key for programmatic access' })
+  @ApiProperty({ description: "API key for programmatic access" })
   @IsString()
   @IsNotEmpty()
   apiKey: string;
@@ -47,10 +56,10 @@ export class NonceResponseDto {
 }
 
 export class JwtPayloadDto {
-  sub: string;         // wallet address
+  sub: string; // wallet address
   walletAddress: string;
-  type: 'access' | 'refresh';
+  type: "access" | "refresh";
   iat?: number;
   exp?: number;
-  jti?: string;        // JWT ID for revocation
+  jti?: string; // JWT ID for revocation
 }

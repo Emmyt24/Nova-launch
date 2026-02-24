@@ -3,25 +3,27 @@ import {
   ExecutionContext,
   UnauthorizedException,
   Logger,
-} from '@nestjs/common';
-import { AuthGuard } from '@nestjs/passport';
-import { Reflector } from '@nestjs/core';
-import { Observable } from 'rxjs';
-import { DECORATORS } from '../../auth.constants';
+} from "@nestjs/common";
+import { AuthGuard } from "@nestjs/passport";
+import { Reflector } from "@nestjs/core";
+import { Observable } from "rxjs";
+import { DECORATORS } from "../../auth.constants";
 
 @Injectable()
-export class JwtAuthGuard extends AuthGuard('jwt') {
+export class JwtAuthGuard extends AuthGuard("jwt") {
   private readonly logger = new Logger(JwtAuthGuard.name);
 
   constructor(private readonly reflector: Reflector) {
     super();
   }
 
-  canActivate(context: ExecutionContext): boolean | Promise<boolean> | Observable<boolean> {
-    const isPublic = this.reflector.getAllAndOverride<boolean>(DECORATORS.IS_PUBLIC, [
-      context.getHandler(),
-      context.getClass(),
-    ]);
+  canActivate(
+    context: ExecutionContext
+  ): boolean | Promise<boolean> | Observable<boolean> {
+    const isPublic = this.reflector.getAllAndOverride<boolean>(
+      DECORATORS.IS_PUBLIC,
+      [context.getHandler(), context.getClass()]
+    );
 
     if (isPublic) {
       return true;
@@ -32,7 +34,7 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
 
   handleRequest<TUser = any>(err: any, user: any, info: any): TUser {
     if (err || !user) {
-      const message = info?.message || err?.message || 'Unauthorized';
+      const message = info?.message || err?.message || "Unauthorized";
       this.logger.warn(`Auth failed: ${message}`);
       throw new UnauthorizedException(message);
     }

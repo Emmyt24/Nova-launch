@@ -1,5 +1,5 @@
-import { v4 as uuidv4 } from 'uuid';
-import db from '../database/db';
+import { v4 as uuidv4 } from "uuid";
+import db from "../database/db";
 import {
   WebhookSubscription,
   CreateWebhookInput,
@@ -7,8 +7,8 @@ import {
   WebhookPayload,
   WebhookEventData,
   WebhookDeliveryLog,
-} from '../types/webhook';
-import { generateWebhookSecret, generateSignature } from '../utils/crypto';
+} from "../types/webhook";
+import { generateWebhookSecret, generateSignature } from "../utils/crypto";
 
 export class WebhookService {
   /**
@@ -43,7 +43,7 @@ export class WebhookService {
    * Get subscription by ID
    */
   async getSubscription(id: string): Promise<WebhookSubscription | null> {
-    const query = 'SELECT * FROM webhook_subscriptions WHERE id = $1';
+    const query = "SELECT * FROM webhook_subscriptions WHERE id = $1";
     const result = await db.query(query, [id]);
 
     if (result.rows.length === 0) {
@@ -60,15 +60,15 @@ export class WebhookService {
     createdBy: string,
     active?: boolean
   ): Promise<WebhookSubscription[]> {
-    let query = 'SELECT * FROM webhook_subscriptions WHERE created_by = $1';
+    let query = "SELECT * FROM webhook_subscriptions WHERE created_by = $1";
     const params: any[] = [createdBy];
 
     if (active !== undefined) {
-      query += ' AND active = $2';
+      query += " AND active = $2";
       params.push(active);
     }
 
-    query += ' ORDER BY created_at DESC';
+    query += " ORDER BY created_at DESC";
 
     const result = await db.query(query, params);
     return result.rows.map(this.mapRowToSubscription);
@@ -192,7 +192,7 @@ export class WebhookService {
     data: WebhookEventData,
     secret: string
   ): WebhookPayload {
-    const payload: Omit<WebhookPayload, 'signature'> = {
+    const payload: Omit<WebhookPayload, "signature"> = {
       event,
       timestamp: new Date().toISOString(),
       data,

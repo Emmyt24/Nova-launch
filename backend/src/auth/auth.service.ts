@@ -3,16 +3,16 @@ import {
   Logger,
   UnauthorizedException,
   BadRequestException,
-} from '@nestjs/common';
-import { StellarSignatureService } from './stellar-signature.service';
-import { NonceService } from './nonce.service';
-import { TokenService } from './token.service';
+} from "@nestjs/common";
+import { StellarSignatureService } from "./stellar-signature.service";
+import { NonceService } from "./nonce.service";
+import { TokenService } from "./token.service";
 import {
   WalletAuthDto,
   AuthResponseDto,
   NonceResponseDto,
   RefreshTokenDto,
-} from './dto/auth.dto';
+} from "./dto/auth.dto";
 
 @Injectable()
 export class AuthService {
@@ -21,7 +21,7 @@ export class AuthService {
   constructor(
     private readonly stellarSig: StellarSignatureService,
     private readonly nonceService: NonceService,
-    private readonly tokenService: TokenService,
+    private readonly tokenService: TokenService
   ) {}
 
   /**
@@ -29,7 +29,7 @@ export class AuthService {
    */
   requestNonce(publicKey: string): NonceResponseDto {
     if (!this.stellarSig.isValidPublicKey(publicKey)) {
-      throw new BadRequestException('Invalid Stellar public key');
+      throw new BadRequestException("Invalid Stellar public key");
     }
     return this.nonceService.generateNonce(publicKey);
   }
@@ -42,20 +42,22 @@ export class AuthService {
     const { publicKey, signature, nonce } = dto;
 
     if (!this.stellarSig.isValidPublicKey(publicKey)) {
-      throw new BadRequestException('Invalid Stellar public key');
+      throw new BadRequestException("Invalid Stellar public key");
     }
 
     // Verify nonce is valid and not replayed
     const nonceValid = this.nonceService.consumeNonce(nonce, publicKey);
     if (!nonceValid) {
-      throw new UnauthorizedException('Invalid or expired nonce');
+      throw new UnauthorizedException("Invalid or expired nonce");
     }
 
     // Verify the wallet signature
     const result = this.stellarSig.verifySignature(publicKey, signature, nonce);
     if (!result.valid) {
-      this.logger.warn(`Failed signature verification for wallet ${publicKey}: ${result.error}`);
-      throw new UnauthorizedException('Invalid wallet signature');
+      this.logger.warn(
+        `Failed signature verification for wallet ${publicKey}: ${result.error}`
+      );
+      throw new UnauthorizedException("Invalid wallet signature");
     }
 
     this.logger.log(`Wallet authenticated: ${publicKey}`);

@@ -1,11 +1,11 @@
-import { StellarRateLimitException } from './stellar.exceptions';
+import { StellarRateLimitException } from "./stellar.exceptions";
 
 export class RateLimiter {
   private readonly requests: number[] = [];
 
   constructor(
     private readonly maxRequests: number,
-    private readonly windowMs: number,
+    private readonly windowMs: number
   ) {}
 
   /**

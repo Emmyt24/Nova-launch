@@ -1,11 +1,11 @@
-import { Test, TestingModule } from '@nestjs/testing';
-import { ConfigService } from '@nestjs/config';
-import { StellarService } from './stellar.service';
+import { Test, TestingModule } from "@nestjs/testing";
+import { ConfigService } from "@nestjs/config";
+import { StellarService } from "./stellar.service";
 import {
   StellarContractException,
   StellarInvalidAddressException,
   StellarNotFoundException,
-} from './stellar.exceptions';
+} from "./stellar.exceptions";
 
 // ---------------------------------------------------------------------------
 // Mock @stellar/stellar-sdk
@@ -15,8 +15,8 @@ const mockGetEvents = jest.fn();
 const mockGetAccount = jest.fn();
 const mockTransactionCall = jest.fn();
 
-jest.mock('@stellar/stellar-sdk', () => {
-  const actual = jest.requireActual('@stellar/stellar-sdk');
+jest.mock("@stellar/stellar-sdk", () => {
+  const actual = jest.requireActual("@stellar/stellar-sdk");
 
   return {
     ...actual,
@@ -51,13 +51,18 @@ jest.mock('@stellar/stellar-sdk', () => {
     })),
     Keypair: {
       random: jest.fn().mockReturnValue({
-        publicKey: jest.fn().mockReturnValue(
-          'GAAZI4TCR3TY5OJHCTJC2A4QSY6CJWJH5IAJTGKIN2ER7LBNVKOCCWN',
-        ),
+        publicKey: jest
+          .fn()
+          .mockReturnValue(
+            "GAAZI4TCR3TY5OJHCTJC2A4QSY6CJWJH5IAJTGKIN2ER7LBNVKOCCWN"
+          ),
       }),
     },
-    Networks: { TESTNET: 'Test SDF Network ; September 2015', PUBLIC: 'Public Global Stellar Network ; September 2015' },
-    BASE_FEE: '100',
+    Networks: {
+      TESTNET: "Test SDF Network ; September 2015",
+      PUBLIC: "Public Global Stellar Network ; September 2015",
+    },
+    BASE_FEE: "100",
     scValToNative: jest.fn((val) => val?._value ?? val),
   };
 });
@@ -65,21 +70,24 @@ jest.mock('@stellar/stellar-sdk', () => {
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-const VALID_G_ADDRESS = 'GAAZI4TCR3TY5OJHCTJC2A4QSY6CJWJH5IAJTGKIN2ER7LBNVKOCCWN';
-const VALID_C_ADDRESS = 'CAAZI4TCR3TY5OJHCTJC2A4QSY6CJWJH5IAJTGKIN2ER7LBNVKOCCWN';
+const VALID_G_ADDRESS =
+  "GAAZI4TCR3TY5OJHCTJC2A4QSY6CJWJH5IAJTGKIN2ER7LBNVKOCCWN";
+const VALID_C_ADDRESS =
+  "CAAZI4TCR3TY5OJHCTJC2A4QSY6CJWJH5IAJTGKIN2ER7LBNVKOCCWN";
 const FACTORY_CONTRACT = VALID_C_ADDRESS;
-const TX_HASH = 'abc123def456abc123def456abc123def456abc123def456abc123def456abcd';
+const TX_HASH =
+  "abc123def456abc123def456abc123def456abc123def456abc123def456abcd";
 
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
-describe('StellarService', () => {
+describe("StellarService", () => {
   let service: StellarService;
 
   const configValues: Record<string, any> = {
-    STELLAR_NETWORK: 'testnet',
-    STELLAR_HORIZON_URL: 'https://horizon-testnet.stellar.org',
-    STELLAR_SOROBAN_RPC_URL: 'https://soroban-testnet.stellar.org',
+    STELLAR_NETWORK: "testnet",
+    STELLAR_HORIZON_URL: "https://horizon-testnet.stellar.org",
+    STELLAR_SOROBAN_RPC_URL: "https://soroban-testnet.stellar.org",
     STELLAR_FACTORY_CONTRACT_ID: FACTORY_CONTRACT,
     STELLAR_REQUEST_TIMEOUT: 30000,
     STELLAR_RETRY_MAX_ATTEMPTS: 1, // disable retries in unit tests
@@ -98,7 +106,7 @@ describe('StellarService', () => {
           provide: ConfigService,
           useValue: {
             get: jest.fn((key: string, defaultValue?: any) =>
-              key in configValues ? configValues[key] : defaultValue,
+              key in configValues ? configValues[key] : defaultValue
             ),
           },
         },
@@ -114,59 +122,59 @@ describe('StellarService', () => {
   // -------------------------------------------------------------------------
   // validateAddress
   // -------------------------------------------------------------------------
-  describe('validateAddress', () => {
-    it('returns true for a valid G address', () => {
+  describe("validateAddress", () => {
+    it("returns true for a valid G address", () => {
       expect(service.validateAddress(VALID_G_ADDRESS)).toBe(true);
     });
 
-    it('returns true for a valid C address', () => {
+    it("returns true for a valid C address", () => {
       expect(service.validateAddress(VALID_C_ADDRESS)).toBe(true);
     });
 
-    it('returns false for an invalid address', () => {
-      expect(service.validateAddress('not-valid')).toBe(false);
+    it("returns false for an invalid address", () => {
+      expect(service.validateAddress("not-valid")).toBe(false);
     });
   });
 
   // -------------------------------------------------------------------------
   // getTokenInfo
   // -------------------------------------------------------------------------
-  describe('getTokenInfo', () => {
+  describe("getTokenInfo", () => {
     beforeEach(() => {
-      const StellarSdk = require('@stellar/stellar-sdk');
+      const StellarSdk = require("@stellar/stellar-sdk");
       StellarSdk.rpc.Api.isSimulationError = jest.fn().mockReturnValue(false);
       StellarSdk.scValToNative = jest
         .fn()
-        .mockReturnValueOnce('TestToken')
-        .mockReturnValueOnce('TT')
+        .mockReturnValueOnce("TestToken")
+        .mockReturnValueOnce("TT")
         .mockReturnValueOnce(7)
-        .mockReturnValueOnce('1000000000')
+        .mockReturnValueOnce("1000000000")
         .mockReturnValueOnce(VALID_G_ADDRESS);
 
       mockGetAccount.mockResolvedValue({});
       mockSimulateSuccess.mockResolvedValue({
-        result: { retval: 'mock' },
+        result: { retval: "mock" },
       });
     });
 
-    it('throws StellarInvalidAddressException for invalid address', async () => {
-      await expect(service.getTokenInfo('bad')).rejects.toThrow(
-        StellarInvalidAddressException,
+    it("throws StellarInvalidAddressException for invalid address", async () => {
+      await expect(service.getTokenInfo("bad")).rejects.toThrow(
+        StellarInvalidAddressException
       );
     });
 
-    it('returns token info for valid address', async () => {
+    it("returns token info for valid address", async () => {
       const info = await service.getTokenInfo(VALID_C_ADDRESS);
       expect(info.address).toBe(VALID_C_ADDRESS);
-      expect(info).toHaveProperty('name');
-      expect(info).toHaveProperty('symbol');
-      expect(info).toHaveProperty('decimals');
+      expect(info).toHaveProperty("name");
+      expect(info).toHaveProperty("symbol");
+      expect(info).toHaveProperty("decimals");
     });
 
-    it('throws StellarContractException when contract call fails', async () => {
-      mockSimulateSuccess.mockRejectedValue(new Error('RPC error'));
+    it("throws StellarContractException when contract call fails", async () => {
+      mockSimulateSuccess.mockRejectedValue(new Error("RPC error"));
       await expect(service.getTokenInfo(VALID_C_ADDRESS)).rejects.toThrow(
-        StellarContractException,
+        StellarContractException
       );
     });
   });
@@ -174,25 +182,25 @@ describe('StellarService', () => {
   // -------------------------------------------------------------------------
   // getBurnHistory
   // -------------------------------------------------------------------------
-  describe('getBurnHistory', () => {
-    it('throws for invalid address', async () => {
-      await expect(service.getBurnHistory('bad-addr')).rejects.toThrow(
-        StellarInvalidAddressException,
+  describe("getBurnHistory", () => {
+    it("throws for invalid address", async () => {
+      await expect(service.getBurnHistory("bad-addr")).rejects.toThrow(
+        StellarInvalidAddressException
       );
     });
 
-    it('returns parsed burn events', async () => {
-      const StellarSdk = require('@stellar/stellar-sdk');
+    it("returns parsed burn events", async () => {
+      const StellarSdk = require("@stellar/stellar-sdk");
       StellarSdk.scValToNative = jest
         .fn()
-        .mockImplementation((v) => v === 'topic' ? 'burn' : v);
+        .mockImplementation((v) => (v === "topic" ? "burn" : v));
 
       mockGetEvents.mockResolvedValue({
         events: [
           {
             contractId: VALID_C_ADDRESS,
-            topic: ['topic'],
-            value: 'value',
+            topic: ["topic"],
+            value: "value",
             ledger: 100,
             txHash: TX_HASH,
             ledgerClosedAt: new Date().toISOString(),
@@ -204,10 +212,10 @@ describe('StellarService', () => {
       expect(Array.isArray(history)).toBe(true);
     });
 
-    it('throws StellarContractException on RPC error', async () => {
-      mockGetEvents.mockRejectedValue(new Error('RPC error'));
+    it("throws StellarContractException on RPC error", async () => {
+      mockGetEvents.mockRejectedValue(new Error("RPC error"));
       await expect(service.getBurnHistory(VALID_C_ADDRESS)).rejects.toThrow(
-        StellarContractException,
+        StellarContractException
       );
     });
   });
@@ -215,8 +223,8 @@ describe('StellarService', () => {
   // -------------------------------------------------------------------------
   // getFactoryState
   // -------------------------------------------------------------------------
-  describe('getFactoryState', () => {
-    it('throws when factory contract ID is not configured', async () => {
+  describe("getFactoryState", () => {
+    it("throws when factory contract ID is not configured", async () => {
       // Override config to return no factory contract ID
       const module: TestingModule = await Test.createTestingModule({
         providers: [
@@ -231,21 +239,23 @@ describe('StellarService', () => {
       }).compile();
       const svc = module.get<StellarService>(StellarService);
       svc.onModuleInit();
-      await expect(svc.getFactoryState()).rejects.toThrow(StellarContractException);
+      await expect(svc.getFactoryState()).rejects.toThrow(
+        StellarContractException
+      );
     });
 
-    it('returns factory state on success', async () => {
-      const StellarSdk = require('@stellar/stellar-sdk');
+    it("returns factory state on success", async () => {
+      const StellarSdk = require("@stellar/stellar-sdk");
       StellarSdk.rpc.Api.isSimulationError = jest.fn().mockReturnValue(false);
       StellarSdk.scValToNative = jest
         .fn()
         .mockReturnValueOnce(VALID_G_ADDRESS) // admin
-        .mockReturnValueOnce(2)                // totalTokens
+        .mockReturnValueOnce(2) // totalTokens
         .mockReturnValueOnce([VALID_C_ADDRESS]) // tokens
-        .mockReturnValueOnce(false);            // isPaused
+        .mockReturnValueOnce(false); // isPaused
 
       mockGetAccount.mockResolvedValue({});
-      mockSimulateSuccess.mockResolvedValue({ result: { retval: 'mock' } });
+      mockSimulateSuccess.mockResolvedValue({ result: { retval: "mock" } });
 
       const state = await service.getFactoryState();
       expect(state.contractId).toBe(FACTORY_CONTRACT);
@@ -255,19 +265,19 @@ describe('StellarService', () => {
   // -------------------------------------------------------------------------
   // parseContractEvent
   // -------------------------------------------------------------------------
-  describe('parseContractEvent', () => {
-    it('parses a valid event', () => {
-      const StellarSdk = require('@stellar/stellar-sdk');
+  describe("parseContractEvent", () => {
+    it("parses a valid event", () => {
+      const StellarSdk = require("@stellar/stellar-sdk");
       StellarSdk.scValToNative = jest
         .fn()
-        .mockReturnValueOnce('transfer') // topic[0] = type
+        .mockReturnValueOnce("transfer") // topic[0] = type
         .mockReturnValueOnce(VALID_G_ADDRESS) // topic[1]
-        .mockReturnValueOnce('1000'); // data
+        .mockReturnValueOnce("1000"); // data
 
       const rawEvent = {
         contractId: VALID_C_ADDRESS,
-        topic: ['t1', 't2'],
-        value: 'v',
+        topic: ["t1", "t2"],
+        value: "v",
         ledger: 200,
         txHash: TX_HASH,
         ledgerClosedAt: new Date().toISOString(),
@@ -279,105 +289,105 @@ describe('StellarService', () => {
       expect(parsed.txHash).toBe(TX_HASH);
     });
 
-    it('throws StellarParseException on malformed event', () => {
-      const StellarSdk = require('@stellar/stellar-sdk');
+    it("throws StellarParseException on malformed event", () => {
+      const StellarSdk = require("@stellar/stellar-sdk");
       StellarSdk.scValToNative = jest.fn().mockImplementation(() => {
-        throw new Error('bad xdr');
+        throw new Error("bad xdr");
       });
 
-      expect(() =>
-        service.parseContractEvent({} as any),
-      ).toThrow();
+      expect(() => service.parseContractEvent({} as any)).toThrow();
     });
   });
 
   // -------------------------------------------------------------------------
   // getTransaction
   // -------------------------------------------------------------------------
-  describe('getTransaction', () => {
-    it('returns transaction details on success', async () => {
+  describe("getTransaction", () => {
+    it("returns transaction details on success", async () => {
       mockTransactionCall.mockResolvedValue({
         hash: TX_HASH,
         ledger_attr: 1000,
-        created_at: '2024-01-01T00:00:00Z',
+        created_at: "2024-01-01T00:00:00Z",
         source_account: VALID_G_ADDRESS,
-        fee_charged: '100',
+        fee_charged: "100",
         successful: true,
         memo: undefined,
         operation_count: 1,
-        envelope_xdr: 'env_xdr',
-        result_xdr: 'res_xdr',
-        result_meta_xdr: 'meta_xdr',
+        envelope_xdr: "env_xdr",
+        result_xdr: "res_xdr",
+        result_meta_xdr: "meta_xdr",
       });
 
       const tx = await service.getTransaction(TX_HASH);
       expect(tx.hash).toBe(TX_HASH);
-      expect(tx.status).toBe('success');
+      expect(tx.status).toBe("success");
     });
 
-    it('throws StellarNotFoundException for 404', async () => {
+    it("throws StellarNotFoundException for 404", async () => {
       mockTransactionCall.mockRejectedValue({ response: { status: 404 } });
       await expect(service.getTransaction(TX_HASH)).rejects.toThrow(
-        StellarNotFoundException,
+        StellarNotFoundException
       );
     });
 
-    it('throws StellarNetworkException for other errors', async () => {
-      const { StellarNetworkException: Ex } = require('./stellar.exceptions');
-      mockTransactionCall.mockRejectedValue(new Error('network error'));
+    it("throws StellarNetworkException for other errors", async () => {
+      const { StellarNetworkException: Ex } = require("./stellar.exceptions");
+      mockTransactionCall.mockRejectedValue(new Error("network error"));
       await expect(service.getTransaction(TX_HASH)).rejects.toThrow();
     });
 
-    it('throws for missing txHash', async () => {
-      await expect(service.getTransaction('')).rejects.toThrow(StellarNotFoundException);
+    it("throws for missing txHash", async () => {
+      await expect(service.getTransaction("")).rejects.toThrow(
+        StellarNotFoundException
+      );
     });
   });
 
   // -------------------------------------------------------------------------
   // monitorTransaction
   // -------------------------------------------------------------------------
-  describe('monitorTransaction', () => {
-    it('returns success when transaction is found immediately', async () => {
+  describe("monitorTransaction", () => {
+    it("returns success when transaction is found immediately", async () => {
       mockTransactionCall.mockResolvedValue({
         hash: TX_HASH,
         ledger_attr: 1000,
-        created_at: '2024-01-01T00:00:00Z',
+        created_at: "2024-01-01T00:00:00Z",
         successful: true,
-        result_xdr: '',
+        result_xdr: "",
       });
 
       const result = await service.monitorTransaction(TX_HASH, 3, 0);
-      expect(result.status).toBe('success');
+      expect(result.status).toBe("success");
       expect(result.hash).toBe(TX_HASH);
     });
 
-    it('returns not_found after max attempts', async () => {
+    it("returns not_found after max attempts", async () => {
       mockTransactionCall.mockRejectedValue({ response: { status: 404 } });
 
       const result = await service.monitorTransaction(TX_HASH, 2, 0);
-      expect(result.status).toBe('not_found');
+      expect(result.status).toBe("not_found");
       expect(result.attempts).toBe(2);
     });
 
-    it('returns failed when transaction is unsuccessful', async () => {
+    it("returns failed when transaction is unsuccessful", async () => {
       mockTransactionCall.mockResolvedValue({
         hash: TX_HASH,
         ledger_attr: 999,
-        created_at: '2024-01-01T00:00:00Z',
+        created_at: "2024-01-01T00:00:00Z",
         successful: false,
-        result_xdr: 'AAAABf////8AAAAA',
+        result_xdr: "AAAABf////8AAAAA",
       });
 
       const result = await service.monitorTransaction(TX_HASH, 3, 0);
-      expect(result.status).toBe('failed');
+      expect(result.status).toBe("failed");
       expect(result.errorMessage).toBeDefined();
     });
 
-    it('retries on transient errors and eventually returns pending', async () => {
-      mockTransactionCall.mockRejectedValue(new Error('transient'));
+    it("retries on transient errors and eventually returns pending", async () => {
+      mockTransactionCall.mockRejectedValue(new Error("transient"));
 
       const result = await service.monitorTransaction(TX_HASH, 2, 0);
-      expect(result.status).toBe('pending');
+      expect(result.status).toBe("pending");
     });
   });
 });

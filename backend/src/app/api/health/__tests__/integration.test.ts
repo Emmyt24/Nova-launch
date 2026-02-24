@@ -1,51 +1,53 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect } from "vitest";
 
 /**
  * Integration tests for health endpoints
  * These tests verify the actual endpoint behavior
  */
-describe('Health Endpoints Integration', () => {
-  describe('GET /api/health', () => {
-    it('should have correct response structure', async () => {
+describe("Health Endpoints Integration", () => {
+  describe("GET /api/health", () => {
+    it("should have correct response structure", async () => {
       // This test verifies the response structure matches the documented schema
       const mockResponse = {
-        status: 'healthy',
+        status: "healthy",
         timestamp: new Date().toISOString(),
         uptime: 100,
-        version: '0.1.0',
+        version: "0.1.0",
         services: {
-          database: { status: 'up', responseTime: 10 },
-          stellarHorizon: { status: 'up', responseTime: 20 },
-          stellarSoroban: { status: 'up', responseTime: 30 },
-          ipfs: { status: 'up', responseTime: 40 },
-          cache: { status: 'up', responseTime: 5 },
+          database: { status: "up", responseTime: 10 },
+          stellarHorizon: { status: "up", responseTime: 20 },
+          stellarSoroban: { status: "up", responseTime: 30 },
+          ipfs: { status: "up", responseTime: 40 },
+          cache: { status: "up", responseTime: 5 },
         },
       };
 
       // Verify all required fields exist
-      expect(mockResponse).toHaveProperty('status');
-      expect(mockResponse).toHaveProperty('timestamp');
-      expect(mockResponse).toHaveProperty('uptime');
-      expect(mockResponse).toHaveProperty('version');
-      expect(mockResponse).toHaveProperty('services');
+      expect(mockResponse).toHaveProperty("status");
+      expect(mockResponse).toHaveProperty("timestamp");
+      expect(mockResponse).toHaveProperty("uptime");
+      expect(mockResponse).toHaveProperty("version");
+      expect(mockResponse).toHaveProperty("services");
 
       // Verify status is one of the allowed values
-      expect(['healthy', 'degraded', 'unhealthy']).toContain(mockResponse.status);
+      expect(["healthy", "degraded", "unhealthy"]).toContain(
+        mockResponse.status
+      );
 
       // Verify timestamp is valid ISO format
       expect(() => new Date(mockResponse.timestamp)).not.toThrow();
 
       // Verify all services are present
-      expect(mockResponse.services).toHaveProperty('database');
-      expect(mockResponse.services).toHaveProperty('stellarHorizon');
-      expect(mockResponse.services).toHaveProperty('stellarSoroban');
-      expect(mockResponse.services).toHaveProperty('ipfs');
-      expect(mockResponse.services).toHaveProperty('cache');
+      expect(mockResponse.services).toHaveProperty("database");
+      expect(mockResponse.services).toHaveProperty("stellarHorizon");
+      expect(mockResponse.services).toHaveProperty("stellarSoroban");
+      expect(mockResponse.services).toHaveProperty("ipfs");
+      expect(mockResponse.services).toHaveProperty("cache");
 
       // Verify each service has required fields
       Object.values(mockResponse.services).forEach((service) => {
-        expect(service).toHaveProperty('status');
-        expect(['up', 'down', 'degraded']).toContain(service.status);
+        expect(service).toHaveProperty("status");
+        expect(["up", "down", "degraded"]).toContain(service.status);
         if (service.responseTime !== undefined) {
           expect(service.responseTime).toBeGreaterThanOrEqual(0);
         }
@@ -53,19 +55,19 @@ describe('Health Endpoints Integration', () => {
     });
   });
 
-  describe('GET /api/health/detailed', () => {
-    it('should have correct response structure with metrics', async () => {
+  describe("GET /api/health/detailed", () => {
+    it("should have correct response structure with metrics", async () => {
       const mockResponse = {
-        status: 'healthy',
+        status: "healthy",
         timestamp: new Date().toISOString(),
         uptime: 100,
-        version: '0.1.0',
+        version: "0.1.0",
         services: {
-          database: { status: 'up', responseTime: 10 },
-          stellarHorizon: { status: 'up', responseTime: 20 },
-          stellarSoroban: { status: 'up', responseTime: 30 },
-          ipfs: { status: 'up', responseTime: 40 },
-          cache: { status: 'up', responseTime: 5 },
+          database: { status: "up", responseTime: 10 },
+          stellarHorizon: { status: "up", responseTime: 20 },
+          stellarSoroban: { status: "up", responseTime: 30 },
+          ipfs: { status: "up", responseTime: 40 },
+          cache: { status: "up", responseTime: 5 },
         },
         metrics: {
           memory: {
@@ -89,142 +91,150 @@ describe('Health Endpoints Integration', () => {
       };
 
       // Verify basic health fields
-      expect(mockResponse).toHaveProperty('status');
-      expect(mockResponse).toHaveProperty('timestamp');
-      expect(mockResponse).toHaveProperty('uptime');
-      expect(mockResponse).toHaveProperty('version');
-      expect(mockResponse).toHaveProperty('services');
+      expect(mockResponse).toHaveProperty("status");
+      expect(mockResponse).toHaveProperty("timestamp");
+      expect(mockResponse).toHaveProperty("uptime");
+      expect(mockResponse).toHaveProperty("version");
+      expect(mockResponse).toHaveProperty("services");
 
       // Verify metrics field exists
-      expect(mockResponse).toHaveProperty('metrics');
+      expect(mockResponse).toHaveProperty("metrics");
 
       // Verify memory metrics
-      expect(mockResponse.metrics).toHaveProperty('memory');
-      expect(mockResponse.metrics.memory).toHaveProperty('used');
-      expect(mockResponse.metrics.memory).toHaveProperty('total');
-      expect(mockResponse.metrics.memory).toHaveProperty('percentage');
+      expect(mockResponse.metrics).toHaveProperty("memory");
+      expect(mockResponse.metrics.memory).toHaveProperty("used");
+      expect(mockResponse.metrics.memory).toHaveProperty("total");
+      expect(mockResponse.metrics.memory).toHaveProperty("percentage");
       expect(mockResponse.metrics.memory.used).toBeGreaterThan(0);
       expect(mockResponse.metrics.memory.total).toBeGreaterThan(0);
       expect(mockResponse.metrics.memory.percentage).toBeGreaterThanOrEqual(0);
       expect(mockResponse.metrics.memory.percentage).toBeLessThanOrEqual(100);
 
       // Verify CPU metrics
-      expect(mockResponse.metrics).toHaveProperty('cpu');
-      expect(mockResponse.metrics.cpu).toHaveProperty('usage');
+      expect(mockResponse.metrics).toHaveProperty("cpu");
+      expect(mockResponse.metrics.cpu).toHaveProperty("usage");
       expect(mockResponse.metrics.cpu.usage).toBeGreaterThanOrEqual(0);
 
       // Verify database metrics
-      expect(mockResponse.metrics).toHaveProperty('database');
+      expect(mockResponse.metrics).toHaveProperty("database");
 
       // Verify request metrics
-      expect(mockResponse.metrics).toHaveProperty('requests');
-      expect(mockResponse.metrics.requests).toHaveProperty('total');
-      expect(mockResponse.metrics.requests).toHaveProperty('errorRate');
+      expect(mockResponse.metrics).toHaveProperty("requests");
+      expect(mockResponse.metrics.requests).toHaveProperty("total");
+      expect(mockResponse.metrics.requests).toHaveProperty("errorRate");
       expect(mockResponse.metrics.requests.total).toBeGreaterThanOrEqual(0);
       expect(mockResponse.metrics.requests.errorRate).toBeGreaterThanOrEqual(0);
       expect(mockResponse.metrics.requests.errorRate).toBeLessThanOrEqual(100);
     });
   });
 
-  describe('Status determination', () => {
-    it('should be healthy when all services are up', () => {
+  describe("Status determination", () => {
+    it("should be healthy when all services are up", () => {
       const services = {
-        database: { status: 'up' as const },
-        stellarHorizon: { status: 'up' as const },
-        stellarSoroban: { status: 'up' as const },
-        ipfs: { status: 'up' as const },
-        cache: { status: 'up' as const },
+        database: { status: "up" as const },
+        stellarHorizon: { status: "up" as const },
+        stellarSoroban: { status: "up" as const },
+        ipfs: { status: "up" as const },
+        cache: { status: "up" as const },
       };
 
-      const hasDown = Object.values(services).some((s) => s.status === 'down');
-      const hasDegraded = Object.values(services).some((s) => s.status === 'degraded');
-      const dbDown = services.database.status === 'down';
+      const hasDown = Object.values(services).some((s) => s.status === "down");
+      const hasDegraded = Object.values(services).some(
+        (s) => s.status === "degraded"
+      );
+      const dbDown = services.database.status === "down";
 
-      let status: 'healthy' | 'degraded' | 'unhealthy';
+      let status: "healthy" | "degraded" | "unhealthy";
       if (dbDown || hasDown) {
-        status = 'unhealthy';
+        status = "unhealthy";
       } else if (hasDegraded) {
-        status = 'degraded';
+        status = "degraded";
       } else {
-        status = 'healthy';
+        status = "healthy";
       }
 
-      expect(status).toBe('healthy');
+      expect(status).toBe("healthy");
     });
 
-    it('should be unhealthy when database is down', () => {
+    it("should be unhealthy when database is down", () => {
       const services = {
-        database: { status: 'down' as const },
-        stellarHorizon: { status: 'up' as const },
-        stellarSoroban: { status: 'up' as const },
-        ipfs: { status: 'up' as const },
-        cache: { status: 'up' as const },
+        database: { status: "down" as const },
+        stellarHorizon: { status: "up" as const },
+        stellarSoroban: { status: "up" as const },
+        ipfs: { status: "up" as const },
+        cache: { status: "up" as const },
       };
 
-      const dbDown = services.database.status === 'down';
-      const hasDown = Object.values(services).some((s) => s.status === 'down');
-      const hasDegraded = Object.values(services).some((s) => s.status === 'degraded');
+      const dbDown = services.database.status === "down";
+      const hasDown = Object.values(services).some((s) => s.status === "down");
+      const hasDegraded = Object.values(services).some(
+        (s) => s.status === "degraded"
+      );
 
-      let status: 'healthy' | 'degraded' | 'unhealthy';
+      let status: "healthy" | "degraded" | "unhealthy";
       if (dbDown || hasDown) {
-        status = 'unhealthy';
+        status = "unhealthy";
       } else if (hasDegraded) {
-        status = 'degraded';
+        status = "degraded";
       } else {
-        status = 'healthy';
+        status = "healthy";
       }
 
-      expect(status).toBe('unhealthy');
+      expect(status).toBe("unhealthy");
     });
 
-    it('should be degraded when non-critical service is degraded', () => {
+    it("should be degraded when non-critical service is degraded", () => {
       const services = {
-        database: { status: 'up' as const },
-        stellarHorizon: { status: 'degraded' as const },
-        stellarSoroban: { status: 'up' as const },
-        ipfs: { status: 'up' as const },
-        cache: { status: 'up' as const },
+        database: { status: "up" as const },
+        stellarHorizon: { status: "degraded" as const },
+        stellarSoroban: { status: "up" as const },
+        ipfs: { status: "up" as const },
+        cache: { status: "up" as const },
       };
 
-      const dbDown = services.database.status === 'down';
-      const hasDown = Object.values(services).some((s) => s.status === 'down');
-      const hasDegraded = Object.values(services).some((s) => s.status === 'degraded');
+      const dbDown = services.database.status === "down";
+      const hasDown = Object.values(services).some((s) => s.status === "down");
+      const hasDegraded = Object.values(services).some(
+        (s) => s.status === "degraded"
+      );
 
-      let status: 'healthy' | 'degraded' | 'unhealthy';
+      let status: "healthy" | "degraded" | "unhealthy";
       if (dbDown || hasDown) {
-        status = 'unhealthy';
+        status = "unhealthy";
       } else if (hasDegraded) {
-        status = 'degraded';
+        status = "degraded";
       } else {
-        status = 'healthy';
+        status = "healthy";
       }
 
-      expect(status).toBe('degraded');
+      expect(status).toBe("degraded");
     });
 
-    it('should be unhealthy when any service is down', () => {
+    it("should be unhealthy when any service is down", () => {
       const services = {
-        database: { status: 'up' as const },
-        stellarHorizon: { status: 'down' as const },
-        stellarSoroban: { status: 'up' as const },
-        ipfs: { status: 'up' as const },
-        cache: { status: 'up' as const },
+        database: { status: "up" as const },
+        stellarHorizon: { status: "down" as const },
+        stellarSoroban: { status: "up" as const },
+        ipfs: { status: "up" as const },
+        cache: { status: "up" as const },
       };
 
-      const dbDown = services.database.status === 'down';
-      const hasDown = Object.values(services).some((s) => s.status === 'down');
-      const hasDegraded = Object.values(services).some((s) => s.status === 'degraded');
+      const dbDown = services.database.status === "down";
+      const hasDown = Object.values(services).some((s) => s.status === "down");
+      const hasDegraded = Object.values(services).some(
+        (s) => s.status === "degraded"
+      );
 
-      let status: 'healthy' | 'degraded' | 'unhealthy';
+      let status: "healthy" | "degraded" | "unhealthy";
       if (dbDown || hasDown) {
-        status = 'unhealthy';
+        status = "unhealthy";
       } else if (hasDegraded) {
-        status = 'degraded';
+        status = "degraded";
       } else {
-        status = 'healthy';
+        status = "healthy";
       }
 
-      expect(status).toBe('unhealthy');
+      expect(status).toBe("unhealthy");
     });
   });
 });

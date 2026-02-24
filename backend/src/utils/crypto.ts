@@ -1,20 +1,17 @@
-import crypto from 'crypto';
+import crypto from "crypto";
 
 /**
  * Generate a secure random secret for webhook signing
  */
 export function generateWebhookSecret(length: number = 32): string {
-  return crypto.randomBytes(length).toString('hex');
+  return crypto.randomBytes(length).toString("hex");
 }
 
 /**
  * Generate HMAC signature for webhook payload
  */
 export function generateSignature(payload: string, secret: string): string {
-  return crypto
-    .createHmac('sha256', secret)
-    .update(payload)
-    .digest('hex');
+  return crypto.createHmac("sha256", secret).update(payload).digest("hex");
 }
 
 /**
@@ -38,7 +35,7 @@ export function verifySignature(
 export function isValidUrl(url: string): boolean {
   try {
     const parsed = new URL(url);
-    return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+    return parsed.protocol === "http:" || parsed.protocol === "https:";
   } catch {
     return false;
   }

@@ -1,10 +1,10 @@
-import { StellarInvalidAddressException } from './stellar.exceptions';
+import { StellarInvalidAddressException } from "./stellar.exceptions";
 
 /**
  * Validates a Stellar account address (G... format).
  */
 export function isValidStellarAddress(address: string): boolean {
-  if (!address || typeof address !== 'string') return false;
+  if (!address || typeof address !== "string") return false;
   // Stellar public keys are 56-character base32-encoded strings starting with 'G'
   return /^G[A-Z2-7]{55}$/.test(address);
 }
@@ -13,7 +13,7 @@ export function isValidStellarAddress(address: string): boolean {
  * Validates a Stellar contract address (C... format).
  */
 export function isValidContractAddress(address: string): boolean {
-  if (!address || typeof address !== 'string') return false;
+  if (!address || typeof address !== "string") return false;
   // Soroban contract IDs start with 'C' and are 56 characters
   return /^C[A-Z2-7]{55}$/.test(address);
 }
@@ -49,27 +49,33 @@ export function stroopsToXlm(stroops: string | number): string {
   const value = BigInt(stroops);
   const xlm = value / BigInt(10_000_000);
   const remainder = value % BigInt(10_000_000);
-  return `${xlm}.${remainder.toString().padStart(7, '0')}`;
+  return `${xlm}.${remainder.toString().padStart(7, "0")}`;
 }
 
 /**
  * Converts XLM to stroops.
  */
 export function xlmToStroops(xlm: string): string {
-  const [whole, fraction = '0'] = xlm.split('.');
-  const paddedFraction = fraction.padEnd(7, '0').slice(0, 7);
-  return (BigInt(whole) * BigInt(10_000_000) + BigInt(paddedFraction)).toString();
+  const [whole, fraction = "0"] = xlm.split(".");
+  const paddedFraction = fraction.padEnd(7, "0").slice(0, 7);
+  return (
+    BigInt(whole) * BigInt(10_000_000) +
+    BigInt(paddedFraction)
+  ).toString();
 }
 
 /**
  * Formats a Soroban amount using token decimals.
  */
-export function formatTokenAmount(amount: string | bigint, decimals: number): string {
+export function formatTokenAmount(
+  amount: string | bigint,
+  decimals: number
+): string {
   const raw = BigInt(amount);
   const divisor = BigInt(10 ** decimals);
   const whole = raw / divisor;
   const remainder = raw % divisor;
-  return `${whole}.${remainder.toString().padStart(decimals, '0')}`;
+  return `${whole}.${remainder.toString().padStart(decimals, "0")}`;
 }
 
 /**
@@ -86,7 +92,7 @@ export function calculateBackoff(
   attempt: number,
   initialDelay: number,
   maxDelay: number,
-  factor: number,
+  factor: number
 ): number {
   const delay = initialDelay * Math.pow(factor, attempt);
   return Math.min(delay, maxDelay);

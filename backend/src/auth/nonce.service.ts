@@ -1,7 +1,7 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { v4 as uuidv4 } from 'uuid';
-import { AUTH_CONSTANTS } from '../auth.constants';
-import { NonceResponseDto } from './dto/auth.dto';
+import { Injectable, Logger } from "@nestjs/common";
+import { v4 as uuidv4 } from "uuid";
+import { AUTH_CONSTANTS } from "../auth.constants";
+import { NonceResponseDto } from "./dto/auth.dto";
 
 interface NonceEntry {
   nonce: string;

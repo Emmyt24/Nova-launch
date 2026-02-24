@@ -1,9 +1,12 @@
-import pinataSDK from '@pinata/sdk';
-import NodeCache from 'node-cache';
+import pinataSDK from "@pinata/sdk";
+import NodeCache from "node-cache";
 
 const cache = new NodeCache({ stdTTL: 3600 }); // 1 hour cache
 
-export async function uploadImageToIPFS(buffer: Buffer, filename: string): Promise<string> {
+export async function uploadImageToIPFS(
+  buffer: Buffer,
+  filename: string
+): Promise<string> {
   const pinata = new pinataSDK(
     process.env.PINATA_API_KEY!,
     process.env.PINATA_API_SECRET!
@@ -38,7 +41,7 @@ export async function getMetadataFromIPFS(cid: string): Promise<any> {
 
   // Fetch from IPFS
   const response = await fetch(`https://gateway.pinata.cloud/ipfs/${cid}`);
-  if (!response.ok) throw new Error('Metadata not found');
+  if (!response.ok) throw new Error("Metadata not found");
 
   const metadata = await response.json();
   cache.set(cid, metadata);

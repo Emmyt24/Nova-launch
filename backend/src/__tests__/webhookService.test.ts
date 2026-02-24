@@ -1,15 +1,15 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { WebhookService } from '../services/webhookService';
-import { WebhookEventType } from '../types/webhook';
+import { describe, it, expect, beforeEach, vi } from "vitest";
+import { WebhookService } from "../services/webhookService";
+import { WebhookEventType } from "../types/webhook";
 
 // Mock database
-vi.mock('../database/db', () => ({
+vi.mock("../database/db", () => ({
   default: {
     query: vi.fn(),
   },
 }));
 
-describe('WebhookService', () => {
+describe("WebhookService", () => {
   let service: WebhookService;
 
   beforeEach(() => {
@@ -17,22 +17,22 @@ describe('WebhookService', () => {
     vi.clearAllMocks();
   });
 
-  describe('createSubscription', () => {
-    it('should create a webhook subscription with generated secret', async () => {
+  describe("createSubscription", () => {
+    it("should create a webhook subscription with generated secret", async () => {
       const input = {
-        url: 'https://example.com/webhook',
+        url: "https://example.com/webhook",
         events: [WebhookEventType.TOKEN_CREATED],
-        createdBy: 'GABC123...',
+        createdBy: "GABC123...",
       };
 
       const mockResult = {
         rows: [
           {
-            id: 'test-id',
+            id: "test-id",
             url: input.url,
             token_address: null,
             events: input.events,
-            secret: 'generated-secret',
+            secret: "generated-secret",
             active: true,
             created_by: input.createdBy,
             created_at: new Date(),
@@ -41,7 +41,7 @@ describe('WebhookService', () => {
         ],
       };
 
-      const db = await import('../database/db');
+      const db = await import("../database/db");
       vi.mocked(db.default.query).mockResolvedValue(mockResult as any);
 
       const result = await service.createSubscription(input);
@@ -53,20 +53,20 @@ describe('WebhookService', () => {
     });
   });
 
-  describe('createPayload', () => {
-    it('should create payload with valid signature', () => {
+  describe("createPayload", () => {
+    it("should create payload with valid signature", () => {
       const event = WebhookEventType.TOKEN_CREATED;
       const data = {
-        tokenAddress: 'GTEST...',
-        creator: 'GCREATOR...',
-        name: 'Test Token',
-        symbol: 'TEST',
+        tokenAddress: "GTEST...",
+        creator: "GCREATOR...",
+        name: "Test Token",
+        symbol: "TEST",
         decimals: 7,
-        initialSupply: '1000000',
-        transactionHash: 'hash123',
+        initialSupply: "1000000",
+        transactionHash: "hash123",
         ledger: 12345,
       };
-      const secret = 'test-secret';
+      const secret = "test-secret";
 
       const payload = service.createPayload(event, data, secret);
 
@@ -77,31 +77,34 @@ describe('WebhookService', () => {
     });
   });
 
-  describe('findMatchingSubscriptions', () => {
-    it('should find subscriptions matching event and token', async () => {
+  describe("findMatchingSubscriptions", () => {
+    it("should find subscriptions matching event and token", async () => {
       const event = WebhookEventType.TOKEN_BURN_SELF;
-      const tokenAddress = 'GTOKEN...';
+      const tokenAddress = "GTOKEN...";
 
       const mockResult = {
         rows: [
           {
-            id: 'sub-1',
-            url: 'https://example.com/webhook',
+            id: "sub-1",
+            url: "https://example.com/webhook",
             token_address: tokenAddress,
             events: [event],
-            secret: 'secret',
+            secret: "secret",
             active: true,
-            created_by: 'GUSER...',
+            created_by: "GUSER...",
             created_at: new Date(),
             last_triggered: null,
           },
         ],
       };
 
-      const db = await import('../database/db');
+      const db = await import("../database/db");
       vi.mocked(db.default.query).mockResolvedValue(mockResult as any);
 
-      const result = await service.findMatchingSubscriptions(event, tokenAddress);
+      const result = await service.findMatchingSubscriptions(
+        event,
+        tokenAddress
+      );
 
       expect(result).toHaveLength(1);
       expect(result[0].tokenAddress).toBe(tokenAddress);

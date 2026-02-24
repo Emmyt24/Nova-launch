@@ -1,6 +1,6 @@
-import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
-import { StellarService } from './stellar.service';
+import { Module } from "@nestjs/common";
+import { ConfigModule } from "@nestjs/config";
+import { StellarService } from "./stellar.service";
 
 @Module({
   imports: [ConfigModule],

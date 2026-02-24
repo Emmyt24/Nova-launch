@@ -1,10 +1,10 @@
-import axios from 'axios';
-import { WebhookEventType } from '../types/webhook';
-import webhookDeliveryService from './webhookDeliveryService';
+import axios from "axios";
+import { WebhookEventType } from "../types/webhook";
+import webhookDeliveryService from "./webhookDeliveryService";
 
 const HORIZON_URL =
-  process.env.STELLAR_HORIZON_URL || 'https://horizon-testnet.stellar.org';
-const FACTORY_CONTRACT_ID = process.env.FACTORY_CONTRACT_ID || '';
+  process.env.STELLAR_HORIZON_URL || "https://horizon-testnet.stellar.org";
+const FACTORY_CONTRACT_ID = process.env.FACTORY_CONTRACT_ID || "";
 const POLL_INTERVAL_MS = 5000; // Poll every 5 seconds
 
 interface StellarEvent {
@@ -29,12 +29,12 @@ export class StellarEventListener {
    */
   async start(): Promise<void> {
     if (this.isRunning) {
-      console.warn('Event listener is already running');
+      console.warn("Event listener is already running");
       return;
     }
 
     this.isRunning = true;
-    console.log('Starting Stellar event listener...');
+    console.log("Starting Stellar event listener...");
 
     // Start polling loop
     this.pollEvents();
@@ -45,7 +45,7 @@ export class StellarEventListener {
    */
   stop(): void {
     this.isRunning = false;
-    console.log('Stopping Stellar event listener...');
+    console.log("Stopping Stellar event listener...");
   }
 
   /**
@@ -56,7 +56,7 @@ export class StellarEventListener {
       try {
         await this.fetchAndProcessEvents();
       } catch (error) {
-        console.error('Error polling events:', error);
+        console.error("Error polling events:", error);
       }
 
       // Wait before next poll
@@ -72,7 +72,7 @@ export class StellarEventListener {
       const url = `${HORIZON_URL}/contracts/${FACTORY_CONTRACT_ID}/events`;
       const params: any = {
         limit: 100,
-        order: 'asc',
+        order: "asc",
       };
 
       if (this.lastCursor) {
@@ -93,7 +93,7 @@ export class StellarEventListener {
         this.lastCursor = event.paging_token;
       }
     } catch (error) {
-      console.error('Error fetching events:', error);
+      console.error("Error fetching events:", error);
     }
   }
 
@@ -123,7 +123,7 @@ export class StellarEventListener {
         eventData.tokenAddress
       );
     } catch (error) {
-      console.error('Error processing event:', error);
+      console.error("Error processing event:", error);
     }
   }
 
@@ -139,16 +139,16 @@ export class StellarEventListener {
     const eventName = event.topic[1];
 
     switch (eventName) {
-      case 'burn':
+      case "burn":
         // Determine if self-burn or admin-burn based on event data
         return event.value?.admin
           ? WebhookEventType.TOKEN_BURN_ADMIN
           : WebhookEventType.TOKEN_BURN_SELF;
 
-      case 'token_created':
+      case "token_created":
         return WebhookEventType.TOKEN_CREATED;
 
-      case 'metadata_updated':
+      case "metadata_updated":
         return WebhookEventType.TOKEN_METADATA_UPDATED;
 
       default:
@@ -173,29 +173,29 @@ export class StellarEventListener {
       case WebhookEventType.TOKEN_BURN_ADMIN:
         return {
           ...baseData,
-          tokenAddress: event.value?.token_address || '',
-          from: event.value?.from || '',
-          amount: event.value?.amount?.toString() || '0',
-          burner: event.value?.burner || event.value?.from || '',
+          tokenAddress: event.value?.token_address || "",
+          from: event.value?.from || "",
+          amount: event.value?.amount?.toString() || "0",
+          burner: event.value?.burner || event.value?.from || "",
         };
 
       case WebhookEventType.TOKEN_CREATED:
         return {
           ...baseData,
-          tokenAddress: event.value?.token_address || '',
-          creator: event.value?.creator || '',
-          name: event.value?.name || '',
-          symbol: event.value?.symbol || '',
+          tokenAddress: event.value?.token_address || "",
+          creator: event.value?.creator || "",
+          name: event.value?.name || "",
+          symbol: event.value?.symbol || "",
           decimals: event.value?.decimals || 7,
-          initialSupply: event.value?.initial_supply?.toString() || '0',
+          initialSupply: event.value?.initial_supply?.toString() || "0",
         };
 
       case WebhookEventType.TOKEN_METADATA_UPDATED:
         return {
           ...baseData,
-          tokenAddress: event.value?.token_address || '',
-          metadataUri: event.value?.metadata_uri || '',
-          updatedBy: event.value?.updated_by || '',
+          tokenAddress: event.value?.token_address || "",
+          metadataUri: event.value?.metadata_uri || "",
+          updatedBy: event.value?.updated_by || "",
         };
 
       default:

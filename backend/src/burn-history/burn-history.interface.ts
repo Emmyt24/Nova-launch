@@ -3,7 +3,7 @@ export interface BurnRecord {
   tokenAddress: string;
   amount: string;
   from: string;
-  type: 'self' | 'admin';
+  type: "self" | "admin";
   transactionHash: string;
   blockNumber: string | null;
   timestamp: Date;

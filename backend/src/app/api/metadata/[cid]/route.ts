@@ -1,6 +1,6 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { getMetadataFromIPFS } from '@/lib/ipfs/pinata';
-import type { MetadataResponse } from '@/types/metadata';
+import { NextRequest, NextResponse } from "next/server";
+import { getMetadataFromIPFS } from "@/lib/ipfs/pinata";
+import type { MetadataResponse } from "@/types/metadata";
 
 export async function GET(
   request: NextRequest,
@@ -11,7 +11,7 @@ export async function GET(
 
     if (!cid) {
       return NextResponse.json(
-        { success: false, error: 'CID is required' },
+        { success: false, error: "CID is required" },
         { status: 400 }
       );
     }
@@ -27,13 +27,13 @@ export async function GET(
     return NextResponse.json(response, {
       status: 200,
       headers: {
-        'Cache-Control': 'public, max-age=3600',
+        "Cache-Control": "public, max-age=3600",
       },
     });
   } catch (error) {
-    console.error('Retrieve error:', error);
+    console.error("Retrieve error:", error);
     return NextResponse.json(
-      { success: false, error: 'Metadata not found' },
+      { success: false, error: "Metadata not found" },
       { status: 404 }
     );
   }

@@ -1,5 +1,5 @@
-import { prisma } from './prisma';
-import { Prisma } from '@prisma/client';
+import { prisma } from "./prisma";
+import { Prisma } from "@prisma/client";
 
 // ─── Token Utilities ───────────────────────────────────────────────
 
@@ -25,7 +25,7 @@ export async function updateTokenBurnStats(tokenId: string, amount: bigint) {
     where: { id: tokenId },
     data: {
       totalBurned: { increment: amount },
-      burnCount:   { increment: 1 },
+      burnCount: { increment: 1 },
     },
   });
 }
@@ -49,7 +49,7 @@ export async function getBurnHistory(
 ) {
   return prisma.burnRecord.findMany({
     where: { tokenId },
-    orderBy: { timestamp: 'desc' },
+    orderBy: { timestamp: "desc" },
     skip: options.skip ?? 0,
     take: options.take ?? 20,
   });
@@ -79,15 +79,15 @@ export async function upsertDailyAnalytics(
   return prisma.analytics.upsert({
     where: { tokenId_date: { tokenId, date: dayStart } },
     update: {
-      burnVolume:    { increment: burnAmount },
-      burnCount:     { increment: 1 },
+      burnVolume: { increment: burnAmount },
+      burnCount: { increment: 1 },
       uniqueBurners,
     },
     create: {
       tokenId,
-      date:          dayStart,
-      burnVolume:    burnAmount,
-      burnCount:     1,
+      date: dayStart,
+      burnVolume: burnAmount,
+      burnCount: 1,
       uniqueBurners,
     },
   });
@@ -98,10 +98,10 @@ export async function upsertDailyAnalytics(
 export async function testConnection() {
   try {
     await prisma.$connect();
-    console.log('✅ Database connected successfully');
+    console.log("✅ Database connected successfully");
     return true;
   } catch (err) {
-    console.error('❌ Database connection failed:', err);
+    console.error("❌ Database connection failed:", err);
     return false;
   } finally {
     await prisma.$disconnect();

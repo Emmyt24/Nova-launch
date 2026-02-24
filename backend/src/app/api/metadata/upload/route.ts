@@ -1,19 +1,22 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { uploadImageToIPFS, uploadMetadataToIPFS } from '@/lib/ipfs/pinata';
-import { validateImageFile, validateMetadata } from '@/lib/validation/validator';
-import type { UploadResponse } from '@/types/metadata';
+import { NextRequest, NextResponse } from "next/server";
+import { uploadImageToIPFS, uploadMetadataToIPFS } from "@/lib/ipfs/pinata";
+import {
+  validateImageFile,
+  validateMetadata,
+} from "@/lib/validation/validator";
+import type { UploadResponse } from "@/types/metadata";
 
 export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData();
 
     // Extract fields
-    const name = formData.get('name') as string;
-    const symbol = formData.get('symbol') as string;
-    const description = formData.get('description') as string || '';
-    const decimals = parseInt(formData.get('decimals') as string);
-    const imageFile = formData.get('image') as File | null;
-    const properties = formData.get('properties') as string;
+    const name = formData.get("name") as string;
+    const symbol = formData.get("symbol") as string;
+    const description = (formData.get("description") as string) || "";
+    const decimals = parseInt(formData.get("decimals") as string);
+    const imageFile = formData.get("image") as File | null;
+    const properties = formData.get("properties") as string;
 
     // Validate metadata format
     const metadataValidation = validateMetadata({ name, symbol, decimals });
@@ -24,7 +27,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    let imageCID = '';
+    let imageCID = "";
 
     // Upload image to IPFS if provided
     if (imageFile) {
@@ -45,7 +48,7 @@ export async function POST(request: NextRequest) {
       name,
       symbol,
       description,
-      image: imageCID ? `ipfs://${imageCID}` : '',
+      image: imageCID ? `ipfs://${imageCID}` : "",
       decimals,
       properties: properties ? JSON.parse(properties) : {},
     };
@@ -60,9 +63,9 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(response, { status: 201 });
   } catch (error) {
-    console.error('Upload error:', error);
+    console.error("Upload error:", error);
     return NextResponse.json(
-      { success: false, error: 'Upload failed' },
+      { success: false, error: "Upload failed" },
       { status: 500 }
     );
   }

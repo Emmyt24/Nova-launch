@@ -1,5 +1,5 @@
 export interface StellarConfig {
-  network: 'testnet' | 'mainnet';
+  network: "testnet" | "mainnet";
   horizonUrl: string;
   sorobanRpcUrl: string;
   factoryContractId: string;
@@ -17,10 +17,10 @@ export interface StellarConfig {
 }
 
 export const DEFAULT_STELLAR_CONFIG: StellarConfig = {
-  network: 'testnet',
-  horizonUrl: 'https://horizon-testnet.stellar.org',
-  sorobanRpcUrl: 'https://soroban-testnet.stellar.org',
-  factoryContractId: '',
+  network: "testnet",
+  horizonUrl: "https://horizon-testnet.stellar.org",
+  sorobanRpcUrl: "https://soroban-testnet.stellar.org",
+  factoryContractId: "",
   requestTimeout: 30000,
   retry: {
     maxAttempts: 3,

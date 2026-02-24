@@ -2,10 +2,10 @@
  * Webhook event types
  */
 export enum WebhookEventType {
-  TOKEN_BURN_SELF = 'token.burn.self',
-  TOKEN_BURN_ADMIN = 'token.burn.admin',
-  TOKEN_CREATED = 'token.created',
-  TOKEN_METADATA_UPDATED = 'token.metadata.updated',
+  TOKEN_BURN_SELF = "token.burn.self",
+  TOKEN_BURN_ADMIN = "token.burn.admin",
+  TOKEN_CREATED = "token.created",
+  TOKEN_METADATA_UPDATED = "token.metadata.updated",
 }
 
 /**
@@ -99,8 +99,8 @@ export interface WebhookDeliveryLog {
  * Webhook delivery status
  */
 export enum WebhookDeliveryStatus {
-  PENDING = 'pending',
-  SUCCESS = 'success',
-  FAILED = 'failed',
-  RETRYING = 'retrying',
+  PENDING = "pending",
+  SUCCESS = "success",
+  FAILED = "failed",
+  RETRYING = "retrying",
 }

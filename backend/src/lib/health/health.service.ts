@@ -1,5 +1,5 @@
-import { prisma } from '../prisma';
-import NodeCache from 'node-cache';
+import { prisma } from "../prisma";
+import NodeCache from "node-cache";
 import {
   HealthStatus,
   ServiceStatus,
@@ -7,7 +7,7 @@ import {
   HealthCheckResult,
   DetailedHealthCheckResult,
   HealthCheckOptions,
-} from './health.types';
+} from "./health.types";
 
 /**
  * Health check service for monitoring application and dependency status
@@ -23,7 +23,7 @@ export class HealthService {
   private constructor() {
     this.startTime = Date.now();
     this.cache = new NodeCache({ stdTTL: 30, checkperiod: 10 });
-    this.version = process.env.npm_package_version || '0.1.0';
+    this.version = process.env.npm_package_version || "0.1.0";
   }
 
   static getInstance(): HealthService {
@@ -64,10 +64,12 @@ export class HealthService {
   /**
    * Perform basic health check
    */
-  async checkHealth(options: HealthCheckOptions = {}): Promise<HealthCheckResult> {
-    const cacheKey = 'health-check-basic';
+  async checkHealth(
+    options: HealthCheckOptions = {}
+  ): Promise<HealthCheckResult> {
+    const cacheKey = "health-check-basic";
     const cached = this.cache.get<HealthCheckResult>(cacheKey);
-    
+
     if (cached) {
       return cached;
     }
@@ -94,9 +96,9 @@ export class HealthService {
   async checkDetailedHealth(
     options: HealthCheckOptions = {}
   ): Promise<DetailedHealthCheckResult> {
-    const cacheKey = 'health-check-detailed';
+    const cacheKey = "health-check-detailed";
     const cached = this.cache.get<DetailedHealthCheckResult>(cacheKey);
-    
+
     if (cached) {
       return cached;
     }
@@ -116,14 +118,17 @@ export class HealthService {
   /**
    * Check all service dependencies
    */
-  private async checkAllServices(timeout: number): Promise<HealthCheckResult['services']> {
-    const [database, stellarHorizon, stellarSoroban, ipfs, cache] = await Promise.all([
-      this.checkDatabase(timeout),
-      this.checkStellarHorizon(timeout),
-      this.checkStellarSoroban(timeout),
-      this.checkIpfs(timeout),
-      this.checkCache(timeout),
-    ]);
+  private async checkAllServices(
+    timeout: number
+  ): Promise<HealthCheckResult["services"]> {
+    const [database, stellarHorizon, stellarSoroban, ipfs, cache] =
+      await Promise.all([
+        this.checkDatabase(timeout),
+        this.checkStellarHorizon(timeout),
+        this.checkStellarSoroban(timeout),
+        this.checkIpfs(timeout),
+        this.checkCache(timeout),
+      ]);
 
     return {
       database,
@@ -142,18 +147,18 @@ export class HealthService {
     try {
       await Promise.race([
         prisma.$queryRaw`SELECT 1`,
-        this.timeoutPromise(timeout, 'Database check timeout'),
+        this.timeoutPromise(timeout, "Database check timeout"),
       ]);
-      
+
       return {
-        status: 'up',
+        status: "up",
         responseTime: Date.now() - start,
       };
     } catch (error) {
       return {
-        status: 'down',
+        status: "down",
         responseTime: Date.now() - start,
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error.message : "Unknown error",
       };
     }
   }
@@ -163,31 +168,32 @@ export class HealthService {
    */
   private async checkStellarHorizon(timeout: number): Promise<ServiceHealth> {
     const start = Date.now();
-    const horizonUrl = process.env.STELLAR_HORIZON_URL || 'https://horizon-testnet.stellar.org';
-    
+    const horizonUrl =
+      process.env.STELLAR_HORIZON_URL || "https://horizon-testnet.stellar.org";
+
     try {
       const response = await Promise.race([
         fetch(`${horizonUrl}/`),
-        this.timeoutPromise(timeout, 'Horizon check timeout'),
+        this.timeoutPromise(timeout, "Horizon check timeout"),
       ]);
 
       if (response.ok) {
         return {
-          status: 'up',
+          status: "up",
           responseTime: Date.now() - start,
         };
       }
 
       return {
-        status: 'degraded',
+        status: "degraded",
         responseTime: Date.now() - start,
         message: `HTTP ${response.status}`,
       };
     } catch (error) {
       return {
-        status: 'down',
+        status: "down",
         responseTime: Date.now() - start,
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error.message : "Unknown error",
       };
     }
   }
@@ -197,40 +203,42 @@ export class HealthService {
    */
   private async checkStellarSoroban(timeout: number): Promise<ServiceHealth> {
     const start = Date.now();
-    const sorobanUrl = process.env.STELLAR_SOROBAN_RPC_URL || 'https://soroban-testnet.stellar.org';
-    
+    const sorobanUrl =
+      process.env.STELLAR_SOROBAN_RPC_URL ||
+      "https://soroban-testnet.stellar.org";
+
     try {
       const response = await Promise.race([
         fetch(sorobanUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            jsonrpc: '2.0',
+            jsonrpc: "2.0",
             id: 1,
-            method: 'getHealth',
+            method: "getHealth",
             params: [],
           }),
         }),
-        this.timeoutPromise(timeout, 'Soroban check timeout'),
+        this.timeoutPromise(timeout, "Soroban check timeout"),
       ]);
 
       if (response.ok) {
         return {
-          status: 'up',
+          status: "up",
           responseTime: Date.now() - start,
         };
       }
 
       return {
-        status: 'degraded',
+        status: "degraded",
         responseTime: Date.now() - start,
         message: `HTTP ${response.status}`,
       };
     } catch (error) {
       return {
-        status: 'down',
+        status: "down",
         responseTime: Date.now() - start,
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error.message : "Unknown error",
       };
     }
   }
@@ -240,32 +248,32 @@ export class HealthService {
    */
   private async checkIpfs(timeout: number): Promise<ServiceHealth> {
     const start = Date.now();
-    const ipfsGateway = process.env.IPFS_GATEWAY_URL || 'https://ipfs.io';
-    
+    const ipfsGateway = process.env.IPFS_GATEWAY_URL || "https://ipfs.io";
+
     try {
       const response = await Promise.race([
         fetch(ipfsGateway),
-        this.timeoutPromise(timeout, 'IPFS check timeout'),
+        this.timeoutPromise(timeout, "IPFS check timeout"),
       ]);
 
       if (response.ok || response.status === 404) {
         // 404 is acceptable for gateway root
         return {
-          status: 'up',
+          status: "up",
           responseTime: Date.now() - start,
         };
       }
 
       return {
-        status: 'degraded',
+        status: "degraded",
         responseTime: Date.now() - start,
         message: `HTTP ${response.status}`,
       };
     } catch (error) {
       return {
-        status: 'down',
+        status: "down",
         responseTime: Date.now() - start,
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error.message : "Unknown error",
       };
     }
   }
@@ -275,31 +283,31 @@ export class HealthService {
    */
   private async checkCache(timeout: number): Promise<ServiceHealth> {
     const start = Date.now();
-    const testKey = '__health_check__';
+    const testKey = "__health_check__";
     const testValue = Date.now().toString();
-    
+
     try {
       await Promise.race([
         (async () => {
           this.cache.set(testKey, testValue, 1);
           const retrieved = this.cache.get(testKey);
           if (retrieved !== testValue) {
-            throw new Error('Cache value mismatch');
+            throw new Error("Cache value mismatch");
           }
           this.cache.del(testKey);
         })(),
-        this.timeoutPromise(timeout, 'Cache check timeout'),
+        this.timeoutPromise(timeout, "Cache check timeout"),
       ]);
 
       return {
-        status: 'up',
+        status: "up",
         responseTime: Date.now() - start,
       };
     } catch (error) {
       return {
-        status: 'down',
+        status: "down",
         responseTime: Date.now() - start,
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error.message : "Unknown error",
       };
     }
   }
@@ -307,7 +315,9 @@ export class HealthService {
   /**
    * Collect system and application metrics
    */
-  private async collectMetrics(): Promise<DetailedHealthCheckResult['metrics']> {
+  private async collectMetrics(): Promise<
+    DetailedHealthCheckResult["metrics"]
+  > {
     const memUsage = process.memoryUsage();
     const totalMemory = memUsage.heapTotal;
     const usedMemory = memUsage.heapUsed;
@@ -340,9 +350,10 @@ export class HealthService {
       database: dbPoolStats,
       requests: {
         total: this.requestCount,
-        errorRate: this.requestCount > 0 
-          ? Math.round((this.errorCount / this.requestCount) * 100) 
-          : 0,
+        errorRate:
+          this.requestCount > 0
+            ? Math.round((this.errorCount / this.requestCount) * 100)
+            : 0,
       },
     };
   }
@@ -354,9 +365,9 @@ export class HealthService {
     const cpuUsage = process.cpuUsage();
     const totalUsage = cpuUsage.user + cpuUsage.system;
     const uptime = this.getUptime() * 1000000; // Convert to microseconds
-    
+
     if (uptime === 0) return 0;
-    
+
     return Math.round((totalUsage / uptime) * 100);
   }
 
@@ -364,26 +375,26 @@ export class HealthService {
    * Determine overall health status based on service statuses
    */
   private determineOverallStatus(
-    services: HealthCheckResult['services']
+    services: HealthCheckResult["services"]
   ): HealthStatus {
     const statuses = Object.values(services).map((s) => s.status);
-    
+
     // If any critical service is down, overall is unhealthy
-    if (services.database.status === 'down') {
-      return 'unhealthy';
+    if (services.database.status === "down") {
+      return "unhealthy";
     }
 
     // If any service is down, overall is unhealthy
-    if (statuses.includes('down')) {
-      return 'unhealthy';
+    if (statuses.includes("down")) {
+      return "unhealthy";
     }
 
     // If any service is degraded, overall is degraded
-    if (statuses.includes('degraded')) {
-      return 'degraded';
+    if (statuses.includes("degraded")) {
+      return "degraded";
     }
 
-    return 'healthy';
+    return "healthy";
   }
 
   /**
