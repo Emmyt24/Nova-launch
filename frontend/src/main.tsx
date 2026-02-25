@@ -30,4 +30,4 @@ createRoot(document.getElementById("root")!).render(
       </ToastProvider>
     </ErrorBoundary>
   </StrictMode>,
-);
+)

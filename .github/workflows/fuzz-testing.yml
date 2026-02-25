@@ -1,0 +1,63 @@
+name: Fuzz Testing
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - 'contracts/**'
+  pull_request:
+    branches: [ main, develop ]
+    paths:
+      - 'contracts/**'
+  schedule:
+    # Run nightly at 2 AM UTC
+    - cron: '0 2 * * *'
+
+jobs:
+  fuzz-test:
+    name: Run Fuzz Tests
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install Rust
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+        target: wasm32-unknown-unknown
+        override: true
+    
+    - name: Cache cargo registry
+      uses: actions/cache@v4
+      with:
+        path: ~/.cargo/registry
+        key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+    
+    - name: Cache cargo index
+      uses: actions/cache@v4
+      with:
+        path: ~/.cargo/git
+        key: ${{ runner.os }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}
+    
+    - name: Cache cargo build
+      uses: actions/cache@v4
+      with:
+        path: contracts/target
+        key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
+    
+    - name: Run fuzz tests
+      working-directory: contracts/token-factory
+      run: cargo test --release fuzz_ -- --nocapture
+    
+    - name: Run edge case tests
+      working-directory: contracts/token-factory
+      run: cargo test --release edge_cases -- --nocapture
+    
+    - name: Generate test report
+      if: always()
+      working-directory: contracts/token-factory
+      run: |
+        echo "## Fuzz Test Results" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        cargo test --release 2>&1 | tail -20 >> $GITHUB_STEP_SUMMARY
