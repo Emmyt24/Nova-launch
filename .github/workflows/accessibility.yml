@@ -1,0 +1,381 @@
+name: Accessibility Testing
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  schedule:
+    # Run accessibility tests daily at 2 AM UTC
+    - cron: '0 2 * * *'
+
+jobs:
+  accessibility-tests:
+    name: Accessibility Tests
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        node-version: [18.x, 20.x]
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Setup Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ matrix.node-version }}
+        cache: 'npm'
+        cache-dependency-path: frontend/package-lock.json
+    
+    - name: Install dependencies
+      working-directory: ./frontend
+      run: npm ci
+    
+    - name: Run accessibility unit tests
+      working-directory: ./frontend
+      run: npm run test:a11y
+    
+    - name: Run accessibility integration tests
+      working-directory: ./frontend
+      run: npm run test:a11y:coverage
+    
+    - name: Generate accessibility report
+      working-directory: ./frontend
+      run: npm run test:a11y:report
+    
+    - name: Upload accessibility reports
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: accessibility-reports-node-${{ matrix.node-version }}
+        path: |
+          frontend/test-results/accessibility/
+          frontend/coverage/accessibility/
+        retention-days: 30
+    
+    - name: Check accessibility score threshold
+      working-directory: ./frontend
+      run: |
+        # Check if accessibility score meets minimum threshold (80)
+        if [ -f "test-results/accessibility/accessibility-report.json" ]; then
+          SCORE=$(node -e "
+            const report = require('./test-results/accessibility/accessibility-report.json');
+            console.log(report.impact.score);
+          ")
+          echo "Accessibility Score: $SCORE"
+          
+          if (( $(echo "$SCORE < 80" | bc -l) )); then
+            echo "❌ Accessibility score ($SCORE) is below threshold (80)"
+            exit 1
+          else
+            echo "✅ Accessibility score ($SCORE) meets threshold (80)"
+          fi
+        else
+          echo "❌ Accessibility report not found"
+          exit 1
+        fi
+    
+    - name: Comment PR with accessibility results
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const fs = require('fs');
+          const path = './frontend/test-results/accessibility/accessibility-report.json';
+          
+          if (fs.existsSync(path)) {
+            const report = JSON.parse(fs.readFileSync(path, 'utf8'));
+            const { summary, violations, impact } = report;
+            
+            const comment = `
+            ## 🦯 Accessibility Test Results
+            
+            **Accessibility Score:** ${impact.score}/100
+            
+            ### 📊 Summary
+            - **Total Tests:** ${summary.totalTests}
+            - **Passed:** ${summary.passed}
+            - **Failed:** ${summary.failed}
+            - **Violations:** ${summary.violations}
+            
+            ### 🚨 Impact Breakdown
+            - **Critical:** ${impact.critical}
+            - **Serious:** ${impact.serious}
+            - **Moderate:** ${impact.moderate}
+            - **Minor:** ${impact.minor}
+            
+            ### 🔧 Top Recommendations
+            ${report.recommendations.slice(0, 3).map(rec => 
+              `- **${rec.title}** (${rec.priority})`
+            ).join('\n            ')}
+            
+            ${violations.length > 0 ? 
+              `### 📋 Violations Found
+              ${violations.slice(0, 5).map(v => 
+                `- **${v.description}** (${v.impact})`
+              ).join('\n              ')}
+              ${violations.length > 5 ? `\n              ... and ${violations.length - 5} more` : ''}
+              ` : 
+              '### ✅ No violations found!'
+            }
+            
+            [📄 View full report](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
+            `;
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+          }
+
+  pa11y-tests:
+    name: Pa11y End-to-End Tests
+    runs-on: ubuntu-latest
+    needs: accessibility-tests
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20.x'
+        cache: 'npm'
+        cache-dependency-path: frontend/package-lock.json
+    
+    - name: Install dependencies
+      working-directory: ./frontend
+      run: npm ci
+    
+    - name: Build application
+      working-directory: ./frontend
+      run: npm run build
+    
+    - name: Start application
+      working-directory: ./frontend
+      run: |
+        npm run preview &
+        sleep 10
+    
+    - name: Wait for application to be ready
+      run: |
+        timeout 60 bash -c 'until curl -f http://localhost:4173; do sleep 2; done'
+    
+    - name: Run Pa11y tests
+      working-directory: ./frontend
+      run: |
+        # Install pa11y-ci if not already installed
+        npm install -g pa11y-ci
+        
+        # Create pa11y configuration
+        cat > .pa11yci.json << EOF
+        {
+          "defaults": {
+            "timeout": 30000,
+            "viewport": {
+              "width": 1280,
+              "height": 720
+            },
+            "screenCapture": "./test-results/pa11y/screenshots",
+            "reporters": ["json"],
+            "rules": ["wcag2aa", "best-practice"]
+          },
+          "urls": [
+            "http://localhost:4173",
+            "http://localhost:4173/about",
+            "http://localhost:4173/contact"
+          ]
+        }
+        EOF
+        
+        # Run pa11y tests
+        mkdir -p test-results/pa11y
+        pa11y-ci --json > test-results/pa11y/results.json || true
+    
+    - name: Upload Pa11y reports
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: pa11y-reports
+        path: |
+          frontend/test-results/pa11y/
+        retention-days: 30
+    
+    - name: Process Pa11y results
+      working-directory: ./frontend
+      run: |
+        if [ -f "test-results/pa11y/results.json" ]; then
+          # Count violations
+          VIOLATIONS=$(node -e "
+            const results = require('./test-results/pa11y/results.json');
+            const totalViolations = results.reduce((sum, result) => sum + result.issues.length, 0);
+            console.log(totalViolations);
+          ")
+          echo "Pa11y violations found: $VIOLATIONS"
+          
+          if [ "$VIOLATIONS" -gt 0 ]; then
+            echo "❌ Pa11y tests found $VIOLATIONS violations"
+            # Exit with error if critical violations found
+            CRITICAL=$(node -e "
+              const results = require('./test-results/pa11y/results.json');
+              const criticalViolations = results.reduce((sum, result) => 
+                sum + result.issues.filter(issue => issue.type === 'error').length, 0
+              );
+              console.log(criticalViolations);
+            ")
+            if [ "$CRITICAL" -gt 0 ]; then
+              echo "❌ $CRITICAL critical Pa11y violations found"
+              exit 1
+            fi
+          else
+            echo "✅ No Pa11y violations found"
+          fi
+        else
+          echo "❌ Pa11y results not found"
+          exit 1
+        fi
+
+  lighthouse-accessibility:
+    name: Lighthouse Accessibility Audit
+    runs-on: ubuntu-latest
+    needs: accessibility-tests
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20.x'
+        cache: 'npm'
+        cache-dependency-path: frontend/package-lock.json
+    
+    - name: Install dependencies
+      working-directory: ./frontend
+      run: npm ci
+    
+    - name: Build application
+      working-directory: ./frontend
+      run: npm run build
+    
+    - name: Start application
+      working-directory: ./frontend
+      run: |
+        npm run preview &
+        sleep 10
+    
+    - name: Wait for application to be ready
+      run: |
+        timeout 60 bash -c 'until curl -f http://localhost:4173; do sleep 2; done'
+    
+    - name: Run Lighthouse accessibility audit
+      run: |
+        npm install -g @lhci/cli@0.12.x
+        
+        # Create LHCI configuration
+        cat > lhci.yml << EOF
+        ci:
+          collect:
+            numberOfRuns: 3
+            startServerCommand: 'cd frontend && npm run preview'
+            url:
+              - http://localhost:4173
+              - http://localhost:4173/about
+          assert:
+            assertions:
+              accessibility: 'warn'
+              'accessibility:score': ['warn', { minScore: 0.8 }]
+              'accessibility:best-practices': 'warn'
+          upload:
+            target: temporary-public-storage
+        EOF
+        
+        # Run Lighthouse CI
+        lhci autorun
+    
+    - name: Upload Lighthouse reports
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: lighthouse-reports
+        path: |
+          .lighthouseci/
+        retention-days: 30
+
+  accessibility-summary:
+    name: Accessibility Summary
+    runs-on: ubuntu-latest
+    needs: [accessibility-tests, pa11y-tests, lighthouse-accessibility]
+    if: always()
+    
+    steps:
+    - name: Download all reports
+      uses: actions/download-artifact@v4
+      with:
+        path: all-reports/
+    
+    - name: Generate summary report
+      run: |
+        echo "# 🦯 Accessibility Test Summary" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "Generated on: $(date)" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        # Accessibility Tests Status
+        echo "## 🧪 Unit & Integration Tests" >> $GITHUB_STEP_SUMMARY
+        if [ "${{ needs.accessibility-tests.result }}" == "success" ]; then
+          echo "✅ Passed" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "❌ Failed" >> $GITHUB_STEP_SUMMARY
+        fi
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        # Pa11y Tests Status
+        echo "## 🌐 Pa11y End-to-End Tests" >> $GITHUB_STEP_SUMMARY
+        if [ "${{ needs.pa11y-tests.result }}" == "success" ]; then
+          echo "✅ Passed" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "❌ Failed" >> $GITHUB_STEP_SUMMARY
+        fi
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        # Lighthouse Status
+        echo "## 🔍 Lighthouse Audit" >> $GITHUB_STEP_SUMMARY
+        if [ "${{ needs.lighthouse-accessibility.result }}" == "success" ]; then
+          echo "✅ Passed" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "❌ Failed" >> $GITHUB_STEP_SUMMARY
+        fi
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        # Overall Status
+        echo "## 📊 Overall Status" >> $GITHUB_STEP_SUMMARY
+        if [ "${{ needs.accessibility-tests.result }}" == "success" ] && \
+           [ "${{ needs.pa11y-tests.result }}" == "success" ] && \
+           [ "${{ needs.lighthouse-accessibility.result }}" == "success" ]; then
+          echo "✅ All accessibility tests passed!" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "❌ Some accessibility tests failed. Please review the reports." >> $GITHUB_STEP_SUMMARY
+        fi
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        echo "### 📁 Available Reports" >> $GITHUB_STEP_SUMMARY
+        echo "- Unit & Integration Test Reports" >> $GITHUB_STEP_SUMMARY
+        echo "- Pa11y End-to-End Test Reports" >> $GITHUB_STEP_SUMMARY
+        echo "- Lighthouse Accessibility Audits" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        echo "Download the artifacts from this workflow run to view detailed reports." >> $GITHUB_STEP_SUMMARY
+    
+    - name: Create accessibility badge
+      if: github.ref == 'refs/heads/main'
+      run: |
+        # This would create/update a badge for the README
+        # Implementation depends on your badge hosting solution
+        echo "Accessibility badge generation would go here"

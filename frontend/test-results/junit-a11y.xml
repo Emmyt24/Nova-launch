@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<testsuites name="vitest tests" tests="27" failures="0" errors="0" time="2.689073587">
+    <testsuite name="src/test/accessibility/integration/accessibility.integration.basic.test.ts" timestamp="2026-02-26T02:44:12.211Z" hostname="Apples-MacBook-Pro.local" tests="12" failures="0" errors="0" skipped="0" time="1.241211548">
+        <testcase classname="src/test/accessibility/integration/accessibility.integration.basic.test.ts" name="Basic Accessibility Integration Tests &gt; should have no violations with simple button" time="0.319482796">
+        </testcase>
+        <testcase classname="src/test/accessibility/integration/accessibility.integration.basic.test.ts" name="Basic Accessibility Integration Tests &gt; should handle error states accessibly" time="0.143978951">
+        </testcase>
+        <testcase classname="src/test/accessibility/integration/accessibility.integration.basic.test.ts" name="Basic Accessibility Integration Tests &gt; should have proper heading structure" time="0.04282639">
+        </testcase>
+        <testcase classname="src/test/accessibility/integration/accessibility.integration.basic.test.ts" name="Basic Accessibility Integration Tests &gt; should have proper landmarks" time="0.084615278">
+        </testcase>
+        <testcase classname="src/test/accessibility/integration/accessibility.integration.basic.test.ts" name="Basic Accessibility Integration Tests &gt; should provide accessible names for interactive elements" time="0.121645347">
+        </testcase>
+        <testcase classname="src/test/accessibility/integration/accessibility.integration.basic.test.ts" name="Basic Accessibility Integration Tests &gt; should handle form validation accessibly" time="0.115332638">
+        </testcase>
+        <testcase classname="src/test/accessibility/integration/accessibility.integration.basic.test.ts" name="Basic Accessibility Integration Tests &gt; should support keyboard navigation" time="0.104358573">
+        </testcase>
+        <testcase classname="src/test/accessibility/integration/accessibility.integration.basic.test.ts" name="Basic Accessibility Integration Tests &gt; should have proper color contrast" time="0.052542596">
+        </testcase>
+        <testcase classname="src/test/accessibility/integration/accessibility.integration.basic.test.ts" name="Basic Accessibility Integration Tests &gt; should announce dynamic content" time="0.059975638">
+        </testcase>
+        <testcase classname="src/test/accessibility/integration/accessibility.integration.basic.test.ts" name="Basic Accessibility Integration Tests &gt; should handle modal dialogs accessibly" time="0.031805234">
+        </testcase>
+        <testcase classname="src/test/accessibility/integration/accessibility.integration.basic.test.ts" name="Basic Accessibility Integration Tests &gt; should support table accessibility" time="0.078066059">
+        </testcase>
+        <testcase classname="src/test/accessibility/integration/accessibility.integration.basic.test.ts" name="Basic Accessibility Integration Tests &gt; should handle list accessibility" time="0.082777276">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/test/accessibility/unit/accessibility.basic.test.ts" timestamp="2026-02-26T02:44:12.217Z" hostname="Apples-MacBook-Pro.local" tests="15" failures="0" errors="0" skipped="0" time="1.447862039">
+        <testcase classname="src/test/accessibility/unit/accessibility.basic.test.ts" name="Basic Accessibility Tests &gt; should have no violations with simple button" time="0.46461433">
+        </testcase>
+        <testcase classname="src/test/accessibility/unit/accessibility.basic.test.ts" name="Basic Accessibility Tests &gt; should have no violations with simple input" time="0.056455597">
+        </testcase>
+        <testcase classname="src/test/accessibility/unit/accessibility.basic.test.ts" name="Basic Accessibility Tests &gt; should handle error states accessibly" time="0.10667471">
+        </testcase>
+        <testcase classname="src/test/accessibility/unit/accessibility.basic.test.ts" name="Basic Accessibility Tests &gt; should have proper heading structure" time="0.062469983">
+        </testcase>
+        <testcase classname="src/test/accessibility/unit/accessibility.basic.test.ts" name="Basic Accessibility Tests &gt; should have proper landmarks" time="0.137304737">
+        </testcase>
+        <testcase classname="src/test/accessibility/unit/accessibility.basic.test.ts" name="Basic Accessibility Tests &gt; should provide accessible names for interactive elements" time="0.155906879">
+        </testcase>
+        <testcase classname="src/test/accessibility/unit/accessibility.basic.test.ts" name="Basic Accessibility Tests &gt; should handle form validation accessibly" time="0.094868316">
+        </testcase>
+        <testcase classname="src/test/accessibility/unit/accessibility.basic.test.ts" name="Basic Accessibility Tests &gt; should support keyboard navigation" time="0.045202902">
+        </testcase>
+        <testcase classname="src/test/accessibility/unit/accessibility.basic.test.ts" name="Basic Accessibility Tests &gt; should announce dynamic content" time="0.046344708">
+        </testcase>
+        <testcase classname="src/test/accessibility/unit/accessibility.basic.test.ts" name="Basic Accessibility Tests &gt; should handle modal dialogs accessibly" time="0.064879464">
+        </testcase>
+        <testcase classname="src/test/accessibility/unit/accessibility.basic.test.ts" name="Basic Accessibility Tests &gt; should support table accessibility" time="0.082025589">
+        </testcase>
+        <testcase classname="src/test/accessibility/unit/accessibility.basic.test.ts" name="Basic Accessibility Tests &gt; should handle list accessibility" time="0.031232139">
+        </testcase>
+        <testcase classname="src/test/accessibility/unit/accessibility.basic.test.ts" name="Basic Accessibility Tests &gt; should handle color contrast requirements" time="0.027493397">
+        </testcase>
+        <testcase classname="src/test/accessibility/unit/accessibility.basic.test.ts" name="Basic Accessibility Tests &gt; should handle skip links" time="0.0358026">
+        </testcase>
+        <testcase classname="src/test/accessibility/unit/accessibility.basic.test.ts" name="Basic Accessibility Tests &gt; should handle ARIA expanded states" time="0.032875783">
+        </testcase>
+    </testsuite>
+</testsuites>
