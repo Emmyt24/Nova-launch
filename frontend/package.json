@@ -17,7 +17,12 @@
     "test:integration:watch": "vitest src/test/integration --config vitest.config.ts",
     "test:integration:coverage": "vitest run src/test/integration --coverage --config vitest.config.ts",
     "test:e2e": "vitest run src/test/e2e --config vitest.config.ts",
-    "test:e2e:watch": "vitest src/test/e2e --config vitest.config.ts"
+    "test:e2e:watch": "vitest src/test/e2e --config vitest.config.ts",
+    "test:performance": "vitest run src/test/performance --config vitest.config.ts",
+    "test:performance:watch": "vitest src/test/performance --config vitest.config.ts",
+    "perf:check": "node scripts/performance-check.js",
+    "perf:benchmark": "vitest run src/test/performance/benchmark.test.ts --reporter=verbose",
+    "lighthouse": "lhci autorun"
   },
   "dependencies": {
     "@sentry/browser": "^10.39.0",

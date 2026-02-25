@@ -3,6 +3,7 @@ import { useNetwork } from "./hooks/useNetwork";
 import { useWallet } from "./hooks/useWallet";
 import { Spinner, ErrorBoundary } from "./components/UI";
 import { DashboardLayout } from "./components/Layout";
+import { PerformanceDashboard } from "./components/PerformanceDashboard";
 
 // Lazy load pages
 const LandingPage = lazy(() => import("./pages/LandingPage"));
@@ -117,6 +118,9 @@ function App() {
           {page}
         </div>
       </Suspense>
+
+      {/* Performance Dashboard (Dev only) */}
+      <PerformanceDashboard />
     </ErrorBoundary>
   );
 }
