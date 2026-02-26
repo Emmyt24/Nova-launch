@@ -1,5 +1,27 @@
 use soroban_sdk::{contracterror, contracttype, Address, String};
 
+// ============================================================
+// Migration Notes for Burn Tracking
+// ============================================================
+// This update adds burn tracking capabilities to the storage layer.
+//
+// Storage Schema Changes:
+// - TokenInfo: Added fields (initial_supply, total_burned, burn_count)
+// - New DataKey: BurnRecord(u32) - stores individual burn records
+// - New DataKey: BurnCount - global counter for total burns
+//
+// Backward Compatibility:
+// - Existing tokens will have default values (0) for new fields
+// - No migration required for existing data
+// - New fields are optional for existing TokenInfo entries
+//
+// Usage:
+// - Use increment_burn_count() to track a burn operation
+// - Use add_burn_record() to store burn details
+// - Use get_total_burned() to retrieve burned amount
+// - Use get_burn_count() to retrieve burn count per token
+// ============================================================
+
 #[contracttype]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct FactoryState {
@@ -18,8 +40,22 @@ pub struct TokenInfo {
     pub symbol: String,
     pub decimals: u32,
     pub total_supply: i128,
+    pub initial_supply: i128,
+    pub total_burned: i128,
+    pub burn_count: u32,
     pub metadata_uri: Option<String>,
     pub created_at: u64,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct BurnRecord {
+    pub token_address: Address,
+    pub from: Address,
+    pub amount: i128,
+    pub burned_by: Address,
+    pub timestamp: u64,
+    pub is_admin_burn: bool,
 }
 
 #[contracttype]
@@ -30,7 +66,9 @@ pub enum DataKey {
     BaseFee,
     MetadataFee,
     TokenCount,
-    Token(u32), // Token index -> TokenInfo
+    Token(u32),
+    BurnRecord(u32),
+    BurnCount,
 }
 
 #[contracterror]
