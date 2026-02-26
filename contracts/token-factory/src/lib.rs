@@ -20,7 +20,35 @@ pub struct TokenFactory;
 
 #[contractimpl]
 impl TokenFactory {
-    /// Initialize the factory with admin, treasury, and fee structure
+    /// Initialize the token factory contract
+    ///
+    /// Sets up the factory with administrative addresses and fee structure.
+    /// This function can only be called once during contract deployment.
+    ///
+    /// # Arguments
+    /// * `env` - The contract environment
+    /// * `admin` - Address with administrative privileges
+    /// * `treasury` - Address that will receive deployment fees
+    /// * `base_fee` - Base fee for token deployment in stroops (must be >= 0)
+    /// * `metadata_fee` - Additional fee for metadata in stroops (must be >= 0)
+    ///
+    /// # Returns
+    /// Returns `Ok(())` on success
+    ///
+    /// # Errors
+    /// * `Error::AlreadyInitialized` - Contract has already been initialized
+    /// * `Error::InvalidParameters` - Either fee is negative
+    ///
+    /// # Examples
+    /// ```
+    /// factory.initialize(
+    ///     &env,
+    ///     admin_address,
+    ///     treasury_address,
+    ///     1_000_000,  // 0.1 XLM base fee
+    ///     500_000,    // 0.05 XLM metadata fee
+    /// )?;
+    /// ```
     pub fn initialize(
         env: Env,
         admin: Address,
@@ -52,22 +80,63 @@ impl TokenFactory {
     }
 
     /// Get the current factory state
+    ///
+    /// Returns a snapshot of the factory's configuration including
+    /// admin, treasury, fees, and pause status.
+    ///
+    /// # Arguments
+    /// * `env` - The contract environment
+    ///
+    /// # Returns
+    /// Returns a `FactoryState` struct with current configuration
+    ///
+    /// # Examples
+    /// ```
+    /// let state = factory.get_state(&env);
+    /// assert_eq!(state.admin, expected_admin);
+    /// assert_eq!(state.base_fee, 1_000_000);
+    /// ```
     pub fn get_state(env: Env) -> FactoryState {
         storage::get_factory_state(&env)
     }
 
     /// Get the current base fee for token deployment
-    /// 
+    ///
     /// Returns the base fee amount in stroops that must be paid
     /// for any token deployment, regardless of metadata inclusion.
+    ///
+    /// # Arguments
+    /// * `env` - The contract environment
+    ///
+    /// # Returns
+    /// Returns the base fee as an i128 in stroops
+    ///
+    /// # Examples
+    /// ```
+    /// let base_fee = factory.get_base_fee(&env);
+    /// // Ensure user has sufficient balance
+    /// assert!(user_balance >= base_fee);
+    /// ```
     pub fn get_base_fee(env: Env) -> i128 {
         storage::get_base_fee(&env)
     }
 
     /// Get the current metadata fee for token deployment
-    /// 
+    ///
     /// Returns the additional fee amount in stroops that must be paid
     /// when deploying a token with metadata (IPFS URI).
+    ///
+    /// # Arguments
+    /// * `env` - The contract environment
+    ///
+    /// # Returns
+    /// Returns the metadata fee as an i128 in stroops
+    ///
+    /// # Examples
+    /// ```
+    /// let total_fee = factory.get_base_fee(&env) + factory.get_metadata_fee(&env);
+    /// // Total fee when including metadata
+    /// ```
     pub fn get_metadata_fee(env: Env) -> i128 {
         storage::get_metadata_fee(&env)
     }
@@ -118,9 +187,25 @@ impl TokenFactory {
     /// Pause the contract (admin only)
     ///
     /// Halts critical operations like token creation and metadata updates.
-    /// Admin functions like fee updates remain operational.
+    /// Admin functions like fee updates remain operational during pause.
+    /// This is a safety mechanism for emergency situations.
     ///
-    /// Implements #225
+    /// # Arguments
+    /// * `env` - The contract environment
+    /// * `admin` - Admin address (must authorize and match stored admin)
+    ///
+    /// # Returns
+    /// Returns `Ok(())` on success
+    ///
+    /// # Errors
+    /// * `Error::Unauthorized` - Caller is not the admin
+    ///
+    /// # Examples
+    /// ```
+    /// // Emergency pause
+    /// factory.pause(&env, admin_address)?;
+    /// assert!(factory.is_paused(&env));
+    /// ```
     pub fn pause(env: Env, admin: Address) -> Result<(), Error> {
         admin.require_auth();
 
@@ -140,9 +225,25 @@ impl TokenFactory {
 
     /// Unpause the contract (admin only)
     ///
-    /// Resumes normal operations after a pause.
+    /// Resumes normal operations after a pause. All previously
+    /// restricted operations become available again.
     ///
-    /// Implements #225
+    /// # Arguments
+    /// * `env` - The contract environment
+    /// * `admin` - Admin address (must authorize and match stored admin)
+    ///
+    /// # Returns
+    /// Returns `Ok(())` on success
+    ///
+    /// # Errors
+    /// * `Error::Unauthorized` - Caller is not the admin
+    ///
+    /// # Examples
+    /// ```
+    /// // Resume operations
+    /// factory.unpause(&env, admin_address)?;
+    /// assert!(!factory.is_paused(&env));
+    /// ```
     pub fn unpause(env: Env, admin: Address) -> Result<(), Error> {
         admin.require_auth();
 
@@ -160,12 +261,53 @@ impl TokenFactory {
         Ok(())
     }
 
-    /// Check if contract is paused
+    /// Check if contract is currently paused
+    ///
+    /// Returns the current pause state of the contract.
+    ///
+    /// # Arguments
+    /// * `env` - The contract environment
+    ///
+    /// # Returns
+    /// Returns `true` if paused, `false` if operational
+    ///
+    /// # Examples
+    /// ```
+    /// if factory.is_paused(&env) {
+    ///     // Handle paused state
+    ///     return Err(Error::ContractPaused);
+    /// }
+    /// ```
     pub fn is_paused(env: Env) -> bool {
         storage::is_paused(&env)
     }
 
     /// Update fee structure (admin only)
+    ///
+    /// Allows the admin to update either or both deployment fees.
+    /// At least one fee must be specified for the update.
+    ///
+    /// # Arguments
+    /// * `env` - The contract environment
+    /// * `admin` - Admin address (must authorize and match stored admin)
+    /// * `base_fee` - Optional new base fee in stroops (None = no change)
+    /// * `metadata_fee` - Optional new metadata fee in stroops (None = no change)
+    ///
+    /// # Returns
+    /// Returns `Ok(())` on success
+    ///
+    /// # Errors
+    /// * `Error::Unauthorized` - Caller is not the admin
+    /// * `Error::InvalidParameters` - Both fees are None or any fee is negative
+    ///
+    /// # Examples
+    /// ```
+    /// // Update only base fee
+    /// factory.update_fees(&env, admin, Some(2_000_000), None)?;
+    ///
+    /// // Update both fees
+    /// factory.update_fees(&env, admin, Some(2_000_000), Some(1_000_000))?;
+    /// ```
     pub fn update_fees(
         env: Env,
         admin: Address,
@@ -211,21 +353,41 @@ impl TokenFactory {
     }
 
     /// Batch update admin operations (Phase 2 optimization)
-    /// 
-    /// Updates multiple admin parameters in a single transaction.
-    /// Reduces gas costs by combining verification and storage operations.
-    /// Implements #232 - Phase 2 batch operations optimization
-    /// 
+    ///
+    /// Updates multiple admin parameters in a single transaction,
+    /// reducing gas costs by combining verification and storage operations.
+    /// Provides 40-50% gas savings compared to separate function calls.
+    ///
     /// # Arguments
-    /// * `admin` - Admin address (must authorize)
-    /// * `base_fee` - Optional new base fee
-    /// * `metadata_fee` - Optional new metadata fee
-    /// * `paused` - Optional new pause state
-    /// 
-    /// # Savings
+    /// * `env` - The contract environment
+    /// * `admin` - Admin address (must authorize and match stored admin)
+    /// * `base_fee` - Optional new base fee in stroops (None = no change)
+    /// * `metadata_fee` - Optional new metadata fee in stroops (None = no change)
+    /// * `paused` - Optional new pause state (None = no change)
+    ///
+    /// # Returns
+    /// Returns `Ok(())` on success
+    ///
+    /// # Errors
+    /// * `Error::Unauthorized` - Caller is not the admin
+    /// * `Error::InvalidParameters` - All parameters are None or any fee is negative
+    ///
+    /// # Gas Savings
     /// - Batch both fee updates: -2,000 to 3,000 CPU instructions
     /// - Combined with pause: -1,000 additional CPU instructions
     /// - Total savings vs separate calls: 40-50% for combined operations
+    ///
+    /// # Examples
+    /// ```
+    /// // Update fees and pause in one transaction
+    /// factory.batch_update_admin(
+    ///     &env,
+    ///     admin,
+    ///     Some(2_000_000),
+    ///     Some(1_000_000),
+    ///     Some(true),
+    /// )?;
+    /// ```
     pub fn batch_update_admin(
         env: Env,
         admin: Address,
@@ -283,30 +445,105 @@ impl TokenFactory {
         Ok(())
     }
 
-    /// Get token count
+    /// Get the total number of tokens created
+    ///
+    /// Returns the count of all tokens deployed through this factory.
+    ///
+    /// # Arguments
+    /// * `env` - The contract environment
+    ///
+    /// # Returns
+    /// Returns the token count as a u32
+    ///
+    /// # Examples
+    /// ```
+    /// let count = factory.get_token_count(&env);
+    /// // Iterate through all tokens
+    /// for i in 0..count {
+    ///     let token = factory.get_token_info(&env, i)?;
+    /// }
+    /// ```
     pub fn get_token_count(env: Env) -> u32 {
         storage::get_token_count(&env)
     }
 
-    /// Get token info by index
+    /// Get token information by index
+    ///
+    /// Retrieves complete information about a token using its
+    /// sequential index (0-based).
+    ///
+    /// # Arguments
+    /// * `env` - The contract environment
+    /// * `index` - Token index (0 to token_count - 1)
+    ///
+    /// # Returns
+    /// Returns `Ok(TokenInfo)` with token details
+    ///
+    /// # Errors
+    /// * `Error::TokenNotFound` - Index is out of range
+    ///
+    /// # Examples
+    /// ```
+    /// let token = factory.get_token_info(&env, 0)?;
+    /// assert_eq!(token.symbol, "MTK");
+    /// assert_eq!(token.decimals, 7);
+    /// ```
     pub fn get_token_info(env: Env, index: u32) -> Result<TokenInfo, Error> {
         storage::get_token_info(&env, index).ok_or(Error::TokenNotFound)
     }
 
-    /// Get token info by address
+    /// Get token information by contract address
+    ///
+    /// Retrieves complete information about a token using its
+    /// deployed contract address.
+    ///
+    /// # Arguments
+    /// * `env` - The contract environment
+    /// * `token_address` - The token's contract address
+    ///
+    /// # Returns
+    /// Returns `Ok(TokenInfo)` with token details
+    ///
+    /// # Errors
+    /// * `Error::TokenNotFound` - Token address not found in registry
+    ///
+    /// # Examples
+    /// ```
+    /// let token = factory.get_token_info_by_address(&env, token_addr)?;
+    /// assert_eq!(token.creator, expected_creator);
+    /// ```
     pub fn get_token_info_by_address(env: Env, token_address: Address) -> Result<TokenInfo, Error> {
         storage::get_token_info_by_address(&env, &token_address).ok_or(Error::TokenNotFound)
     }
 
-    /// Admin burn function with clawback capability
-    ///
-    /// Allows the token creator (admin) to burn tokens from any address.
-    /// This is a privileged operation that requires:
-    /// - Admin authorization
     /// Toggle clawback capability for a token (creator only)
     ///
-    /// Allows token creator to enable or disable clawback functionality.
-    /// Once disabled, it can be re-enabled by the creator.
+    /// Allows the token creator to enable or disable clawback functionality.
+    /// When enabled, the creator can burn tokens from any holder's address.
+    /// This setting can be toggled multiple times by the creator.
+    ///
+    /// # Arguments
+    /// * `env` - The contract environment
+    /// * `token_address` - The token's contract address
+    /// * `admin` - Token creator address (must authorize and match creator)
+    /// * `enabled` - True to enable clawback, false to disable
+    ///
+    /// # Returns
+    /// Returns `Ok(())` on success
+    ///
+    /// # Errors
+    /// * `Error::ContractPaused` - Contract is currently paused
+    /// * `Error::TokenNotFound` - Token address not found
+    /// * `Error::Unauthorized` - Caller is not the token creator
+    ///
+    /// # Examples
+    /// ```
+    /// // Enable clawback for emergency situations
+    /// factory.set_clawback(&env, token_addr, creator, true)?;
+    ///
+    /// // Disable clawback for decentralization
+    /// factory.set_clawback(&env, token_addr, creator, false)?;
+    /// ```
     pub fn set_clawback(
         env: Env,
         token_address: Address,
@@ -340,14 +577,87 @@ impl TokenFactory {
         Ok(())
     }
 
+    /// Burn tokens from caller's own balance
+    ///
+    /// Allows a token holder to permanently destroy tokens from their
+    /// own balance, reducing the total supply.
+    ///
+    /// # Arguments
+    /// * `env` - The contract environment
+    /// * `caller` - Address burning tokens (must authorize)
+    /// * `token_index` - Index of the token to burn
+    /// * `amount` - Amount to burn (must be > 0 and <= balance)
+    ///
+    /// # Returns
+    /// Returns `Ok(())` on success
+    ///
+    /// # Errors
+    /// * `Error::TokenNotFound` - Token index is invalid
+    /// * `Error::InvalidParameters` - Amount is zero or negative
+    /// * `Error::InsufficientBalance` - Caller balance is less than amount
+    /// * `Error::ArithmeticError` - Numeric overflow/underflow
+    ///
+    /// # Examples
+    /// ```
+    /// // Burn 1000 tokens
+    /// factory.burn(&env, caller, 0, 1_000_0000000)?;
+    /// ```
     pub fn burn(env: Env, caller: Address, token_index: u32, amount: i128) -> Result<(), Error> {
         burn::burn(&env, caller, token_index, amount)
     }
 
+    /// Batch burn tokens from multiple holders (admin only)
+    ///
+    /// Allows the admin to burn tokens from multiple addresses in a single
+    /// transaction. All burns must succeed or the entire batch fails.
+    ///
+    /// # Arguments
+    /// * `env` - The contract environment
+    /// * `admin` - Admin address (must authorize and match stored admin)
+    /// * `token_index` - Index of the token to burn
+    /// * `burns` - Vector of (holder_address, amount) tuples (max 100 entries)
+    ///
+    /// # Returns
+    /// Returns `Ok(())` on success
+    ///
+    /// # Errors
+    /// * `Error::Unauthorized` - Caller is not the admin
+    /// * `Error::BatchTooLarge` - More than 100 burn entries
+    /// * `Error::InvalidParameters` - Empty batch or invalid amounts
+    /// * `Error::TokenNotFound` - Token index is invalid
+    /// * `Error::InsufficientBalance` - Any holder has insufficient balance
+    /// * `Error::ArithmeticError` - Numeric overflow/underflow
+    ///
+    /// # Examples
+    /// ```
+    /// let burns = vec![
+    ///     &env,
+    ///     (holder1, 1_000_0000000),
+    ///     (holder2, 2_000_0000000),
+    /// ];
+    /// factory.batch_burn(&env, admin, 0, burns)?;
+    /// ```
     pub fn batch_burn(env: Env, admin: Address, token_index: u32, burns: soroban_sdk::Vec<(Address, i128)>) -> Result<(), Error> {
         burn::batch_burn(&env, admin, token_index, burns)
     }
 
+    /// Get the total number of burn operations for a token
+    ///
+    /// Returns the count of all burn operations (both user and admin burns)
+    /// performed on the specified token.
+    ///
+    /// # Arguments
+    /// * `env` - The contract environment
+    /// * `token_index` - Index of the token
+    ///
+    /// # Returns
+    /// Returns the burn count as a u32
+    ///
+    /// # Examples
+    /// ```
+    /// let burn_count = factory.get_burn_count(&env, 0);
+    /// assert!(burn_count > 0);
+    /// ```
     pub fn get_burn_count(env: Env, token_index: u32) -> u32 {
         burn::get_burn_count(&env, token_index)
     }
