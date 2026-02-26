@@ -6,8 +6,15 @@ mod burn;
 mod types;
 mod validation;
 
-use soroban_sdk::{contract, contractimpl, Address, Env};
-use types::{Error, FactoryState, TokenInfo};
+use soroban_sdk::{contract, contractimpl, Address, Env, String};
+use types::{ContractMetadata, Error, FactoryState, TokenInfo};
+
+// Contract metadata constants
+const CONTRACT_NAME: &str = "Nova Launch Token Factory";
+const CONTRACT_DESCRIPTION: &str = "No-code token deployment on Stellar";
+const CONTRACT_AUTHOR: &str = "Nova Launch Team";
+const CONTRACT_LICENSE: &str = "MIT";
+const CONTRACT_VERSION: &str = "1.0.0";
 
 #[contract]
 pub struct TokenFactory;
@@ -39,8 +46,8 @@ impl TokenFactory {
         storage::set_base_fee(&env, base_fee);
         storage::set_metadata_fee(&env, metadata_fee);
 
-        // Validate initial state before committing
-        validation::validate_state(&env)?;
+        // Emit initialized event
+        events::emit_initialized(&env, &admin, &treasury, base_fee, metadata_fee);
 
         Ok(())
     }
@@ -306,7 +313,6 @@ impl TokenFactory {
     /// Allows the token creator (admin) to burn tokens from any address.
     /// This is a privileged operation that requires:
     /// - Admin authorization
-    /// - Token must have clawback enabled
     /// Toggle clawback capability for a token (creator only)
     ///
     /// Allows token creator to enable or disable clawback functionality.
@@ -348,10 +354,6 @@ impl TokenFactory {
         burn::burn(&env, caller, token_index, amount)
     }
 
-    pub fn admin_burn(env: Env, admin: Address, token_index: u32, holder: Address, amount: i128) -> Result<(), Error> {
-        burn::admin_burn(&env, admin, token_index, holder, amount)
-    }
-
     pub fn batch_burn(env: Env, admin: Address, token_index: u32, burns: soroban_sdk::Vec<(Address, i128)>) -> Result<(), Error> {
         burn::batch_burn(&env, admin, token_index, burns)
     }
@@ -374,15 +376,13 @@ impl TokenFactory {
 mod admin_transfer_test;
 
 // Temporarily disabled - has compilation errors
-// #[cfg(test)]
 // mod event_tests;
 
-// Temporarily disabled - needs proper contract context setup
-// #[cfg(test)]
-// mod validation_test;
+#[cfg(test)]
+mod error_handling_test;
 
 #[cfg(test)]
-mod pause_test;
+mod metadata_test;
 
 // Temporarily disabled due to compilation issues
 // #[cfg(test)]
@@ -392,7 +392,7 @@ mod pause_test;
 // #[cfg(test)]
 // mod burn_property_test;
 
-// Temporarily disabled - has compilation errors
+// Temporarily disabled due to compilation issues
 // #[cfg(test)]
 // mod fuzz_update_fees;
 
@@ -400,6 +400,11 @@ mod pause_test;
 // #[cfg(test)]
 // mod burn_property_test;
 
+#[cfg(test)]
+mod state_events_test;
+
+#[cfg(test)]
+mod fuzz_string_boundaries;
 // Temporarily disabled - has compilation errors
 // #[cfg(test)]
 // mod fuzz_string_boundaries;
@@ -407,3 +412,13 @@ mod pause_test;
 // Temporarily disabled - has compilation errors
 // #[cfg(test)]
 // mod fuzz_numeric_boundaries;
+
+#[cfg(test)]
+mod upgrade_test;
+
+#[cfg(test)]
+mod fuzz_test;
+
+#[cfg(test)]
+mod integration_test;
+mod gas_benchmark_comprehensive;

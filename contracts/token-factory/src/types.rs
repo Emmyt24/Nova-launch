@@ -14,6 +14,16 @@ pub struct FactoryState {
 
 #[contracttype]
 #[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ContractMetadata {
+    pub name: String,
+    pub description: String,
+    pub author: String,
+    pub license: String,
+    pub version: String,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct TokenInfo {
     pub address: Address,
     pub creator: Address,
@@ -45,9 +55,12 @@ pub enum DataKey {
     BaseFee,
     MetadataFee,
     TokenCount,
+    Token(u32),
+    Balance(u32, Address),
+    BurnCount(u32),
     Token(u32),            // Token index -> TokenInfo
-    Balance(u32, Address), // (token_index, holder) -> i128 (burn feature)
-    BurnCount(u32),        // token_index -> u32 (burn feature)
+    Balance(u32, Address), // (token_index, holder) -> i128
+    BurnCount(u32),        // token_index -> u32
     TokenByAddress(Address),
     Paused,
 }
@@ -55,31 +68,25 @@ pub enum DataKey {
 #[contracterror]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Error {
-    // ── pre-existing ──────────────────────────────────────
-    InsufficientFee     = 1,
-    Unauthorized        = 2,
-    InvalidParameters   = 3,
-    TokenNotFound       = 4,
-    MetadataAlreadySet  = 5,
-    AlreadyInitialized  = 6,
-
-    // ── burn feature ──────────────────────────────────────
-    InsufficientBalance = 7, // holder balance < requested burn amount
-    ArithmeticError     = 8, // checked_sub / checked_add returned None
-    BatchTooLarge       = 9, // batch_burn entry count > MAX_BATCH_BURN
+    InsufficientFee = 1,
+    Unauthorized = 2,
+    InvalidParameters = 3,
+    TokenNotFound = 4,
+    MetadataAlreadySet = 5,
+    AlreadyInitialized = 6,
+    InsufficientBalance = 7,
+    ArithmeticError = 8,
+    BatchTooLarge = 9,
     InvalidAmount = 10,
     ClawbackDisabled = 11,
     InvalidBurnAmount = 12,
     BurnAmountExceedsBalance = 13,
     ContractPaused = 14,
-    
-    // ── state validation ──────────────────────────────────
-    MissingAdmin = 15,           // Admin address not set
-    InvalidAdmin = 16,           // Admin address is invalid
-    MissingTreasury = 17,        // Treasury address not set
-    InvalidTreasury = 18,        // Treasury address is invalid
-    InvalidBaseFee = 19,         // Base fee is negative
-    InvalidMetadataFee = 20,     // Metadata fee is negative
-    InvalidTokenCount = 21,      // Token count is negative
-    InconsistentTokenCount = 22, // Token count doesn't match stored tokens
+    InvalidAmount = 8,
+    ClawbackDisabled = 9,
+    InvalidBurnAmount = 10,
+    BurnAmountExceedsBalance = 11,
+    ContractPaused = 12,
+    ArithmeticError = 13,
+    BatchTooLarge = 14,
 }

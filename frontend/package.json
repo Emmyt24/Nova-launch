@@ -22,7 +22,12 @@
     "test:a11y:watch": "vitest src/test/accessibility --config vitest.config.ts",
     "test:a11y:coverage": "vitest run src/test/accessibility --coverage --config vitest.config.ts",
     "test:a11y:report": "pa11y --reporter json --reporter csv http://localhost:5173",
-    "test:a11y:ci": "vitest run src/test/accessibility --config vitest.config.ts --reporter=junit --outputFile=test-results/junit-a11y.xml"
+    "test:a11y:ci": "vitest run src/test/accessibility --config vitest.config.ts --reporter=junit --outputFile=test-results/junit-a11y.xml",
+    "test:performance": "vitest run src/test/performance --config vitest.config.ts",
+    "test:performance:watch": "vitest src/test/performance --config vitest.config.ts",
+    "analyze": "npm run build:analyze && node scripts/analyze-bundle.js",
+    "perf:monitor": "node scripts/performance-monitor.js",
+    "lighthouse": "lhci autorun"
   },
   "dependencies": {
     "@sentry/browser": "^10.39.0",
@@ -37,6 +42,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
+    "@lhci/cli": "^0.13.0",
     "@tailwindcss/postcss": "^4.1.18",
     "@testing-library/dom": "^10.4.1",
     "@testing-library/jest-dom": "^6.9.1",
@@ -64,6 +70,7 @@
     "postcss": "^8.5.6",
     "rollup-plugin-visualizer": "5.11.0",
     "tailwindcss": "^4.1.18",
+    "terser": "^5.46.0",
     "typescript": "~5.9.3",
     "typescript-eslint": "^8.48.0",
     "vite": "^7.1.8",

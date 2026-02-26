@@ -7,7 +7,7 @@ import {
     useState,
     type ReactNode,
 } from 'react';
-import { Toast } from '../components/UI/Toast';
+import { Toast, type ToastAction } from '../components/UI/Toast';
 
 export type ToastType = 'success' | 'error' | 'info' | 'warning';
 export type ToastPosition =
@@ -20,6 +20,8 @@ export type ToastPosition =
 
 export interface ToastOptions {
     duration?: number;
+    action?: ToastAction;
+    showProgress?: boolean;
 }
 
 export interface ToastItem {
@@ -27,6 +29,8 @@ export interface ToastItem {
     message: string;
     type: ToastType;
     duration: number;
+    action?: ToastAction;
+    showProgress: boolean;
 }
 
 interface ToastContextValue {
@@ -95,6 +99,8 @@ export function ToastProvider({
                 message,
                 type,
                 duration: options?.duration ?? defaultDuration,
+                action: options?.action,
+                showProgress: options?.showProgress ?? true,
             };
 
             setToasts((prev) => {
@@ -163,9 +169,20 @@ export function ToastProvider({
                         message={toast.message}
                         type={toast.type}
                         duration={toast.duration}
+                        action={toast.action}
+                        showProgress={toast.showProgress}
                         onClose={hideToast}
                     />
                 ))}
+                {toasts.length > 1 && (
+                    <button
+                        onClick={clearToasts}
+                        className="pointer-events-auto mt-2 rounded-lg bg-gray-800 px-3 py-2 text-xs font-medium text-white shadow-lg transition-all hover:bg-gray-700"
+                        aria-label="Dismiss all notifications"
+                    >
+                        Dismiss All ({toasts.length})
+                    </button>
+                )}
             </div>
         </ToastContext.Provider>
     );

@@ -1,6 +1,6 @@
 /**
  * Example usage of the Token Search API
- * 
+ *
  * This file demonstrates various ways to use the search endpoint
  */
 
@@ -73,7 +73,8 @@ export const paginationExample = {
 // Example 12: Creator's burned tokens
 export const creatorBurnedTokensExample = {
   url: "/api/tokens/search?creator=GCREATOR123&hasBurns=true&sortBy=burned&sortOrder=desc",
-  description: "Find all burned tokens by a specific creator, sorted by burn amount",
+  description:
+    "Find all burned tokens by a specific creator, sorted by burn amount",
 };
 
 /**
@@ -131,7 +132,8 @@ export async function findHighValueBurnedTokens() {
   const data = await response.json();
 
   return data.data.filter((token: any) => {
-    const burnPercentage = (BigInt(token.totalBurned) * BigInt(100)) / BigInt(token.totalSupply);
+    const burnPercentage =
+      (BigInt(token.totalBurned) * BigInt(100)) / BigInt(token.totalSupply);
     return burnPercentage > BigInt(10); // More than 10% burned
   });
 }

@@ -58,6 +58,7 @@
 - **🌍 Emerging Markets Focus**: Optimized for users in Nigeria and other developing regions
 - **🔒 Secure**: Non-custodial, wallet-based authentication
 - **📱 Mobile-First**: Responsive design for all devices
+- **📲 PWA Support**: Install as an app on any device with offline capabilities
 
 ### Core Value Proposition
 
@@ -86,6 +87,8 @@ Pay minimal XLM fees to deploy and mint tokens directly to your wallet. Optional
 - ✅ Transaction history tracking
 - ✅ Responsive, mobile-first design
 - ✅ Accessibility compliant (WCAG 2.1)
+- ✅ PWA support with offline mode
+- ✅ Installable on mobile and desktop
 
 #### 🖼️ Metadata Support
 - ✅ Optional IPFS metadata upload

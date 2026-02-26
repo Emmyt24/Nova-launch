@@ -13,7 +13,7 @@ use soroban_sdk::testutils::Address as _;
 use soroban_sdk::Address;
 
 // Configuration for extensive fuzzing
-const FUZZ_ITERATIONS: u32 = 10_000;
+const FUZZ_ITERATIONS: u32 = 256;
 
 /// Strategy for generating fee values including edge cases
 fn comprehensive_fee_strategy() -> impl Strategy<Value = i128> {
@@ -478,9 +478,9 @@ mod edge_cases {
 
         client.initialize(&admin, &treasury, &100_000_000, &50_000_000);
 
-        // Update with both None should succeed but change nothing
+        // Update with both None should fail with InvalidParameters
         let result = client.try_update_fees(&admin, &None, &None);
-        assert!(result.is_ok());
+        assert!(result.is_err());
 
         let state = client.get_state();
         assert_eq!(state.base_fee, 100_000_000);

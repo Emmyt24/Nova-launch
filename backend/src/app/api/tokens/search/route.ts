@@ -8,7 +8,7 @@ import type { TokenSearchResponse, TokenSearchErrorResponse } from "./types";
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
-    
+
     // Parse and validate query parameters
     const queryParams: SearchTokensQuery = {
       q: searchParams.get("q") || undefined,
@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
     }
 
     const validatedParams = validation.data;
-    
+
     // Check cache
     const cacheKey = JSON.stringify(validatedParams);
     const cached = await getCachedSearchResults(cacheKey);
@@ -48,7 +48,7 @@ export async function GET(request: NextRequest) {
 
     // Build query
     const { where, orderBy } = buildTokenSearchQuery(validatedParams);
-    
+
     // Calculate pagination
     const page = parseInt(validatedParams.page);
     const limit = parseInt(validatedParams.limit);
