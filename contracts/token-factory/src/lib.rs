@@ -70,6 +70,8 @@ impl TokenFactory {
     /// when deploying a token with metadata (IPFS URI).
     pub fn get_metadata_fee(env: Env) -> i128 {
         storage::get_metadata_fee(&env)
+    }
+
     /// Transfer admin rights to a new address
     ///
     /// Allows the current admin to transfer administrative control to a new address.
@@ -402,3 +404,6 @@ mod fuzz_string_boundaries;
 
 #[cfg(test)]
 mod upgrade_test;
+
+#[cfg(test)]
+mod gas_benchmark_comprehensive;
