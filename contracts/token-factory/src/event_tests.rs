@@ -5,7 +5,7 @@
 
 use soroban_sdk::{
     symbol_short,
-    testutils::Address as _,
+    testutils::{Address as _, Events},
     Address, Env, String, Vec,
 };
 use crate::{TokenFactory, TokenFactoryClient};

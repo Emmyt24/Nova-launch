@@ -4,6 +4,7 @@ mod events;
 mod storage;
 mod burn;
 mod types;
+mod validation;
 
 use soroban_sdk::{contract, contractimpl, Address, Env, String};
 use types::{ContractMetadata, Error, FactoryState, TokenInfo};
@@ -178,6 +179,9 @@ impl TokenFactory {
         // Update admin in storage
         storage::set_admin(&env, &new_admin);
 
+        // Validate new admin is valid
+        validation::validate_admin(&env)?;
+
         // Emit optimized event
         events::emit_admin_transfer(&env, &current_admin, &new_admin);
 
@@ -342,6 +346,9 @@ impl TokenFactory {
             storage::set_metadata_fee(&env, fee);
         }
 
+        // Validate fees after update
+        validation::validate_fees(&env)?;
+
         // Get updated fees for event
         let new_base_fee = base_fee.unwrap_or_else(|| storage::get_base_fee(&env));
         let new_metadata_fee = metadata_fee.unwrap_or_else(|| storage::get_metadata_fee(&env));
@@ -434,6 +441,9 @@ impl TokenFactory {
         if let Some(pause_state) = paused {
             storage::set_paused(&env, pause_state);
         }
+
+        // Validate fees after update
+        validation::validate_fees(&env)?;
 
         // Get final state for event
         let final_base_fee = base_fee.unwrap_or_else(|| storage::get_base_fee(&env));
