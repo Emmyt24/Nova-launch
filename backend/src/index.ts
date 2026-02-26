@@ -6,6 +6,7 @@ import dotenv from "dotenv";
 import adminRoutes from "./routes/admin";
 import leaderboardRoutes from "./routes/leaderboard";
 import { Database } from "./config/database";
+import { successResponse, errorResponse } from "./utils/response";
 
 dotenv.config();
 
@@ -44,11 +45,12 @@ app.use("/api/leaderboard", leaderboardRoutes);
 
 // Health check
 app.get("/health", (req, res) => {
-  res.json({
-    status: "ok",
-    timestamp: new Date(),
-    uptime: process.uptime(),
-  });
+  res.json(
+    successResponse({
+      status: "ok",
+      uptime: process.uptime(),
+    })
+  );
 });
 
 // Error handling middleware
@@ -60,16 +62,24 @@ app.use(
     next: express.NextFunction
   ) => {
     console.error("Error:", err);
-    res.status(err.status || 500).json({
-      error: err.message || "Internal server error",
-      ...(process.env.NODE_ENV === "development" && { stack: err.stack }),
-    });
+    res.status(err.status || 500).json(
+      errorResponse({
+        code: "INTERNAL_SERVER_ERROR",
+        message: err.message || "Internal server error",
+        details: process.env.NODE_ENV === "development" ? { stack: err.stack } : undefined,
+      })
+    );
   }
 );
 
 // 404 handler
 app.use((req, res) => {
-  res.status(404).json({ error: "Route not found" });
+  res.status(404).json(
+    errorResponse({
+      code: "NOT_FOUND",
+      message: "Route not found",
+    })
+  );
 });
 
 app.listen(PORT, () => {
