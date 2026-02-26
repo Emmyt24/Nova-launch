@@ -5,8 +5,15 @@ mod storage;
 mod burn;
 mod types;
 
-use soroban_sdk::{contract, contractimpl, Address, Env};
-use types::{Error, FactoryState, TokenInfo};
+use soroban_sdk::{contract, contractimpl, Address, Env, String};
+use types::{ContractMetadata, Error, FactoryState, TokenInfo};
+
+// Contract metadata constants
+const CONTRACT_NAME: &str = "Nova Launch Token Factory";
+const CONTRACT_DESCRIPTION: &str = "No-code token deployment on Stellar";
+const CONTRACT_AUTHOR: &str = "Nova Launch Team";
+const CONTRACT_LICENSE: &str = "MIT";
+const CONTRACT_VERSION: &str = "1.0.0";
 
 #[contract]
 pub struct TokenFactory;
@@ -332,10 +339,6 @@ impl TokenFactory {
         burn::burn(&env, caller, token_index, amount)
     }
 
-    pub fn admin_burn(env: Env, admin: Address, token_index: u32, holder: Address, amount: i128) -> Result<(), Error> {
-        burn::admin_burn(&env, admin, token_index, holder, amount)
-    }
-
     pub fn batch_burn(env: Env, admin: Address, token_index: u32, burns: soroban_sdk::Vec<(Address, i128)>) -> Result<(), Error> {
         burn::batch_burn(&env, admin, token_index, burns)
     }
@@ -362,6 +365,9 @@ mod admin_transfer_test;
 
 #[cfg(test)]
 mod pause_test;
+
+#[cfg(test)]
+mod metadata_test;
 
 // Temporarily disabled due to compilation issues
 // #[cfg(test)]

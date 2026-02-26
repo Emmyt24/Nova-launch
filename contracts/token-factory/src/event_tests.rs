@@ -75,7 +75,7 @@ fn test_admin_transfer_event_emitted() {
     );
     let event = events.get(events.len() - 1).unwrap();
     let topic = event.0.get(0).unwrap();
-    assert_eq!(topic, soroban_sdk::Val::from(symbol_short!("admin_xfer")));
+    assert_eq!(topic, soroban_sdk::Val::from(symbol_short!("adm_xfer")));
 }
 
 #[test]
@@ -157,7 +157,7 @@ fn test_pause_unpause_event_data_contains_admin() {
 // ── Fees Updated Event Tests ──────────────────────────────────────────────
 
 #[test]
-fn test_fees_updated_event_emitted() {
+fn test_fee_upd_event_emitted() {
     let env = Env::default();
     env.mock_all_auths();
     let (client, admin, _) = setup_factory(&env);
@@ -171,13 +171,13 @@ fn test_fees_updated_event_emitted() {
     let topic = last.0.get(0).unwrap();
     assert_eq!(
         topic,
-        soroban_sdk::Val::from(symbol_short!("fees_updated")),
-        "fees_updated event should be emitted"
+        soroban_sdk::Val::from(symbol_short!("fee_upd")),
+        "fee_upd event should be emitted"
     );
 }
 
 #[test]
-fn test_fees_updated_event_data_accuracy() {
+fn test_fee_upd_event_data_accuracy() {
     let env = Env::default();
     env.mock_all_auths();
     let (client, admin, _) = setup_factory(&env);
@@ -195,7 +195,7 @@ fn test_fees_updated_event_data_accuracy() {
 }
 
 #[test]
-fn test_fees_updated_only_base_fee() {
+fn test_fee_upd_only_base_fee() {
     let env = Env::default();
     env.mock_all_auths();
     let (client, admin, _) = setup_factory(&env);
@@ -207,8 +207,8 @@ fn test_fees_updated_only_base_fee() {
     let topic = last.0.get(0).unwrap();
     assert_eq!(
         topic,
-        soroban_sdk::Val::from(symbol_short!("fees_updated")),
-        "fees_updated should be emitted even for partial update"
+        soroban_sdk::Val::from(symbol_short!("fee_upd")),
+        "fee_upd should be emitted even for partial update"
     );
 }
 
@@ -221,13 +221,13 @@ fn test_multiple_events_ordered() {
     let (client, admin, _) = setup_factory(&env);
     let new_admin = Address::generate(&env);
 
-    // Event 1: fees_updated
+    // Event 1: fee_upd
     client.update_fees(&admin, &Some(50_000_000), &Some(20_000_000));
     // Event 2: pause
     client.pause(&admin);
     // Event 3: unpause
     client.unpause(&admin);
-    // Event 4: admin_xfer
+    // Event 4: adm_xfer
     client.transfer_admin(&admin, &new_admin);
 
     let events = env.events().all();
@@ -238,10 +238,10 @@ fn test_multiple_events_ordered() {
     let t2 = events.get(2).unwrap().0.get(0).unwrap();
     let t3 = events.get(3).unwrap().0.get(0).unwrap();
 
-    assert_eq!(t0, soroban_sdk::Val::from(symbol_short!("fees_updated")));
+    assert_eq!(t0, soroban_sdk::Val::from(symbol_short!("fee_upd")));
     assert_eq!(t1, soroban_sdk::Val::from(symbol_short!("pause")));
     assert_eq!(t2, soroban_sdk::Val::from(symbol_short!("unpause")));
-    assert_eq!(t3, soroban_sdk::Val::from(symbol_short!("admin_xfer")));
+    assert_eq!(t3, soroban_sdk::Val::from(symbol_short!("adm_xfer")));
 }
 
 // ── No Event on Read-Only Functions ──────────────────────────────────────
@@ -267,15 +267,15 @@ fn test_no_event_on_readonly_functions() {
 // ── Admin Burn Event Tests ────────────────────────────────────────────────
 
 #[test]
-fn test_admin_burn_event_emitted() {
+fn test_adm_burn_event_emitted() {
     let env = Env::default();
     env.mock_all_auths();
     let (client, admin, _) = setup_factory(&env);
 
-    // Only run if admin_burn exists and a token is available
-    // This test verifies event structure when admin_burn is called
+    // Only run if adm_burn exists and a token is available
+    // This test verifies event structure when adm_burn is called
     let events_before = count_events(&env);
-    // Trigger a state change that emits admin_burn if token exists
+    // Trigger a state change that emits adm_burn if token exists
     // Since we cannot create tokens without the full stellar asset setup,
     // we verify the event module is correctly wired by checking pause event
     client.pause(&admin);

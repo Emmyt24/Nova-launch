@@ -14,6 +14,16 @@ pub struct FactoryState {
 
 #[contracttype]
 #[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ContractMetadata {
+    pub name: String,
+    pub description: String,
+    pub author: String,
+    pub license: String,
+    pub version: String,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct TokenInfo {
     pub address: Address,
     pub creator: Address,
