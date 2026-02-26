@@ -39,11 +39,12 @@ function getFromCache(key: string) {
 
 function setCache(key: string, data: any) {
   cache.set(key, { data, timestamp: Date.now() });
-  
+
   // Clean old cache entries
   if (cache.size > 100) {
-    const oldestKey = Array.from(cache.entries())
-      .sort((a, b) => a[1].timestamp - b[1].timestamp)[0][0];
+    const oldestKey = Array.from(cache.entries()).sort(
+      (a, b) => a[1].timestamp - b[1].timestamp
+    )[0][0];
     cache.delete(oldestKey);
   }
 }
@@ -56,7 +57,7 @@ router.get("/search", async (req: Request, res: Response) => {
   try {
     // Validate parameters
     const validationResult = searchParamsSchema.safeParse(req.query);
-    
+
     if (!validationResult.success) {
       return res.status(400).json({
         success: false,
@@ -66,7 +67,7 @@ router.get("/search", async (req: Request, res: Response) => {
     }
 
     const params = validationResult.data;
-    
+
     // Check cache
     const cacheKey = getCacheKey(params);
     const cachedResult = getFromCache(cacheKey);
@@ -129,7 +130,7 @@ router.get("/search", async (req: Request, res: Response) => {
 
     // Build orderBy clause
     let orderBy: Prisma.TokenOrderByWithRelationInput = {};
-    
+
     switch (params.sortBy) {
       case "created":
         orderBy = { createdAt: params.sortOrder };
@@ -180,7 +181,7 @@ router.get("/search", async (req: Request, res: Response) => {
     }));
 
     const totalPages = Math.ceil(total / limit);
-    
+
     const response = {
       success: true,
       data: serializedTokens,

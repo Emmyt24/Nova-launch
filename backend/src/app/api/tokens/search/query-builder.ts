@@ -3,7 +3,7 @@ import type { ValidatedSearchTokensQuery } from "./schema";
 
 export function buildTokenSearchQuery(params: ValidatedSearchTokensQuery) {
   const where: Prisma.TokenWhereInput = {};
-  
+
   // Full-text search by name or symbol
   if (params.q) {
     where.OR = [
@@ -11,12 +11,12 @@ export function buildTokenSearchQuery(params: ValidatedSearchTokensQuery) {
       { symbol: { contains: params.q, mode: "insensitive" } },
     ];
   }
-  
+
   // Filter by creator address
   if (params.creator) {
     where.creator = { equals: params.creator, mode: "insensitive" };
   }
-  
+
   // Filter by creation date range
   if (params.startDate || params.endDate) {
     where.createdAt = {};
@@ -27,7 +27,7 @@ export function buildTokenSearchQuery(params: ValidatedSearchTokensQuery) {
       where.createdAt.lte = new Date(params.endDate);
     }
   }
-  
+
   // Filter by supply range
   if (params.minSupply || params.maxSupply) {
     where.totalSupply = {};
@@ -38,7 +38,7 @@ export function buildTokenSearchQuery(params: ValidatedSearchTokensQuery) {
       where.totalSupply.lte = BigInt(params.maxSupply);
     }
   }
-  
+
   // Filter by burn status
   if (params.hasBurns !== undefined) {
     if (params.hasBurns === "true") {
@@ -47,10 +47,10 @@ export function buildTokenSearchQuery(params: ValidatedSearchTokensQuery) {
       where.burnCount = { equals: 0 };
     }
   }
-  
+
   // Build orderBy
   const orderBy: Prisma.TokenOrderByWithRelationInput = {};
-  
+
   switch (params.sortBy) {
     case "created":
       orderBy.createdAt = params.sortOrder;
@@ -65,6 +65,6 @@ export function buildTokenSearchQuery(params: ValidatedSearchTokensQuery) {
       orderBy.name = params.sortOrder;
       break;
   }
-  
+
   return { where, orderBy };
 }

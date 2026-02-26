@@ -181,6 +181,68 @@ fn test_update_fees() {
     client.update_fees(&admin, &None, &Some(50_000_000));
     let state = client.get_state();
     assert_eq!(state.metadata_fee, 50_000_000);
+}
+
+#[test]
+fn test_get_base_fee() {
+    let env = Env::default();
+    let contract_id = env.register_contract(None, TokenFactory);
+    let client = TokenFactoryClient::new(&env, &contract_id);
+
+    let admin = Address::generate(&env);
+    let treasury = Address::generate(&env);
+    let base_fee = 70_000_000; // 7 XLM in stroops
+    let metadata_fee = 30_000_000; // 3 XLM in stroops
+
+    // Initialize factory
+    client.initialize(&admin, &treasury, &base_fee, &metadata_fee);
+
+    // Test get_base_fee
+    let retrieved_base_fee = client.get_base_fee();
+    assert_eq!(retrieved_base_fee, base_fee);
+}
+
+#[test]
+fn test_get_metadata_fee() {
+    let env = Env::default();
+    let contract_id = env.register_contract(None, TokenFactory);
+    let client = TokenFactoryClient::new(&env, &contract_id);
+
+    let admin = Address::generate(&env);
+    let treasury = Address::generate(&env);
+    let base_fee = 70_000_000;
+    let metadata_fee = 30_000_000;
+
+    // Initialize factory
+    client.initialize(&admin, &treasury, &base_fee, &metadata_fee);
+
+    // Test get_metadata_fee
+    let retrieved_metadata_fee = client.get_metadata_fee();
+    assert_eq!(retrieved_metadata_fee, metadata_fee);
+}
+
+#[test]
+fn test_fee_getters_after_update() {
+    let env = Env::default();
+    env.mock_all_auths();
+    
+    let contract_id = env.register_contract(None, TokenFactory);
+    let client = TokenFactoryClient::new(&env, &contract_id);
+
+    let admin = Address::generate(&env);
+    let treasury = Address::generate(&env);
+
+    // Initialize with initial fees
+    client.initialize(&admin, &treasury, &70_000_000, &30_000_000);
+
+    // Update fees
+    let new_base_fee = 100_000_000;
+    let new_metadata_fee = 50_000_000;
+    client.update_fees(&admin, &Some(new_base_fee), &Some(new_metadata_fee));
+
+    // Verify getters return updated values
+    assert_eq!(client.get_base_fee(), new_base_fee);
+    assert_eq!(client.get_metadata_fee(), new_metadata_fee);
     assert_eq!(state.base_fee, 100_000_000); // Verify base fee unchanged
 
     // Update both fees simultaneously

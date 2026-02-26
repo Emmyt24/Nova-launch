@@ -82,7 +82,7 @@ pub fn emit_clawback_toggled(
 /// Used when multiple tokens are burned in a batch operation
 pub fn emit_token_burned(env: &Env, token_address: &Address, amount: i128) {
     env.events().publish(
-        (symbol_short!("tok_burn"), token_address.clone()),
+        (symbol_short!("tkn_burn"), token_address.clone()),
         (amount,),
     );
 }

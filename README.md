@@ -58,6 +58,7 @@
 - **🌍 Emerging Markets Focus**: Optimized for users in Nigeria and other developing regions
 - **🔒 Secure**: Non-custodial, wallet-based authentication
 - **📱 Mobile-First**: Responsive design for all devices
+- **📲 PWA Support**: Install as an app on any device with offline capabilities
 
 ### Core Value Proposition
 
@@ -86,6 +87,8 @@ Pay minimal XLM fees to deploy and mint tokens directly to your wallet. Optional
 - ✅ Transaction history tracking
 - ✅ Responsive, mobile-first design
 - ✅ Accessibility compliant (WCAG 2.1)
+- ✅ PWA support with offline mode
+- ✅ Installable on mobile and desktop
 
 #### 🖼️ Metadata Support
 - ✅ Optional IPFS metadata upload
@@ -499,6 +502,24 @@ Get current factory state.
 ```rust
 pub fn get_state(env: Env) -> FactoryState
 ```
+
+##### `get_base_fee`
+Get the current base fee for token deployment.
+
+```rust
+pub fn get_base_fee(env: Env) -> i128
+```
+
+Returns the base fee amount in stroops that must be paid for any token deployment, regardless of metadata inclusion.
+
+##### `get_metadata_fee`
+Get the current metadata fee for token deployment.
+
+```rust
+pub fn get_metadata_fee(env: Env) -> i128
+```
+
+Returns the additional fee amount in stroops that must be paid when deploying a token with metadata (IPFS URI).
 
 ##### `get_token_info`
 Get information about a deployed token.
