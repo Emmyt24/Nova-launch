@@ -407,4 +407,8 @@ mod fuzz_string_boundaries;
 mod upgrade_test;
 
 #[cfg(test)]
+mod fuzz_test;
+
+#[cfg(test)]
+mod integration_test;
 mod gas_benchmark_comprehensive;
