@@ -49,9 +49,8 @@ describe("Crypto Utils", () => {
 
       const signature = generateSignature(payload, secret1);
 
-      expect(() => {
-        verifySignature(payload, signature, secret2);
-      }).toThrow();
+      const isValid = verifySignature(payload, signature, secret2);
+      expect(isValid).toBe(false);
     });
   });
 
@@ -72,7 +71,7 @@ describe("Crypto Utils", () => {
     it("should accept valid Stellar addresses", () => {
       expect(
         isValidStellarAddress(
-          "GABC1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCD"
+          "GABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZABC"
         )
       ).toBe(true);
     });

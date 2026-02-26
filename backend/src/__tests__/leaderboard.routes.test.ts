@@ -63,7 +63,7 @@ describe("Leaderboard API Routes", () => {
         .expect(200);
 
       expect(response.body.success).toBe(true);
-      expect(response.body.data).toHaveLength(1);
+      expect(response.body.data.data).toHaveLength(1);
       expect(leaderboardService.getMostBurnedLeaderboard).toHaveBeenCalledWith(
         "7d",
         1,
@@ -153,7 +153,8 @@ describe("Leaderboard API Routes", () => {
         .expect(500);
 
       expect(response.body.success).toBe(false);
-      expect(response.body.error).toBe("Failed to fetch leaderboard");
+      expect(response.body.error.message).toBe("Failed to fetch leaderboard");
+      expect(response.body.error.code).toBe("INTERNAL_SERVER_ERROR");
     });
   });
 
@@ -192,7 +193,7 @@ describe("Leaderboard API Routes", () => {
         .expect(200);
 
       expect(response.body.success).toBe(true);
-      expect(response.body.data[0].metric).toBe("50");
+      expect(response.body.data.data[0].metric).toBe("50");
     });
   });
 
@@ -231,7 +232,7 @@ describe("Leaderboard API Routes", () => {
         .expect(200);
 
       expect(response.body.success).toBe(true);
-      expect(response.body.data).toHaveLength(1);
+      expect(response.body.data.data).toHaveLength(1);
     });
   });
 
@@ -270,7 +271,7 @@ describe("Leaderboard API Routes", () => {
         .expect(200);
 
       expect(response.body.success).toBe(true);
-      expect(response.body.data[0].metric).toBe("5000000000");
+      expect(response.body.data.data[0].metric).toBe("5000000000");
     });
   });
 
@@ -309,7 +310,7 @@ describe("Leaderboard API Routes", () => {
         .expect(200);
 
       expect(response.body.success).toBe(true);
-      expect(response.body.data[0].metric).toBe("25");
+      expect(response.body.data.data[0].metric).toBe("25");
     });
   });
 });
