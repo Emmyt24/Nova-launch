@@ -1,6 +1,20 @@
 use soroban_sdk::{Address, Env};
 
-use crate::types::{DataKey, FactoryState, TokenInfo};
+use crate::types::{DataKey, FactoryState, TokenInfo, BurnRecord};
+
+// ============================================================
+// Storage Functions - Burn Tracking
+// ============================================================
+// Available functions:
+// - get_total_burned(env, token_address) -> i128
+// - get_burn_count(env, token_address) -> u32
+// - get_global_burn_count(env) -> u32
+// - increment_burn_count(env, token_address, amount)
+// - add_burn_record(env, record)
+// - get_burn_record(env, index) -> Option<BurnRecord>
+// - get_burn_record_count(env) -> u32
+// - update_token_supply(env, token_address, delta)
+// ============================================================
 
 // Admin management
 pub fn get_admin(env: &Env) -> Address {
