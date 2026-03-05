@@ -87,9 +87,11 @@ pub fn schedule_fee_update(
     
     let config = storage::get_timelock_config(env);
     let current_time = env.ledger().timestamp();
-    let execute_at = current_time + config.delay_seconds;
+    let execute_at = current_time
+        .checked_add(config.delay_seconds)
+        .ok_or(Error::ArithmeticError)?;
     
-    let change_id = storage::get_next_change_id(env);
+    let change_id = storage::get_next_change_id(env)?;
     
     let pending_change = PendingChange {
         id: change_id,
@@ -138,9 +140,11 @@ pub fn schedule_pause_update(
     
     let config = storage::get_timelock_config(env);
     let current_time = env.ledger().timestamp();
-    let execute_at = current_time + config.delay_seconds;
+    let execute_at = current_time
+        .checked_add(config.delay_seconds)
+        .ok_or(Error::ArithmeticError)?;
     
-    let change_id = storage::get_next_change_id(env);
+    let change_id = storage::get_next_change_id(env)?;
     
     let pending_change = PendingChange {
         id: change_id,
@@ -189,9 +193,11 @@ pub fn schedule_treasury_update(
     
     let config = storage::get_timelock_config(env);
     let current_time = env.ledger().timestamp();
-    let execute_at = current_time + config.delay_seconds;
+    let execute_at = current_time
+        .checked_add(config.delay_seconds)
+        .ok_or(Error::ArithmeticError)?;
     
-    let change_id = storage::get_next_change_id(env);
+    let change_id = storage::get_next_change_id(env)?;
     
     let pending_change = PendingChange {
         id: change_id,

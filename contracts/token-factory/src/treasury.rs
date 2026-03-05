@@ -57,7 +57,10 @@ pub fn initialize_treasury_policy(
 /// Returns true if the current period has expired and should be reset.
 fn should_reset_period(env: &Env, period: &WithdrawalPeriod, policy: &TreasuryPolicy) -> bool {
     let current_time = env.ledger().timestamp();
-    current_time >= period.period_start + policy.period_duration
+    let period_end = period.period_start
+        .checked_add(policy.period_duration)
+        .unwrap_or(u64::MAX);
+    current_time >= period_end
 }
 
 /// Reset withdrawal period

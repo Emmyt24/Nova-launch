@@ -255,7 +255,6 @@ pub enum Error {
     InvalidBaseFee = 23,
     InvalidMetadataFee = 24,
     InconsistentTokenCount = 25,
-}
 
 /// Timelock configuration
 ///

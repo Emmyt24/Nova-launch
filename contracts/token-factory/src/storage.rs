@@ -1,6 +1,6 @@
 use soroban_sdk::{Address, Env};
 
-use crate::types::{DataKey, FactoryState, TokenInfo};
+use crate::types::{DataKey, Error, FactoryState, TokenInfo};
 
 // ============================================================
 // Storage Functions - Burn Tracking
@@ -77,10 +77,12 @@ pub fn set_token_info(env: &Env, index: u32, info: &TokenInfo) {
     crate::events::emit_token_registered(env, &info.address, &info.creator);
 }
 
-pub fn increment_token_count(env: &Env) -> u32 {
-    let count = get_token_count(env) + 1;
+pub fn increment_token_count(env: &Env) -> Result<u32, Error> {
+    let count = get_token_count(env)
+        .checked_add(1)
+        .ok_or(Error::ArithmeticError)?;
     env.storage().instance().set(&DataKey::TokenCount, &count);
-    count
+    Ok(count)
 }
 
 // Get factory state
@@ -121,11 +123,14 @@ pub fn get_burn_count(env: &Env, token_index: u32) -> u32 {
         .unwrap_or(0)
 }
 
-pub fn increment_burn_count(env: &Env, token_index: u32) {
-    let count = get_burn_count(env, token_index) + 1;
+pub fn increment_burn_count(env: &Env, token_index: u32) -> Result<(), Error> {
+    let count = get_burn_count(env, token_index)
+        .checked_add(1)
+        .ok_or(Error::ArithmeticError)?;
     env.storage()
         .persistent()
         .set(&crate::types::DataKey::BurnCount(token_index), &count);
+    Ok(())
 }
 
 // ── Burn feature additions ─────────────────────────────────
@@ -244,13 +249,16 @@ pub fn set_timelock_config(env: &Env, config: &crate::types::TimelockConfig) {
     env.storage().instance().set(&DataKey::TimelockConfig, config);
 }
 
-pub fn get_next_change_id(env: &Env) -> u64 {
+pub fn get_next_change_id(env: &Env) -> Result<u64, Error> {
     let id = env.storage()
         .instance()
         .get(&DataKey::NextChangeId)
         .unwrap_or(0_u64);
-    env.storage().instance().set(&DataKey::NextChangeId, &(id + 1));
-    id
+    let next_id = id
+        .checked_add(1)
+        .ok_or(Error::ArithmeticError)?;
+    env.storage().instance().set(&DataKey::NextChangeId, &next_id);
+    Ok(id)
 }
 
 pub fn get_pending_change(env: &Env, change_id: u64) -> Option<crate::types::PendingChange> {
@@ -377,10 +385,12 @@ pub fn get_stream_count(env: &Env) -> u32 {
 }
 
 /// Increment stream count and return new ID
-pub fn increment_stream_count(env: &Env) -> u32 {
-    let count = get_stream_count(env) + 1;
+pub fn increment_stream_count(env: &Env) -> Result<u32, Error> {
+    let count = get_stream_count(env)
+        .checked_add(1)
+        .ok_or(Error::ArithmeticError)?;
     env.storage().instance().set(&DataKey::StreamCount, &count);
-    count
+    Ok(count)
 }
 
 /// Get stream info by ID
