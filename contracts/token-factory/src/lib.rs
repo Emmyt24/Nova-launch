@@ -193,6 +193,7 @@ impl TokenFactory {
             created_at: env.ledger().timestamp(),
             is_paused: false,
             clawback_enabled: false,
+            freeze_enabled: false,
         };
 
         storage::set_token_info(&env, token_count, &token_info);

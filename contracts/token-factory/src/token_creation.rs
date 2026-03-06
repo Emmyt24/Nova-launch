@@ -79,6 +79,7 @@ pub fn create_token_internal(
         burn_count: 0,
         is_paused: false,
         clawback_enabled: false,
+        freeze_enabled: false,
     };
 
     // Store token info

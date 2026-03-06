@@ -576,3 +576,11 @@ pub fn emit_proposal_voted(
         (voter, vote_choice),
     );
 }
+
+
+pub fn emit_batch_tokens_created(env: &Env, creator: &Address, count: u32) {
+    env.events().publish(
+        (symbol_short!("btch_tkn"),),
+        (creator, count),
+    );
+}

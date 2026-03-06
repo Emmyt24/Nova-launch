@@ -86,6 +86,18 @@ pub struct TokenInfo {
     pub created_at: u64,
     pub is_paused: bool,
     pub clawback_enabled: bool,
+    pub freeze_enabled: bool,
+}
+
+/// Parameters for creating a new token
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct TokenCreationParams {
+    pub name: String,
+    pub symbol: String,
+    pub decimals: u32,
+    pub initial_supply: i128,
+    pub metadata_uri: Option<String>,
 }
 
 /// Compact read-only snapshot of a token's current state.
@@ -287,7 +299,17 @@ pub enum Error {
     QuorumNotMet = 41,
     AlreadyExecuted = 42,
     CliffNotReached = 32,
-    InvalidSchedule = 33,  // Invalid time schedule (cliff outside valid bounds)
+    InvalidSchedule = 33,
+    ProposalNotFound = 34,
+    VotingNotStarted = 35,
+    VotingEnded = 36,
+    AlreadyVoted = 37,
+    PayloadTooLarge = 38,
+    InvalidTimeWindow = 39,
+    FreezeNotEnabled = 40,
+    AddressFrozen = 41,
+    AddressNotFrozen = 42,
+    StreamPaused = 43,
 }
 
 /// Type of pending change
@@ -342,7 +364,7 @@ pub enum VoteChoice {
 /// * `votes_against` - Number of votes against
 /// * `votes_abstain` - Number of abstain votes
 #[contracttype]
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug)]
 pub struct Proposal {
     pub id: u64,
     pub proposer: Address,
