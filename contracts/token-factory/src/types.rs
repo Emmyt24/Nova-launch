@@ -207,6 +207,15 @@ pub enum DataKey {
 /// * `InvalidMaxSupply` - Max supply is less than initial supply
 /// * `WithdrawalCapExceeded` - Withdrawal would exceed daily cap
 /// * `RecipientNotAllowed` - Recipient not in allowlist
+/// * `ProposalNotFound` - Requested proposal does not exist
+/// * `VotingNotStarted` - Voting period has not begun yet
+/// * `VotingEnded` - Voting period has already ended
+/// * `AlreadyVoted` - Voter has already cast a vote on this proposal
+/// * `VotingClosed` - Voting is no longer accepting votes
+/// * `ProposalExpired` - Proposal has passed its expiration time
+/// * `ProposalNotExecutable` - Proposal cannot be executed in current state
+/// * `QuorumNotMet` - Proposal did not reach minimum quorum threshold
+/// * `AlreadyExecuted` - Proposal has already been executed
 ///
 /// # Examples
 /// ```
@@ -254,6 +263,11 @@ pub enum Error {
     VotingNotStarted = 35,
     VotingEnded = 36,
     AlreadyVoted = 37,
+    VotingClosed = 38,
+    ProposalExpired = 39,
+    ProposalNotExecutable = 40,
+    QuorumNotMet = 41,
+    AlreadyExecuted = 42,
 }
 
 /// Type of pending change

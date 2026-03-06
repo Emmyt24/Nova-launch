@@ -2049,3 +2049,6 @@ mod stateful_model_based_test;
 
 #[cfg(test)]
 mod batch_claim_test;
+
+#[cfg(test)]
+mod governance_error_test;
