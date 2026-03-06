@@ -71,7 +71,7 @@ pub struct ContractMetadata {
 /// ```
 #[contracttype]
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct Stream {
+pub struct TokenInfo {
     pub stream_id: String,
     pub creator: Address,
     pub name: String,
@@ -256,7 +256,8 @@ pub enum Error {
     StreamCancelled = 30,
     NothingToClaim = 31,
     CliffNotReached = 32,
-    InvalidSchedule = 33,  // Invalid time schedule (cliff outside valid bounds)
+    InvalidSchedule     = 33,  // Invalid time schedule (cliff outside valid bounds)
+    ProposalNotFound    = 34,
 }
 
 /// Type of pending change
@@ -382,6 +383,20 @@ pub struct PaginationCursor {
 pub struct PaginatedTokens {
     pub tokens: soroban_sdk::Vec<TokenInfo>,
     pub cursor: Option<u32>,
+}
+
+/// Paginated proposal result
+///
+/// Contains a page of proposals and a cursor for fetching the next page.
+///
+/// # Fields
+/// * `proposals` - Vector of Proposal for this page
+/// * `cursor` - Cursor for next page (None = no more results)
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct PaginatedProposals {
+    pub proposals: soroban_sdk::Vec<Proposal>,
+    pub cursor: Option<u64>,
 }
 
 /// Treasury withdrawal policy

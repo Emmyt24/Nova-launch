@@ -1977,6 +1977,24 @@ impl TokenFactory {
         streaming::unpause_stream(&env, &creator, stream_id)
     }
     
+    /// Get a proposal by ID
+    pub fn get_proposal(env: Env, proposal_id: u64) -> Result<types::Proposal, Error> {
+        storage::get_proposal(&env, proposal_id).ok_or(Error::ProposalNotFound)
+    }
+
+    /// Get total count of proposals
+    pub fn get_proposal_count(env: Env) -> u32 {
+        storage::get_proposal_count(&env)
+    }
+
+    /// Get a paginated list of proposals
+    pub fn get_proposals_page(
+        env: Env,
+        cursor: Option<u64>,
+        limit: Option<u32>,
+    ) -> Result<types::PaginatedProposals, Error> {
+        pagination::get_proposals_page(&env, cursor, limit)
+    }
 }
 
 // Temporarily disabled - requires create_token implementation

@@ -1,6 +1,7 @@
 use soroban_sdk::{Address, Env, Vec};
 use crate::types::{Error, PaginatedTokens, TokenInfo};
 use crate::storage;
+use crate::types::{PaginatedProposals, Proposal, ActionType};
 
 /// Maximum number of tokens per page
 const MAX_PAGE_SIZE: u32 = 100;
@@ -243,6 +244,72 @@ pub fn get_stream_count_by_token(
     }
     
     Ok(storage::get_token_stream_count(env, token_index))
+}
+
+/// Get governance proposals with pagination
+///
+/// Returns a paginated list of proposals.
+/// Results are ordered deterministically by proposal ID ascending.
+///
+/// # Arguments
+/// * `env` - The contract environment
+/// * `cursor` - Optional cursor for pagination (None = start from beginning)
+/// * `limit` - Maximum number of proposals to return (capped at MAX_PAGE_SIZE)
+///
+/// # Returns
+/// Returns `PaginatedProposals` containing:
+/// - `proposals`: Vector of Proposal for this page
+/// - `cursor`: Optional cursor for next page (None = no more results)
+pub fn get_proposals_page(
+    env: &Env,
+    cursor: Option<u64>,
+    limit: Option<u32>,
+) -> Result<PaginatedProposals, Error> {
+    // Validate and cap limit
+    let page_size = limit
+        .unwrap_or(DEFAULT_PAGE_SIZE)
+        .min(MAX_PAGE_SIZE)
+        .max(1);
+    
+    // Total proposals are tracked by the NextProposalId which corresponds to the count
+    let total_proposals = storage::get_proposal_count(env) as u64;
+    
+    // Determine starting position
+    let start_pos = cursor.unwrap_or(0);
+    
+    // Check if we're past the end
+    if start_pos >= total_proposals {
+        return Ok(PaginatedProposals {
+            proposals: Vec::new(env),
+            cursor: None,
+        });
+    }
+    
+    // Collect proposals for this page
+    let mut proposals = Vec::new(env);
+    let mut count = 0_u32;
+    let mut current_pos = start_pos;
+    
+    while count < page_size && current_pos < total_proposals {
+        if let Some(proposal) = storage::get_proposal(env, current_pos) {
+            proposals.push_back(proposal);
+            count += 1;
+        }
+        
+        current_pos += 1;
+    }
+    
+    // Determine next cursor
+    let next_cursor = if current_pos < total_proposals {
+        Some(current_pos)
+    } else {
+        None
+    };
+    
+    Ok(PaginatedProposals {
+        proposals,
+        cursor: next_cursor,
+    })
 }
 
 #[cfg(test)]
@@ -761,4 +828,88 @@ mod tests {
             assert_eq!(stream1.id, stream2.id);
         }
     }
-}
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Proposal Query Tests
+    // ═══════════════════════════════════════════════════════════════════════
+    
+    fn setup_with_proposals(proposal_count: u32) -> Env {
+        let env = Env::default();
+        let proposer = Address::generate(&env);
+        
+        for i in 0..proposal_count {
+            let id = storage::get_next_proposal_id(&env);
+            let proposal = Proposal {
+                id,
+                proposer: proposer.clone(),
+                action_type: ActionType::PauseContract,
+                payload: Vec::new(&env),
+                start_time: env.ledger().timestamp(),
+                end_time: env.ledger().timestamp() + 86400,
+                eta: 0,
+                created_at: env.ledger().timestamp(),
+                votes_for: 0,
+                votes_against: 0,
+                votes_abstain: 0,
+            };
+            storage::set_proposal(&env, id, &proposal);
+            storage::increment_proposal_count(&env);
+        }
+        
+        env
+    }
+
+    #[test]
+    fn test_get_proposals_empty() {
+        let env = setup_with_proposals(0);
+        let result = get_proposals_page(&env, None, Some(20)).unwrap();
+        
+        assert_eq!(result.proposals.len(), 0);
+        assert!(result.cursor.is_none());
+    }
+
+    #[test]
+    fn test_get_proposals_partial() {
+        let env = setup_with_proposals(5);
+        let result = get_proposals_page(&env, None, Some(10)).unwrap();
+        
+        assert_eq!(result.proposals.len(), 5);
+        assert!(result.cursor.is_none());
+    }
+
+    #[test]
+    fn test_get_proposals_full_page() {
+        let env = setup_with_proposals(25);
+        
+        // First full page
+        let page1 = get_proposals_page(&env, None, Some(10)).unwrap();
+        assert_eq!(page1.proposals.len(), 10);
+        assert_eq!(page1.cursor, Some(10));
+        
+        // Second full page
+        let page2 = get_proposals_page(&env, page1.cursor, Some(10)).unwrap();
+        assert_eq!(page2.proposals.len(), 10);
+        assert_eq!(page2.cursor, Some(20));
+        
+        // Third partial page
+        let page3 = get_proposals_page(&env, page2.cursor, Some(10)).unwrap();
+        assert_eq!(page3.proposals.len(), 5);
+        assert!(page3.cursor.is_none());
+    }
+
+    #[test]
+    fn test_get_proposals_deterministic() {
+        let env = setup_with_proposals(20);
+        
+        let result1 = get_proposals_page(&env, None, Some(20)).unwrap();
+        let result2 = get_proposals_page(&env, None, Some(20)).unwrap();
+        
+        assert_eq!(result1.proposals.len(), result2.proposals.len());
+        for i in 0..result1.proposals.len() {
+            let p1 = result1.proposals.get(i).unwrap();
+            let p2 = result2.proposals.get(i).unwrap();
+            assert_eq!(p1.id, p2.id);
+            // Verify items are returned in ascending order
+            assert_eq!(p1.id, i as u64);
+        }
+    }

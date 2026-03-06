@@ -1,0 +1,2901 @@
+warning: profiles for the non root package will be ignored, specify profiles at the workspace root:
+package:   /home/edohwares/Desktop/Room/grantfox/Nova-launch/contracts/token-factory/Cargo.toml
+workspace: /home/edohwares/Desktop/Room/grantfox/Nova-launch/contracts/Cargo.toml
+    Checking token-factory v0.1.0 (/home/edohwares/Desktop/Room/grantfox/Nova-launch/contracts/token-factory)
+error[E0428]: the name `DifferentialVestingSchedule` is defined multiple times
+  --> token-factory/src/differential_engine.rs:98:1
+   |
+ 4 | pub struct DifferentialVestingSchedule {
+   | -------------------------------------- previous definition of the type `DifferentialVestingSchedule` here
+...
+98 | pub struct DifferentialVestingSchedule {
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `DifferentialVestingSchedule` redefined here
+   |
+   = note: `DifferentialVestingSchedule` must be defined only once in the type namespace of this module
+
+error[E0428]: the name `DifferentialEngine` is defined multiple times
+   --> token-factory/src/differential_engine.rs:124:1
+    |
+ 30 | pub struct DifferentialEngine {
+    | ----------------------------- previous definition of the type `DifferentialEngine` here
+...
+124 | pub struct DifferentialEngine {
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `DifferentialEngine` redefined here
+    |
+    = note: `DifferentialEngine` must be defined only once in the type namespace of this module
+
+error[E0428]: the name `SupplyTracker` is defined multiple times
+   --> token-factory/src/differential_engine.rs:153:1
+    |
+ 59 | pub struct SupplyTracker {
+    | ------------------------ previous definition of the type `SupplyTracker` here
+...
+153 | pub struct SupplyTracker {
+    | ^^^^^^^^^^^^^^^^^^^^^^^^ `SupplyTracker` redefined here
+    |
+    = note: `SupplyTracker` must be defined only once in the type namespace of this module
+
+error[E0428]: the name `SupplyTracker` is defined multiple times
+   --> token-factory/src/differential_engine.rs:191:1
+    |
+ 59 | pub struct SupplyTracker {
+    | ------------------------ previous definition of the type `SupplyTracker` here
+...
+191 | pub struct SupplyTracker {
+    | ^^^^^^^^^^^^^^^^^^^^^^^^ `SupplyTracker` redefined here
+    |
+    = note: `SupplyTracker` must be defined only once in the type namespace of this module
+
+error[E0428]: the name `SupplyTracker` is defined multiple times
+   --> token-factory/src/differential_engine.rs:229:1
+    |
+ 59 | pub struct SupplyTracker {
+    | ------------------------ previous definition of the type `SupplyTracker` here
+...
+229 | pub struct SupplyTracker {
+    | ^^^^^^^^^^^^^^^^^^^^^^^^ `SupplyTracker` redefined here
+    |
+    = note: `SupplyTracker` must be defined only once in the type namespace of this module
+
+error[E0428]: the name `SupplyTracker` is defined multiple times
+   --> token-factory/src/differential_engine.rs:267:1
+    |
+ 59 | pub struct SupplyTracker {
+    | ------------------------ previous definition of the type `SupplyTracker` here
+...
+267 | pub struct SupplyTracker {
+    | ^^^^^^^^^^^^^^^^^^^^^^^^ `SupplyTracker` redefined here
+    |
+    = note: `SupplyTracker` must be defined only once in the type namespace of this module
+
+error[E0428]: the name `__create_stream` is defined multiple times
+  --> token-factory/src/lib.rs:54:1
+   |
+54 | #[contractimpl]
+   | ^^^^^^^^^^^^^^^ `__create_stream` redefined here
+   |
+   = note: `__create_stream` must be defined only once in the type namespace of this module
+   = note: this error originates in the attribute macro `contractimpl` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0428]: the name `__claim_stream` is defined multiple times
+  --> token-factory/src/lib.rs:54:1
+   |
+54 | #[contractimpl]
+   | ^^^^^^^^^^^^^^^ `__claim_stream` redefined here
+   |
+   = note: `__claim_stream` must be defined only once in the type namespace of this module
+   = note: this error originates in the attribute macro `contractimpl` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0428]: the name `__cancel_stream` is defined multiple times
+  --> token-factory/src/lib.rs:54:1
+   |
+54 | #[contractimpl]
+   | ^^^^^^^^^^^^^^^ `__cancel_stream` redefined here
+   |
+   = note: `__cancel_stream` must be defined only once in the type namespace of this module
+   = note: this error originates in the attribute macro `contractimpl` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0428]: the name `__SPEC_XDR_FN_CREATE_STREAM` is defined multiple times
+  --> token-factory/src/lib.rs:54:1
+   |
+54 | #[contractimpl]
+   | ^^^^^^^^^^^^^^^ `__SPEC_XDR_FN_CREATE_STREAM` redefined here
+   |
+   = note: `__SPEC_XDR_FN_CREATE_STREAM` must be defined only once in the value namespace of this module
+   = note: this error originates in the attribute macro `soroban_sdk::contractspecfn` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0428]: the name `__SPEC_XDR_FN_CLAIM_STREAM` is defined multiple times
+  --> token-factory/src/lib.rs:54:1
+   |
+54 | #[contractimpl]
+   | ^^^^^^^^^^^^^^^ `__SPEC_XDR_FN_CLAIM_STREAM` redefined here
+   |
+   = note: `__SPEC_XDR_FN_CLAIM_STREAM` must be defined only once in the value namespace of this module
+   = note: this error originates in the attribute macro `soroban_sdk::contractspecfn` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0428]: the name `__SPEC_XDR_FN_CANCEL_STREAM` is defined multiple times
+  --> token-factory/src/lib.rs:54:1
+   |
+54 | #[contractimpl]
+   | ^^^^^^^^^^^^^^^ `__SPEC_XDR_FN_CANCEL_STREAM` redefined here
+   |
+   = note: `__SPEC_XDR_FN_CANCEL_STREAM` must be defined only once in the value namespace of this module
+   = note: this error originates in the attribute macro `soroban_sdk::contractspecfn` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0432]: unresolved imports `crate::types::TokenInfo`, `crate::types::StreamStatus`
+ --> token-factory/src/storage.rs:3:43
+  |
+3 | use crate::types::{DataKey, FactoryState, TokenInfo, Stream, StreamStatus};
+  |                                           ^^^^^^^^^          ^^^^^^^^^^^^ no `StreamStatus` in `types`
+  |                                           |
+  |                                           no `TokenInfo` in `types`
+
+error[E0432]: unresolved imports `crate::types::TokenCreationParams`, `crate::types::TokenInfo`
+ --> token-factory/src/token_creation.rs:2:27
+  |
+2 | use crate::types::{Error, TokenCreationParams, TokenInfo};
+  |                           ^^^^^^^^^^^^^^^^^^^  ^^^^^^^^^ no `TokenInfo` in `types`
+  |                           |
+  |                           no `TokenCreationParams` in `types`
+
+error[E0433]: failed to resolve: use of unresolved module or unlinked crate `std`
+ --> token-factory/src/differential_engine.rs:1:5
+  |
+1 | use std::collections::HashMap;
+  |     ^^^ use of unresolved module or unlinked crate `std`
+  |
+  = help: if you wanted to use a crate named `std`, use `cargo add std` to add it to your `Cargo.toml`
+
+error[E0433]: failed to resolve: use of unresolved module or unlinked crate `std`
+  --> token-factory/src/differential_engine.rs:95:5
+   |
+95 | use std::collections::HashMap;
+   |     ^^^ use of unresolved module or unlinked crate `std`
+   |
+   = help: if you wanted to use a crate named `std`, use `cargo add std` to add it to your `Cargo.toml`
+
+error[E0432]: unresolved import `crate::types::TokenInfo`
+ --> token-factory/src/pagination.rs:2:44
+  |
+2 | use crate::types::{Error, PaginatedTokens, TokenInfo};
+  |                                            ^^^^^^^^^ no `TokenInfo` in `types`
+
+error[E0432]: unresolved imports `types::TokenInfo`, `types::TokenCreationParams`
+  --> token-factory/src/lib.rs:42:52
+   |
+42 | use types::{ContractMetadata, Error, FactoryState, TokenInfo, TokenCreationParams, StreamInfo, StreamParams, TokenStats, TimelockConfig};
+   |                                                    ^^^^^^^^^  ^^^^^^^^^^^^^^^^^^^ no `TokenCreationParams` in `types`
+   |                                                    |
+   |                                                    no `TokenInfo` in `types`
+
+error: cannot find macro `format` in this scope
+    --> token-factory/src/lib.rs:1758:49
+     |
+1758 |         let stream_id = String::from_small_str(&format!("stream_{}", stream_count));
+     |                                                 ^^^^^^
+
+error: cannot find macro `format` in this scope
+    --> token-factory/src/lib.rs:1785:49
+     |
+1785 |         let stream_id = String::from_small_str(&format!("stream_{}", stream_count));
+     |                                                 ^^^^^^
+
+error: cannot find macro `format` in this scope
+   --> token-factory/src/differential_engine.rs:299:50
+    |
+299 |         if sum != self.total_supply { return Err(format!("Balance: {} != {}", sum, self.total_supply)); }
+    |                                                  ^^^^^^
+
+error: cannot find macro `format` in this scope
+   --> token-factory/src/differential_engine.rs:297:51
+    |
+297 |         if calc != self.total_supply { return Err(format!("Supply: {} != {}", calc, self.total_supply)); }
+    |                                                   ^^^^^^
+
+error: cannot find macro `format` in this scope
+   --> token-factory/src/differential_engine.rs:261:50
+    |
+261 |         if sum != self.total_supply { return Err(format!("Balance: {} != {}", sum, self.total_supply)); }
+    |                                                  ^^^^^^
+
+error: cannot find macro `format` in this scope
+   --> token-factory/src/differential_engine.rs:259:51
+    |
+259 |         if calc != self.total_supply { return Err(format!("Supply: {} != {}", calc, self.total_supply)); }
+    |                                                   ^^^^^^
+
+error: cannot find macro `format` in this scope
+   --> token-factory/src/differential_engine.rs:223:50
+    |
+223 |         if sum != self.total_supply { return Err(format!("Balance sum mismatch: {} != {}", sum, self.total_supply)); }
+    |                                                  ^^^^^^
+
+error: cannot find macro `format` in this scope
+   --> token-factory/src/differential_engine.rs:221:51
+    |
+221 |         if calc != self.total_supply { return Err(format!("Supply mismatch: {} != {}", calc, self.total_supply)); }
+    |                                                   ^^^^^^
+
+error: cannot find macro `format` in this scope
+   --> token-factory/src/differential_engine.rs:185:50
+    |
+185 |         if sum != self.total_supply { return Err(format!("Balance sum mismatch: {} != {}", sum, self.total_supply)); }
+    |                                                  ^^^^^^
+
+error: cannot find macro `format` in this scope
+   --> token-factory/src/differential_engine.rs:183:51
+    |
+183 |         if calc != self.total_supply { return Err(format!("Supply mismatch: {} != {}", calc, self.total_supply)); }
+    |                                                   ^^^^^^
+
+error: cannot find macro `format` in this scope
+  --> token-factory/src/differential_engine.rs:91:50
+   |
+91 |         if sum != self.total_supply { return Err(format!("Balance sum mismatch: {} != {}", sum, self.total_supply)); }
+   |                                                  ^^^^^^
+
+error: cannot find macro `format` in this scope
+  --> token-factory/src/differential_engine.rs:89:51
+   |
+89 |         if calc != self.total_supply { return Err(format!("Supply mismatch: {} != {}", calc, self.total_supply)); }
+   |                                                   ^^^^^^
+
+error[E0425]: cannot find function `is_address_frozen` in module `storage`
+  --> token-factory/src/freeze_functions.rs:58:17
+   |
+58 |     if storage::is_address_frozen(env, token_address, address_to_freeze) {
+   |                 ^^^^^^^^^^^^^^^^^ not found in `storage`
+
+error[E0425]: cannot find function `set_address_frozen` in module `storage`
+  --> token-factory/src/freeze_functions.rs:63:14
+   |
+63 |     storage::set_address_frozen(env, token_address, address_to_freeze, true);
+   |              ^^^^^^^^^^^^^^^^^^ not found in `storage`
+
+error[E0425]: cannot find function `is_address_frozen` in module `storage`
+   --> token-factory/src/freeze_functions.rs:132:18
+    |
+132 |     if !storage::is_address_frozen(env, token_address, address_to_unfreeze) {
+    |                  ^^^^^^^^^^^^^^^^^ not found in `storage`
+
+error[E0425]: cannot find function `set_address_frozen` in module `storage`
+   --> token-factory/src/freeze_functions.rs:137:14
+    |
+137 |     storage::set_address_frozen(env, token_address, address_to_unfreeze, false);
+    |              ^^^^^^^^^^^^^^^^^^ not found in `storage`
+
+error[E0425]: cannot find function `is_address_frozen` in module `storage`
+   --> token-factory/src/freeze_functions.rs:162:14
+    |
+162 |     storage::is_address_frozen(env, token_address, address)
+    |              ^^^^^^^^^^^^^^^^^ not found in `storage`
+
+error[E0412]: cannot find type `TokenInfo` in this scope
+   --> token-factory/src/types.rs:384:34
+    |
+384 |     pub tokens: soroban_sdk::Vec<TokenInfo>,
+    |                                  ^^^^^^^^^ not found in this scope
+    |
+help: you might be missing a type parameter
+    |
+383 | pub struct PaginatedTokens<TokenInfo> {
+    |                           +++++++++++
+
+error[E0425]: cannot find function `emit_batch_tokens_created` in module `crate::events`
+   --> token-factory/src/token_creation.rs:224:20
+    |
+224 |       crate::events::emit_batch_tokens_created(env, &creator, tokens.len() as u32);
+    |                      ^^^^^^^^^^^^^^^^^^^^^^^^^ help: a function with a similar name exists: `emit_batch_streams_created`
+    |
+   ::: token-factory/src/events.rs:468:1
+    |
+468 | / pub fn emit_batch_streams_created(
+469 | |     env: &Env,
+470 | |     creator: &Address,
+471 | |     count: u32,
+...   |
+476 | |     );
+477 | | }
+    | |_- similarly named function `emit_batch_streams_created` defined here
+
+error[E0412]: cannot find type `PaginationCursor` in this scope
+   --> token-factory/src/pagination.rs:154:20
+    |
+154 |     cursor: Option<PaginationCursor>,
+    |                    ^^^^^^^^^^^^^^^^ not found in this scope
+    |
+help: consider importing this struct
+    |
+  1 + use crate::types::PaginationCursor;
+    |
+
+error[E0412]: cannot find type `PaginatedStreams` in this scope
+   --> token-factory/src/pagination.rs:156:13
+    |
+156 | ) -> Result<PaginatedStreams, Error> {
+    |             ^^^^^^^^^^^^^^^^
+    |
+   ::: token-factory/src/types.rs:383:1
+    |
+383 | pub struct PaginatedTokens {
+    | -------------------------- similarly named struct `PaginatedTokens` defined here
+    |
+help: a struct with a similar name exists
+    |
+156 - ) -> Result<PaginatedStreams, Error> {
+156 + ) -> Result<PaginatedTokens, Error> {
+    |
+help: consider importing this struct
+    |
+  1 + use crate::stream_types::PaginatedStreams;
+    |
+
+error[E0422]: cannot find struct, variant or union type `PaginatedStreams` in this scope
+   --> token-factory/src/pagination.rs:179:19
+    |
+179 |         return Ok(PaginatedStreams {
+    |                   ^^^^^^^^^^^^^^^^
+    |
+   ::: token-factory/src/types.rs:383:1
+    |
+383 | pub struct PaginatedTokens {
+    | -------------------------- similarly named struct `PaginatedTokens` defined here
+    |
+help: a struct with a similar name exists
+    |
+179 -         return Ok(PaginatedStreams {
+179 +         return Ok(PaginatedTokens {
+    |
+help: consider importing this struct
+    |
+  1 + use crate::stream_types::PaginatedStreams;
+    |
+
+error[E0422]: cannot find struct, variant or union type `StreamInfo` in this scope
+   --> token-factory/src/pagination.rs:195:27
+    |
+195 |         let stream_info = StreamInfo {
+    |                           ^^^^^^^^^^ not found in this scope
+    |
+help: consider importing one of these structs
+    |
+  1 + use crate::StreamInfo;
+    |
+  1 + use crate::stream_types::StreamInfo;
+    |
+
+error[E0422]: cannot find struct, variant or union type `PaginationCursor` in this scope
+   --> token-factory/src/pagination.rs:211:14
+    |
+211 |         Some(PaginationCursor {
+    |              ^^^^^^^^^^^^^^^^ not found in this scope
+    |
+help: consider importing this struct
+    |
+  1 + use crate::types::PaginationCursor;
+    |
+
+error[E0422]: cannot find struct, variant or union type `PaginatedStreams` in this scope
+   --> token-factory/src/pagination.rs:218:8
+    |
+218 |     Ok(PaginatedStreams {
+    |        ^^^^^^^^^^^^^^^^
+    |
+   ::: token-factory/src/types.rs:383:1
+    |
+383 | pub struct PaginatedTokens {
+    | -------------------------- similarly named struct `PaginatedTokens` defined here
+    |
+help: a struct with a similar name exists
+    |
+218 -     Ok(PaginatedStreams {
+218 +     Ok(PaginatedTokens {
+    |
+help: consider importing this struct
+    |
+  1 + use crate::stream_types::PaginatedStreams;
+    |
+
+error[E0412]: cannot find type `String` in this scope
+  --> token-factory/src/differential_engine.rs:13:71
+   |
+13 |     pub fn calculate_vested(&self, current_time: u64) -> Result<i128, String> {
+   |                                                                       ^^^^^^ not found in this scope
+   |
+help: consider importing one of these structs
+   |
+ 1 + use crate::String;
+   |
+ 1 + use soroban_sdk::String;
+   |
+
+error[E0412]: cannot find type `String` in this scope
+  --> token-factory/src/differential_engine.rs:24:74
+   |
+24 |     pub fn calculate_claimable(&self, current_time: u64) -> Result<i128, String> {
+   |                                                                          ^^^^^^ not found in this scope
+   |
+help: consider importing one of these structs
+   |
+ 1 + use crate::String;
+   |
+ 1 + use soroban_sdk::String;
+   |
+
+error[E0412]: cannot find type `String` in this scope
+  --> token-factory/src/differential_engine.rs:41:74
+   |
+41 |     pub fn get_vested(&self, id: u32, current_time: u64) -> Result<i128, String> {
+   |                                                                          ^^^^^^ not found in this scope
+   |
+help: consider importing one of these structs
+   |
+ 1 + use crate::String;
+   |
+ 1 + use soroban_sdk::String;
+   |
+
+error[E0412]: cannot find type `String` in this scope
+  --> token-factory/src/differential_engine.rs:45:77
+   |
+45 |     pub fn get_claimable(&self, id: u32, current_time: u64) -> Result<i128, String> {
+   |                                                                             ^^^^^^ not found in this scope
+   |
+help: consider importing one of these structs
+   |
+ 1 + use crate::String;
+   |
+ 1 + use soroban_sdk::String;
+   |
+
+error[E0412]: cannot find type `String` in this scope
+  --> token-factory/src/differential_engine.rs:49:73
+   |
+49 |     pub fn claim(&mut self, id: u32, current_time: u64) -> Result<i128, String> {
+   |                                                                         ^^^^^^ not found in this scope
+   |
+help: consider importing one of these structs
+   |
+ 1 + use crate::String;
+   |
+ 1 + use soroban_sdk::String;
+   |
+
+error[E0412]: cannot find type `String` in this scope
+  --> token-factory/src/differential_engine.rs:63:27
+   |
+63 |     pub balances: HashMap<String, i128>,
+   |                           ^^^^^^ not found in this scope
+   |
+help: consider importing one of these structs
+   |
+ 1 + use crate::String;
+   |
+ 1 + use soroban_sdk::String;
+   |
+
+error[E0412]: cannot find type `String` in this scope
+  --> token-factory/src/differential_engine.rs:71:66
+   |
+71 |     pub fn mint(&mut self, to: &str, amount: i128) -> Result<(), String> {
+   |                                                                  ^^^^^^ not found in this scope
+   |
+help: consider importing one of these structs
+   |
+ 1 + use crate::String;
+   |
+ 1 + use soroban_sdk::String;
+   |
+
+error[E0412]: cannot find type `String` in this scope
+  --> token-factory/src/differential_engine.rs:78:68
+   |
+78 |     pub fn burn(&mut self, from: &str, amount: i128) -> Result<(), String> {
+   |                                                                    ^^^^^^ not found in this scope
+   |
+help: consider importing one of these structs
+   |
+ 1 + use crate::String;
+   |
+ 1 + use soroban_sdk::String;
+   |
+
+error[E0412]: cannot find type `String` in this scope
+  --> token-factory/src/differential_engine.rs:87:40
+   |
+87 |     pub fn verify(&self) -> Result<(), String> {
+   |                                        ^^^^^^ not found in this scope
+   |
+help: consider importing one of these structs
+   |
+ 1 + use crate::String;
+   |
+ 1 + use soroban_sdk::String;
+   |
+
+error[E0412]: cannot find type `String` in this scope
+   --> token-factory/src/differential_engine.rs:107:71
+    |
+107 |     pub fn calculate_vested(&self, current_time: u64) -> Result<i128, String> {
+    |                                                                       ^^^^^^ not found in this scope
+    |
+help: consider importing one of these structs
+    |
+  1 + use crate::String;
+    |
+  1 + use soroban_sdk::String;
+    |
+
+error[E0412]: cannot find type `String` in this scope
+   --> token-factory/src/differential_engine.rs:118:74
+    |
+118 |     pub fn calculate_claimable(&self, current_time: u64) -> Result<i128, String> {
+    |                                                                          ^^^^^^ not found in this scope
+    |
+help: consider importing one of these structs
+    |
+  1 + use crate::String;
+    |
+  1 + use soroban_sdk::String;
+    |
+
+error[E0412]: cannot find type `String` in this scope
+   --> token-factory/src/differential_engine.rs:135:74
+    |
+135 |     pub fn get_vested(&self, id: u32, current_time: u64) -> Result<i128, String> {
+    |                                                                          ^^^^^^ not found in this scope
+    |
+help: consider importing one of these structs
+    |
+  1 + use crate::String;
+    |
+  1 + use soroban_sdk::String;
+    |
+
+error[E0412]: cannot find type `String` in this scope
+   --> token-factory/src/differential_engine.rs:139:77
+    |
+139 |     pub fn get_claimable(&self, id: u32, current_time: u64) -> Result<i128, String> {
+    |                                                                             ^^^^^^ not found in this scope
+    |
+help: consider importing one of these structs
+    |
+  1 + use crate::String;
+    |
+  1 + use soroban_sdk::String;
+    |
+
+error[E0412]: cannot find type `String` in this scope
+   --> token-factory/src/differential_engine.rs:143:73
+    |
+143 |     pub fn claim(&mut self, id: u32, current_time: u64) -> Result<i128, String> {
+    |                                                                         ^^^^^^ not found in this scope
+    |
+help: consider importing one of these structs
+    |
+  1 + use crate::String;
+    |
+  1 + use soroban_sdk::String;
+    |
+
+error[E0412]: cannot find type `String` in this scope
+   --> token-factory/src/differential_engine.rs:157:27
+    |
+157 |     pub balances: HashMap<String, i128>,
+    |                           ^^^^^^ not found in this scope
+    |
+help: consider importing one of these structs
+    |
+  1 + use crate::String;
+    |
+  1 + use soroban_sdk::String;
+    |
+
+error[E0412]: cannot find type `String` in this scope
+   --> token-factory/src/differential_engine.rs:165:66
+    |
+165 |     pub fn mint(&mut self, to: &str, amount: i128) -> Result<(), String> {
+    |                                                                  ^^^^^^ not found in this scope
+    |
+help: consider importing one of these structs
+    |
+  1 + use crate::String;
+    |
+  1 + use soroban_sdk::String;
+    |
+
+error[E0412]: cannot find type `String` in this scope
+   --> token-factory/src/differential_engine.rs:172:68
+    |
+172 |     pub fn burn(&mut self, from: &str, amount: i128) -> Result<(), String> {
+    |                                                                    ^^^^^^ not found in this scope
+    |
+help: consider importing one of these structs
+    |
+  1 + use crate::String;
+    |
+  1 + use soroban_sdk::String;
+    |
+
+error[E0412]: cannot find type `String` in this scope
+   --> token-factory/src/differential_engine.rs:181:40
+    |
+181 |     pub fn verify(&self) -> Result<(), String> {
+    |                                        ^^^^^^ not found in this scope
+    |
+help: consider importing one of these structs
+    |
+  1 + use crate::String;
+    |
+  1 + use soroban_sdk::String;
+    |
+
+error[E0412]: cannot find type `String` in this scope
+   --> token-factory/src/differential_engine.rs:195:27
+    |
+195 |     pub balances: HashMap<String, i128>,
+    |                           ^^^^^^ not found in this scope
+    |
+help: consider importing one of these structs
+    |
+  1 + use crate::String;
+    |
+  1 + use soroban_sdk::String;
+    |
+
+error[E0412]: cannot find type `String` in this scope
+   --> token-factory/src/differential_engine.rs:203:66
+    |
+203 |     pub fn mint(&mut self, to: &str, amount: i128) -> Result<(), String> {
+    |                                                                  ^^^^^^ not found in this scope
+    |
+help: consider importing one of these structs
+    |
+  1 + use crate::String;
+    |
+  1 + use soroban_sdk::String;
+    |
+
+error[E0412]: cannot find type `String` in this scope
+   --> token-factory/src/differential_engine.rs:210:68
+    |
+210 |     pub fn burn(&mut self, from: &str, amount: i128) -> Result<(), String> {
+    |                                                                    ^^^^^^ not found in this scope
+    |
+help: consider importing one of these structs
+    |
+  1 + use crate::String;
+    |
+  1 + use soroban_sdk::String;
+    |
+
+error[E0412]: cannot find type `String` in this scope
+   --> token-factory/src/differential_engine.rs:219:40
+    |
+219 |     pub fn verify(&self) -> Result<(), String> {
+    |                                        ^^^^^^ not found in this scope
+    |
+help: consider importing one of these structs
+    |
+  1 + use crate::String;
+    |
+  1 + use soroban_sdk::String;
+    |
+
+error[E0412]: cannot find type `String` in this scope
+   --> token-factory/src/differential_engine.rs:233:27
+    |
+233 |     pub balances: HashMap<String, i128>,
+    |                           ^^^^^^ not found in this scope
+    |
+help: consider importing one of these structs
+    |
+  1 + use crate::String;
+    |
+  1 + use soroban_sdk::String;
+    |
+
+error[E0412]: cannot find type `String` in this scope
+   --> token-factory/src/differential_engine.rs:241:66
+    |
+241 |     pub fn mint(&mut self, to: &str, amount: i128) -> Result<(), String> {
+    |                                                                  ^^^^^^ not found in this scope
+    |
+help: consider importing one of these structs
+    |
+  1 + use crate::String;
+    |
+  1 + use soroban_sdk::String;
+    |
+
+error[E0412]: cannot find type `String` in this scope
+   --> token-factory/src/differential_engine.rs:248:68
+    |
+248 |     pub fn burn(&mut self, from: &str, amount: i128) -> Result<(), String> {
+    |                                                                    ^^^^^^ not found in this scope
+    |
+help: consider importing one of these structs
+    |
+  1 + use crate::String;
+    |
+  1 + use soroban_sdk::String;
+    |
+
+error[E0412]: cannot find type `String` in this scope
+   --> token-factory/src/differential_engine.rs:257:40
+    |
+257 |     pub fn verify(&self) -> Result<(), String> {
+    |                                        ^^^^^^ not found in this scope
+    |
+help: consider importing one of these structs
+    |
+  1 + use crate::String;
+    |
+  1 + use soroban_sdk::String;
+    |
+
+error[E0412]: cannot find type `String` in this scope
+   --> token-factory/src/differential_engine.rs:271:27
+    |
+271 |     pub balances: HashMap<String, i128>,
+    |                           ^^^^^^ not found in this scope
+    |
+help: consider importing one of these structs
+    |
+  1 + use crate::String;
+    |
+  1 + use soroban_sdk::String;
+    |
+
+error[E0412]: cannot find type `String` in this scope
+   --> token-factory/src/differential_engine.rs:279:66
+    |
+279 |     pub fn mint(&mut self, to: &str, amount: i128) -> Result<(), String> {
+    |                                                                  ^^^^^^ not found in this scope
+    |
+help: consider importing one of these structs
+    |
+  1 + use crate::String;
+    |
+  1 + use soroban_sdk::String;
+    |
+
+error[E0412]: cannot find type `String` in this scope
+   --> token-factory/src/differential_engine.rs:286:68
+    |
+286 |     pub fn burn(&mut self, from: &str, amount: i128) -> Result<(), String> {
+    |                                                                    ^^^^^^ not found in this scope
+    |
+help: consider importing one of these structs
+    |
+  1 + use crate::String;
+    |
+  1 + use soroban_sdk::String;
+    |
+
+error[E0412]: cannot find type `String` in this scope
+   --> token-factory/src/differential_engine.rs:295:40
+    |
+295 |     pub fn verify(&self) -> Result<(), String> {
+    |                                        ^^^^^^ not found in this scope
+    |
+help: consider importing one of these structs
+    |
+  1 + use crate::String;
+    |
+  1 + use soroban_sdk::String;
+    |
+
+error[E0433]: failed to resolve: use of unresolved module or unlinked crate `token`
+    --> token-factory/src/lib.rs:1761:28
+     |
+1761 |         let token_client = token::Client::new(&env, &token_address);
+     |                            ^^^^^ use of unresolved module or unlinked crate `token`
+     |
+     = help: if you wanted to use a crate named `token`, use `cargo add token` to add it to your `Cargo.toml`
+help: consider importing this struct
+     |
+  41 + use soroban_sdk::token::Client;
+     |
+help: if you import `Client`, refer to it directly
+     |
+1761 -         let token_client = token::Client::new(&env, &token_address);
+1761 +         let token_client = Client::new(&env, &token_address);
+     |
+
+error[E0422]: cannot find struct, variant or union type `Stream` in this scope
+    --> token-factory/src/lib.rs:1765:22
+     |
+1765 |         let stream = Stream {
+     |                      ^^^^^^ not found in this scope
+     |
+help: consider importing one of these items
+     |
+  41 + use crate::types::DataKey::Stream;
+     |
+  41 + use crate::types::Stream;
+     |
+
+error[E0422]: cannot find struct, variant or union type `StreamCreatedV1` in this scope
+    --> token-factory/src/lib.rs:1788:21
+     |
+1788 |         let event = StreamCreatedV1 {
+     |                     ^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0433]: failed to resolve: use of unresolved module or unlinked crate `token`
+    --> token-factory/src/lib.rs:1842:28
+     |
+1842 |         let token_client = token::Client::new(&env, &stream.token_address);
+     |                            ^^^^^ use of unresolved module or unlinked crate `token`
+     |
+     = help: if you wanted to use a crate named `token`, use `cargo add token` to add it to your `Cargo.toml`
+help: consider importing this struct
+     |
+  41 + use soroban_sdk::token::Client;
+     |
+help: if you import `Client`, refer to it directly
+     |
+1842 -         let token_client = token::Client::new(&env, &stream.token_address);
+1842 +         let token_client = Client::new(&env, &stream.token_address);
+     |
+
+error[E0422]: cannot find struct, variant or union type `StreamClaimedV1` in this scope
+    --> token-factory/src/lib.rs:1858:21
+     |
+1858 |         let event = StreamClaimedV1 {
+     |                     ^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0433]: failed to resolve: use of unresolved module or unlinked crate `token`
+    --> token-factory/src/lib.rs:1911:32
+     |
+1911 |             let token_client = token::Client::new(&env, &stream.token_address);
+     |                                ^^^^^ use of unresolved module or unlinked crate `token`
+     |
+     = help: if you wanted to use a crate named `token`, use `cargo add token` to add it to your `Cargo.toml`
+help: consider importing this struct
+     |
+  41 + use soroban_sdk::token::Client;
+     |
+help: if you import `Client`, refer to it directly
+     |
+1911 -             let token_client = token::Client::new(&env, &stream.token_address);
+1911 +             let token_client = Client::new(&env, &stream.token_address);
+     |
+
+error[E0433]: failed to resolve: use of unresolved module or unlinked crate `token`
+    --> token-factory/src/lib.rs:1917:32
+     |
+1917 |             let token_client = token::Client::new(&env, &stream.token_address);
+     |                                ^^^^^ use of unresolved module or unlinked crate `token`
+     |
+     = help: if you wanted to use a crate named `token`, use `cargo add token` to add it to your `Cargo.toml`
+help: consider importing this struct
+     |
+  41 + use soroban_sdk::token::Client;
+     |
+help: if you import `Client`, refer to it directly
+     |
+1917 -             let token_client = token::Client::new(&env, &stream.token_address);
+1917 +             let token_client = Client::new(&env, &stream.token_address);
+     |
+
+error[E0422]: cannot find struct, variant or union type `StreamCancelledV1` in this scope
+    --> token-factory/src/lib.rs:1926:21
+     |
+1926 |         let event = StreamCancelledV1 {
+     |                     ^^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0412]: cannot find type `Stream` in this scope
+    --> token-factory/src/lib.rs:1942:41
+     |
+1942 |     fn calculate_vested_amount(stream: &Stream, current_time: u64) -> i128 {
+     |                                         ^^^^^^ not found in this scope
+     |
+help: consider importing this struct
+     |
+  41 + use crate::types::Stream;
+     |
+
+warning: unused import: `Stream`
+ --> token-factory/src/storage.rs:3:54
+  |
+3 | use crate::types::{DataKey, FactoryState, TokenInfo, Stream, StreamStatus};
+  |                                                      ^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused imports: `Vec as SorobanVec` and `symbol_short`
+  --> token-factory/src/lib.rs:41:43
+   |
+41 | use soroban_sdk::{contract, contractimpl, symbol_short, Address, Env, String, Vec, Vec as SorobanVec};
+   |                                           ^^^^^^^^^^^^                             ^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `ContractMetadata` and `TimelockConfig`
+  --> token-factory/src/lib.rs:42:13
+   |
+42 | use types::{ContractMetadata, Error, FactoryState, TokenInfo, TokenCreationParams, StreamInfo, StreamParams, TokenStats, TimelockConfig};
+   |             ^^^^^^^^^^^^^^^^                                                                                             ^^^^^^^^^^^^^^
+
+error[E0119]: conflicting implementations of trait `Clone` for type `differential_engine::DifferentialVestingSchedule`
+  --> token-factory/src/differential_engine.rs:97:17
+   |
+ 3 | #[derive(Debug, Clone)]
+   |                 ----- first implementation here
+...
+97 | #[derive(Debug, Clone)]
+   |                 ^^^^^ conflicting implementation for `differential_engine::DifferentialVestingSchedule`
+
+error[E0119]: conflicting implementations of trait `Clone` for type `differential_engine::DifferentialEngine`
+   --> token-factory/src/differential_engine.rs:123:17
+    |
+ 29 | #[derive(Debug, Clone)]
+    |                 ----- first implementation here
+...
+123 | #[derive(Debug, Clone)]
+    |                 ^^^^^ conflicting implementation for `differential_engine::DifferentialEngine`
+
+error[E0119]: conflicting implementations of trait `Clone` for type `differential_engine::SupplyTracker`
+   --> token-factory/src/differential_engine.rs:152:17
+    |
+ 58 | #[derive(Debug, Clone)]
+    |                 ----- first implementation here
+...
+152 | #[derive(Debug, Clone)]
+    |                 ^^^^^ conflicting implementation for `differential_engine::SupplyTracker`
+
+error[E0119]: conflicting implementations of trait `Clone` for type `differential_engine::SupplyTracker`
+   --> token-factory/src/differential_engine.rs:190:17
+    |
+ 58 | #[derive(Debug, Clone)]
+    |                 ----- first implementation here
+...
+190 | #[derive(Debug, Clone)]
+    |                 ^^^^^ conflicting implementation for `differential_engine::SupplyTracker`
+
+error[E0119]: conflicting implementations of trait `Clone` for type `differential_engine::SupplyTracker`
+   --> token-factory/src/differential_engine.rs:228:17
+    |
+ 58 | #[derive(Debug, Clone)]
+    |                 ----- first implementation here
+...
+228 | #[derive(Debug, Clone)]
+    |                 ^^^^^ conflicting implementation for `differential_engine::SupplyTracker`
+
+error[E0119]: conflicting implementations of trait `Clone` for type `differential_engine::SupplyTracker`
+   --> token-factory/src/differential_engine.rs:266:17
+    |
+ 58 | #[derive(Debug, Clone)]
+    |                 ----- first implementation here
+...
+266 | #[derive(Debug, Clone)]
+    |                 ^^^^^ conflicting implementation for `differential_engine::SupplyTracker`
+
+error[E0119]: conflicting implementations of trait `Debug` for type `differential_engine::DifferentialVestingSchedule`
+  --> token-factory/src/differential_engine.rs:97:10
+   |
+ 3 | #[derive(Debug, Clone)]
+   |          ----- first implementation here
+...
+97 | #[derive(Debug, Clone)]
+   |          ^^^^^ conflicting implementation for `differential_engine::DifferentialVestingSchedule`
+
+error[E0119]: conflicting implementations of trait `Debug` for type `differential_engine::DifferentialEngine`
+   --> token-factory/src/differential_engine.rs:123:10
+    |
+ 29 | #[derive(Debug, Clone)]
+    |          ----- first implementation here
+...
+123 | #[derive(Debug, Clone)]
+    |          ^^^^^ conflicting implementation for `differential_engine::DifferentialEngine`
+
+error[E0119]: conflicting implementations of trait `Debug` for type `differential_engine::SupplyTracker`
+   --> token-factory/src/differential_engine.rs:152:10
+    |
+ 58 | #[derive(Debug, Clone)]
+    |          ----- first implementation here
+...
+152 | #[derive(Debug, Clone)]
+    |          ^^^^^ conflicting implementation for `differential_engine::SupplyTracker`
+
+error[E0119]: conflicting implementations of trait `Debug` for type `differential_engine::SupplyTracker`
+   --> token-factory/src/differential_engine.rs:190:10
+    |
+ 58 | #[derive(Debug, Clone)]
+    |          ----- first implementation here
+...
+190 | #[derive(Debug, Clone)]
+    |          ^^^^^ conflicting implementation for `differential_engine::SupplyTracker`
+
+error[E0119]: conflicting implementations of trait `Debug` for type `differential_engine::SupplyTracker`
+   --> token-factory/src/differential_engine.rs:228:10
+    |
+ 58 | #[derive(Debug, Clone)]
+    |          ----- first implementation here
+...
+228 | #[derive(Debug, Clone)]
+    |          ^^^^^ conflicting implementation for `differential_engine::SupplyTracker`
+
+error[E0119]: conflicting implementations of trait `Debug` for type `differential_engine::SupplyTracker`
+   --> token-factory/src/differential_engine.rs:266:10
+    |
+ 58 | #[derive(Debug, Clone)]
+    |          ----- first implementation here
+...
+266 | #[derive(Debug, Clone)]
+    |          ^^^^^ conflicting implementation for `differential_engine::SupplyTracker`
+
+error[E0592]: duplicate definitions with name `calculate_vested`
+   --> token-factory/src/differential_engine.rs:13:5
+    |
+ 13 |     pub fn calculate_vested(&self, current_time: u64) -> Result<i128, String> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ duplicate definitions for `calculate_vested`
+...
+107 |     pub fn calculate_vested(&self, current_time: u64) -> Result<i128, String> {
+    |     ------------------------------------------------------------------------- other definition for `calculate_vested`
+
+error[E0592]: duplicate definitions with name `calculate_claimable`
+   --> token-factory/src/differential_engine.rs:24:5
+    |
+ 24 |     pub fn calculate_claimable(&self, current_time: u64) -> Result<i128, String> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ duplicate definitions for `calculate_claimable`
+...
+118 |     pub fn calculate_claimable(&self, current_time: u64) -> Result<i128, String> {
+    |     ---------------------------------------------------------------------------- other definition for `calculate_claimable`
+
+error[E0592]: duplicate definitions with name `new`
+   --> token-factory/src/differential_engine.rs:35:5
+    |
+ 35 |     pub fn new() -> Self { Self { schedules: HashMap::new() } }
+    |     ^^^^^^^^^^^^^^^^^^^^ duplicate definitions for `new`
+...
+129 |     pub fn new() -> Self { Self { schedules: HashMap::new() } }
+    |     -------------------- other definition for `new`
+
+error[E0592]: duplicate definitions with name `add_schedule`
+   --> token-factory/src/differential_engine.rs:37:5
+    |
+ 37 |     pub fn add_schedule(&mut self, id: u32, total_amount: i128, start_time: u64, cliff_duration: u64, vesting_duration: u64) {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ duplicate definitions for `add_schedule`
+...
+131 |     pub fn add_schedule(&mut self, id: u32, total_amount: i128, start_time: u64, cliff_duration: u64, vesting_duration: u64) {
+    |     ------------------------------------------------------------------------------------------------------------------------ other definition for `add_schedule`
+
+error[E0592]: duplicate definitions with name `get_vested`
+   --> token-factory/src/differential_engine.rs:41:5
+    |
+ 41 |     pub fn get_vested(&self, id: u32, current_time: u64) -> Result<i128, String> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ duplicate definitions for `get_vested`
+...
+135 |     pub fn get_vested(&self, id: u32, current_time: u64) -> Result<i128, String> {
+    |     ---------------------------------------------------------------------------- other definition for `get_vested`
+
+error[E0592]: duplicate definitions with name `get_claimable`
+   --> token-factory/src/differential_engine.rs:45:5
+    |
+ 45 |     pub fn get_claimable(&self, id: u32, current_time: u64) -> Result<i128, String> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ duplicate definitions for `get_claimable`
+...
+139 |     pub fn get_claimable(&self, id: u32, current_time: u64) -> Result<i128, String> {
+    |     ------------------------------------------------------------------------------- other definition for `get_claimable`
+
+error[E0592]: duplicate definitions with name `claim`
+   --> token-factory/src/differential_engine.rs:49:5
+    |
+ 49 |     pub fn claim(&mut self, id: u32, current_time: u64) -> Result<i128, String> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ duplicate definitions for `claim`
+...
+143 |     pub fn claim(&mut self, id: u32, current_time: u64) -> Result<i128, String> {
+    |     --------------------------------------------------------------------------- other definition for `claim`
+
+error[E0592]: duplicate definitions with name `new`
+   --> token-factory/src/differential_engine.rs:67:5
+    |
+ 67 |     pub fn new(initial: i128) -> Self {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ duplicate definitions for `new`
+...
+161 |     pub fn new(initial: i128) -> Self {
+    |     --------------------------------- other definition for `new`
+
+error[E0592]: duplicate definitions with name `mint`
+   --> token-factory/src/differential_engine.rs:71:5
+    |
+ 71 |     pub fn mint(&mut self, to: &str, amount: i128) -> Result<(), String> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ duplicate definitions for `mint`
+...
+165 |     pub fn mint(&mut self, to: &str, amount: i128) -> Result<(), String> {
+    |     -------------------------------------------------------------------- other definition for `mint`
+
+error[E0592]: duplicate definitions with name `burn`
+   --> token-factory/src/differential_engine.rs:78:5
+    |
+ 78 |     pub fn burn(&mut self, from: &str, amount: i128) -> Result<(), String> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ duplicate definitions for `burn`
+...
+172 |     pub fn burn(&mut self, from: &str, amount: i128) -> Result<(), String> {
+    |     ---------------------------------------------------------------------- other definition for `burn`
+
+error[E0592]: duplicate definitions with name `verify`
+   --> token-factory/src/differential_engine.rs:87:5
+    |
+ 87 |     pub fn verify(&self) -> Result<(), String> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ duplicate definitions for `verify`
+...
+181 |     pub fn verify(&self) -> Result<(), String> {
+    |     ------------------------------------------ other definition for `verify`
+
+error[E0592]: duplicate definitions with name `new`
+   --> token-factory/src/differential_engine.rs:67:5
+    |
+ 67 |     pub fn new(initial: i128) -> Self {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ duplicate definitions for `new`
+...
+199 |     pub fn new(initial: i128) -> Self {
+    |     --------------------------------- other definition for `new`
+
+error[E0592]: duplicate definitions with name `mint`
+   --> token-factory/src/differential_engine.rs:71:5
+    |
+ 71 |     pub fn mint(&mut self, to: &str, amount: i128) -> Result<(), String> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ duplicate definitions for `mint`
+...
+203 |     pub fn mint(&mut self, to: &str, amount: i128) -> Result<(), String> {
+    |     -------------------------------------------------------------------- other definition for `mint`
+
+error[E0592]: duplicate definitions with name `burn`
+   --> token-factory/src/differential_engine.rs:78:5
+    |
+ 78 |     pub fn burn(&mut self, from: &str, amount: i128) -> Result<(), String> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ duplicate definitions for `burn`
+...
+210 |     pub fn burn(&mut self, from: &str, amount: i128) -> Result<(), String> {
+    |     ---------------------------------------------------------------------- other definition for `burn`
+
+error[E0592]: duplicate definitions with name `verify`
+   --> token-factory/src/differential_engine.rs:87:5
+    |
+ 87 |     pub fn verify(&self) -> Result<(), String> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ duplicate definitions for `verify`
+...
+219 |     pub fn verify(&self) -> Result<(), String> {
+    |     ------------------------------------------ other definition for `verify`
+
+error[E0592]: duplicate definitions with name `new`
+   --> token-factory/src/differential_engine.rs:67:5
+    |
+ 67 |     pub fn new(initial: i128) -> Self {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ duplicate definitions for `new`
+...
+237 |     pub fn new(initial: i128) -> Self {
+    |     --------------------------------- other definition for `new`
+
+error[E0592]: duplicate definitions with name `mint`
+   --> token-factory/src/differential_engine.rs:71:5
+    |
+ 71 |     pub fn mint(&mut self, to: &str, amount: i128) -> Result<(), String> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ duplicate definitions for `mint`
+...
+241 |     pub fn mint(&mut self, to: &str, amount: i128) -> Result<(), String> {
+    |     -------------------------------------------------------------------- other definition for `mint`
+
+error[E0592]: duplicate definitions with name `burn`
+   --> token-factory/src/differential_engine.rs:78:5
+    |
+ 78 |     pub fn burn(&mut self, from: &str, amount: i128) -> Result<(), String> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ duplicate definitions for `burn`
+...
+248 |     pub fn burn(&mut self, from: &str, amount: i128) -> Result<(), String> {
+    |     ---------------------------------------------------------------------- other definition for `burn`
+
+error[E0592]: duplicate definitions with name `verify`
+   --> token-factory/src/differential_engine.rs:87:5
+    |
+ 87 |     pub fn verify(&self) -> Result<(), String> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ duplicate definitions for `verify`
+...
+257 |     pub fn verify(&self) -> Result<(), String> {
+    |     ------------------------------------------ other definition for `verify`
+
+error[E0592]: duplicate definitions with name `new`
+   --> token-factory/src/differential_engine.rs:67:5
+    |
+ 67 |     pub fn new(initial: i128) -> Self {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ duplicate definitions for `new`
+...
+275 |     pub fn new(initial: i128) -> Self {
+    |     --------------------------------- other definition for `new`
+
+error[E0592]: duplicate definitions with name `mint`
+   --> token-factory/src/differential_engine.rs:71:5
+    |
+ 71 |     pub fn mint(&mut self, to: &str, amount: i128) -> Result<(), String> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ duplicate definitions for `mint`
+...
+279 |     pub fn mint(&mut self, to: &str, amount: i128) -> Result<(), String> {
+    |     -------------------------------------------------------------------- other definition for `mint`
+
+error[E0592]: duplicate definitions with name `burn`
+   --> token-factory/src/differential_engine.rs:78:5
+    |
+ 78 |     pub fn burn(&mut self, from: &str, amount: i128) -> Result<(), String> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ duplicate definitions for `burn`
+...
+286 |     pub fn burn(&mut self, from: &str, amount: i128) -> Result<(), String> {
+    |     ---------------------------------------------------------------------- other definition for `burn`
+
+error[E0592]: duplicate definitions with name `verify`
+   --> token-factory/src/differential_engine.rs:87:5
+    |
+ 87 |     pub fn verify(&self) -> Result<(), String> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ duplicate definitions for `verify`
+...
+295 |     pub fn verify(&self) -> Result<(), String> {
+    |     ------------------------------------------ other definition for `verify`
+
+error[E0592]: duplicate definitions with name `new`
+   --> token-factory/src/differential_engine.rs:161:5
+    |
+161 |     pub fn new(initial: i128) -> Self {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ duplicate definitions for `new`
+...
+199 |     pub fn new(initial: i128) -> Self {
+    |     --------------------------------- other definition for `new`
+
+error[E0592]: duplicate definitions with name `mint`
+   --> token-factory/src/differential_engine.rs:165:5
+    |
+165 |     pub fn mint(&mut self, to: &str, amount: i128) -> Result<(), String> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ duplicate definitions for `mint`
+...
+203 |     pub fn mint(&mut self, to: &str, amount: i128) -> Result<(), String> {
+    |     -------------------------------------------------------------------- other definition for `mint`
+
+error[E0592]: duplicate definitions with name `burn`
+   --> token-factory/src/differential_engine.rs:172:5
+    |
+172 |     pub fn burn(&mut self, from: &str, amount: i128) -> Result<(), String> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ duplicate definitions for `burn`
+...
+210 |     pub fn burn(&mut self, from: &str, amount: i128) -> Result<(), String> {
+    |     ---------------------------------------------------------------------- other definition for `burn`
+
+error[E0592]: duplicate definitions with name `verify`
+   --> token-factory/src/differential_engine.rs:181:5
+    |
+181 |     pub fn verify(&self) -> Result<(), String> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ duplicate definitions for `verify`
+...
+219 |     pub fn verify(&self) -> Result<(), String> {
+    |     ------------------------------------------ other definition for `verify`
+
+error[E0592]: duplicate definitions with name `new`
+   --> token-factory/src/differential_engine.rs:161:5
+    |
+161 |     pub fn new(initial: i128) -> Self {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ duplicate definitions for `new`
+...
+237 |     pub fn new(initial: i128) -> Self {
+    |     --------------------------------- other definition for `new`
+
+error[E0592]: duplicate definitions with name `mint`
+   --> token-factory/src/differential_engine.rs:165:5
+    |
+165 |     pub fn mint(&mut self, to: &str, amount: i128) -> Result<(), String> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ duplicate definitions for `mint`
+...
+241 |     pub fn mint(&mut self, to: &str, amount: i128) -> Result<(), String> {
+    |     -------------------------------------------------------------------- other definition for `mint`
+
+error[E0592]: duplicate definitions with name `burn`
+   --> token-factory/src/differential_engine.rs:172:5
+    |
+172 |     pub fn burn(&mut self, from: &str, amount: i128) -> Result<(), String> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ duplicate definitions for `burn`
+...
+248 |     pub fn burn(&mut self, from: &str, amount: i128) -> Result<(), String> {
+    |     ---------------------------------------------------------------------- other definition for `burn`
+
+error[E0592]: duplicate definitions with name `verify`
+   --> token-factory/src/differential_engine.rs:181:5
+    |
+181 |     pub fn verify(&self) -> Result<(), String> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ duplicate definitions for `verify`
+...
+257 |     pub fn verify(&self) -> Result<(), String> {
+    |     ------------------------------------------ other definition for `verify`
+
+error[E0592]: duplicate definitions with name `new`
+   --> token-factory/src/differential_engine.rs:161:5
+    |
+161 |     pub fn new(initial: i128) -> Self {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ duplicate definitions for `new`
+...
+275 |     pub fn new(initial: i128) -> Self {
+    |     --------------------------------- other definition for `new`
+
+error[E0592]: duplicate definitions with name `mint`
+   --> token-factory/src/differential_engine.rs:165:5
+    |
+165 |     pub fn mint(&mut self, to: &str, amount: i128) -> Result<(), String> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ duplicate definitions for `mint`
+...
+279 |     pub fn mint(&mut self, to: &str, amount: i128) -> Result<(), String> {
+    |     -------------------------------------------------------------------- other definition for `mint`
+
+error[E0592]: duplicate definitions with name `burn`
+   --> token-factory/src/differential_engine.rs:172:5
+    |
+172 |     pub fn burn(&mut self, from: &str, amount: i128) -> Result<(), String> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ duplicate definitions for `burn`
+...
+286 |     pub fn burn(&mut self, from: &str, amount: i128) -> Result<(), String> {
+    |     ---------------------------------------------------------------------- other definition for `burn`
+
+error[E0592]: duplicate definitions with name `verify`
+   --> token-factory/src/differential_engine.rs:181:5
+    |
+181 |     pub fn verify(&self) -> Result<(), String> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ duplicate definitions for `verify`
+...
+295 |     pub fn verify(&self) -> Result<(), String> {
+    |     ------------------------------------------ other definition for `verify`
+
+error[E0592]: duplicate definitions with name `new`
+   --> token-factory/src/differential_engine.rs:199:5
+    |
+199 |     pub fn new(initial: i128) -> Self {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ duplicate definitions for `new`
+...
+237 |     pub fn new(initial: i128) -> Self {
+    |     --------------------------------- other definition for `new`
+
+error[E0592]: duplicate definitions with name `mint`
+   --> token-factory/src/differential_engine.rs:203:5
+    |
+203 |     pub fn mint(&mut self, to: &str, amount: i128) -> Result<(), String> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ duplicate definitions for `mint`
+...
+241 |     pub fn mint(&mut self, to: &str, amount: i128) -> Result<(), String> {
+    |     -------------------------------------------------------------------- other definition for `mint`
+
+error[E0592]: duplicate definitions with name `burn`
+   --> token-factory/src/differential_engine.rs:210:5
+    |
+210 |     pub fn burn(&mut self, from: &str, amount: i128) -> Result<(), String> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ duplicate definitions for `burn`
+...
+248 |     pub fn burn(&mut self, from: &str, amount: i128) -> Result<(), String> {
+    |     ---------------------------------------------------------------------- other definition for `burn`
+
+error[E0592]: duplicate definitions with name `verify`
+   --> token-factory/src/differential_engine.rs:219:5
+    |
+219 |     pub fn verify(&self) -> Result<(), String> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ duplicate definitions for `verify`
+...
+257 |     pub fn verify(&self) -> Result<(), String> {
+    |     ------------------------------------------ other definition for `verify`
+
+error[E0592]: duplicate definitions with name `new`
+   --> token-factory/src/differential_engine.rs:199:5
+    |
+199 |     pub fn new(initial: i128) -> Self {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ duplicate definitions for `new`
+...
+275 |     pub fn new(initial: i128) -> Self {
+    |     --------------------------------- other definition for `new`
+
+error[E0592]: duplicate definitions with name `mint`
+   --> token-factory/src/differential_engine.rs:203:5
+    |
+203 |     pub fn mint(&mut self, to: &str, amount: i128) -> Result<(), String> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ duplicate definitions for `mint`
+...
+279 |     pub fn mint(&mut self, to: &str, amount: i128) -> Result<(), String> {
+    |     -------------------------------------------------------------------- other definition for `mint`
+
+error[E0592]: duplicate definitions with name `burn`
+   --> token-factory/src/differential_engine.rs:210:5
+    |
+210 |     pub fn burn(&mut self, from: &str, amount: i128) -> Result<(), String> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ duplicate definitions for `burn`
+...
+286 |     pub fn burn(&mut self, from: &str, amount: i128) -> Result<(), String> {
+    |     ---------------------------------------------------------------------- other definition for `burn`
+
+error[E0592]: duplicate definitions with name `verify`
+   --> token-factory/src/differential_engine.rs:219:5
+    |
+219 |     pub fn verify(&self) -> Result<(), String> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ duplicate definitions for `verify`
+...
+295 |     pub fn verify(&self) -> Result<(), String> {
+    |     ------------------------------------------ other definition for `verify`
+
+error[E0592]: duplicate definitions with name `new`
+   --> token-factory/src/differential_engine.rs:237:5
+    |
+237 |     pub fn new(initial: i128) -> Self {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ duplicate definitions for `new`
+...
+275 |     pub fn new(initial: i128) -> Self {
+    |     --------------------------------- other definition for `new`
+
+error[E0592]: duplicate definitions with name `mint`
+   --> token-factory/src/differential_engine.rs:241:5
+    |
+241 |     pub fn mint(&mut self, to: &str, amount: i128) -> Result<(), String> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ duplicate definitions for `mint`
+...
+279 |     pub fn mint(&mut self, to: &str, amount: i128) -> Result<(), String> {
+    |     -------------------------------------------------------------------- other definition for `mint`
+
+error[E0592]: duplicate definitions with name `burn`
+   --> token-factory/src/differential_engine.rs:248:5
+    |
+248 |     pub fn burn(&mut self, from: &str, amount: i128) -> Result<(), String> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ duplicate definitions for `burn`
+...
+286 |     pub fn burn(&mut self, from: &str, amount: i128) -> Result<(), String> {
+    |     ---------------------------------------------------------------------- other definition for `burn`
+
+error[E0592]: duplicate definitions with name `verify`
+   --> token-factory/src/differential_engine.rs:257:5
+    |
+257 |     pub fn verify(&self) -> Result<(), String> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ duplicate definitions for `verify`
+...
+295 |     pub fn verify(&self) -> Result<(), String> {
+    |     ------------------------------------------ other definition for `verify`
+
+error[E0592]: duplicate definitions with name `create_stream`
+    --> token-factory/src/lib.rs:1740:5
+     |
+1545 | /     pub fn create_stream(
+1546 | |         env: Env,
+1547 | |         creator: Address,
+1548 | |         params: StreamParams,
+1549 | |     ) -> Result<u64, Error> {
+     | |___________________________- other definition for `create_stream`
+...
+1740 | /     pub fn create_stream(
+1741 | |         env: Env,
+1742 | |         creator: Address,
+1743 | |         beneficiary: Address,
+...    |
+1747 | |         duration_seconds: u64,
+1748 | |     ) -> Result<String, Error> {
+     | |______________________________^ duplicate definitions for `create_stream`
+
+error[E0592]: duplicate definitions with name `claim_stream`
+    --> token-factory/src/lib.rs:1815:5
+     |
+1611 | /     pub fn claim_stream(
+1612 | |         env: Env,
+1613 | |         recipient: Address,
+1614 | |         stream_id: u64,
+1615 | |     ) -> Result<i128, Error> {
+     | |____________________________- other definition for `claim_stream`
+...
+1815 |       pub fn claim_stream(env: Env, claimer: Address, stream_id: String) -> Result<i128, Error> {
+     |       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ duplicate definitions for `claim_stream`
+
+error[E0592]: duplicate definitions with name `cancel_stream`
+    --> token-factory/src/lib.rs:1883:5
+     |
+1672 | /     pub fn cancel_stream(
+1673 | |         env: Env,
+1674 | |         creator: Address,
+1675 | |         stream_id: u64,
+1676 | |     ) -> Result<(), Error> {
+     | |__________________________- other definition for `cancel_stream`
+...
+1883 |       pub fn cancel_stream(env: Env, canceller: Address, stream_id: String) -> Result<(i128, i128), Error> {
+     |       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ duplicate definitions for `cancel_stream`
+
+error[E0592]: duplicate definitions with name `spec_xdr_create_stream`
+  --> token-factory/src/lib.rs:54:1
+   |
+54 | #[contractimpl]
+   | ^^^^^^^^^^^^^^^
+   | |
+   | duplicate definitions for `spec_xdr_create_stream`
+   | other definition for `spec_xdr_create_stream`
+   |
+   = note: this error originates in the attribute macro `soroban_sdk::contractspecfn` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0592]: duplicate definitions with name `spec_xdr_claim_stream`
+  --> token-factory/src/lib.rs:54:1
+   |
+54 | #[contractimpl]
+   | ^^^^^^^^^^^^^^^
+   | |
+   | duplicate definitions for `spec_xdr_claim_stream`
+   | other definition for `spec_xdr_claim_stream`
+   |
+   = note: this error originates in the attribute macro `soroban_sdk::contractspecfn` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0592]: duplicate definitions with name `spec_xdr_cancel_stream`
+  --> token-factory/src/lib.rs:54:1
+   |
+54 | #[contractimpl]
+   | ^^^^^^^^^^^^^^^
+   | |
+   | duplicate definitions for `spec_xdr_cancel_stream`
+   | other definition for `spec_xdr_cancel_stream`
+   |
+   = note: this error originates in the attribute macro `soroban_sdk::contractspecfn` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0592]: duplicate definitions with name `create_stream`
+  --> token-factory/src/lib.rs:54:1
+   |
+54 | #[contractimpl]
+   | ^^^^^^^^^^^^^^^
+   | |
+   | duplicate definitions for `create_stream`
+   | other definition for `create_stream`
+   |
+   = note: this error originates in the attribute macro `soroban_sdk::contractclient` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0592]: duplicate definitions with name `try_create_stream`
+  --> token-factory/src/lib.rs:54:1
+   |
+54 | #[contractimpl]
+   | ^^^^^^^^^^^^^^^
+   | |
+   | duplicate definitions for `try_create_stream`
+   | other definition for `try_create_stream`
+   |
+   = note: this error originates in the attribute macro `soroban_sdk::contractclient` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0592]: duplicate definitions with name `claim_stream`
+  --> token-factory/src/lib.rs:54:1
+   |
+54 | #[contractimpl]
+   | ^^^^^^^^^^^^^^^
+   | |
+   | duplicate definitions for `claim_stream`
+   | other definition for `claim_stream`
+   |
+   = note: this error originates in the attribute macro `soroban_sdk::contractclient` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0592]: duplicate definitions with name `try_claim_stream`
+  --> token-factory/src/lib.rs:54:1
+   |
+54 | #[contractimpl]
+   | ^^^^^^^^^^^^^^^
+   | |
+   | duplicate definitions for `try_claim_stream`
+   | other definition for `try_claim_stream`
+   |
+   = note: this error originates in the attribute macro `soroban_sdk::contractclient` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0592]: duplicate definitions with name `cancel_stream`
+  --> token-factory/src/lib.rs:54:1
+   |
+54 | #[contractimpl]
+   | ^^^^^^^^^^^^^^^
+   | |
+   | duplicate definitions for `cancel_stream`
+   | other definition for `cancel_stream`
+   |
+   = note: this error originates in the attribute macro `soroban_sdk::contractclient` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0592]: duplicate definitions with name `try_cancel_stream`
+  --> token-factory/src/lib.rs:54:1
+   |
+54 | #[contractimpl]
+   | ^^^^^^^^^^^^^^^
+   | |
+   | duplicate definitions for `try_cancel_stream`
+   | other definition for `try_cancel_stream`
+   |
+   = note: this error originates in the attribute macro `soroban_sdk::contractclient` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0599]: no variant or associated item named `FreezeNotEnabled` found for enum `types::Error` in the current scope
+   --> token-factory/src/freeze_functions.rs:54:27
+    |
+ 54 |         return Err(Error::FreezeNotEnabled);
+    |                           ^^^^^^^^^^^^^^^^ variant or associated item not found in `types::Error`
+    |
+   ::: token-factory/src/types.rs:226:1
+    |
+226 | pub enum Error {
+    | -------------- variant or associated item `FreezeNotEnabled` not found for this enum
+
+error[E0599]: no variant or associated item named `AddressFrozen` found for enum `types::Error` in the current scope
+   --> token-factory/src/freeze_functions.rs:59:27
+    |
+ 59 |         return Err(Error::AddressFrozen);
+    |                           ^^^^^^^^^^^^^ variant or associated item not found in `types::Error`
+    |
+   ::: token-factory/src/types.rs:226:1
+    |
+226 | pub enum Error {
+    | -------------- variant or associated item `AddressFrozen` not found for this enum
+
+error[E0599]: no variant or associated item named `FreezeNotEnabled` found for enum `types::Error` in the current scope
+   --> token-factory/src/freeze_functions.rs:128:27
+    |
+128 |         return Err(Error::FreezeNotEnabled);
+    |                           ^^^^^^^^^^^^^^^^ variant or associated item not found in `types::Error`
+    |
+   ::: token-factory/src/types.rs:226:1
+    |
+226 | pub enum Error {
+    | -------------- variant or associated item `FreezeNotEnabled` not found for this enum
+
+error[E0599]: no variant or associated item named `AddressNotFrozen` found for enum `types::Error` in the current scope
+   --> token-factory/src/freeze_functions.rs:133:27
+    |
+133 |         return Err(Error::AddressNotFrozen);
+    |                           ^^^^^^^^^^^^^^^^ variant or associated item not found in `types::Error`
+    |
+   ::: token-factory/src/types.rs:226:1
+    |
+226 | pub enum Error {
+    | -------------- variant or associated item `AddressNotFrozen` not found for this enum
+
+error[E0277]: the trait bound `u8: TryFromVal<Env, soroban_sdk::Val>` is not satisfied
+   --> token-factory/src/types.rs:320:5
+    |
+315 | #[derive(Clone, Debug, Eq, PartialEq)]
+    |                 ----- in this derive macro expansion
+...
+320 |     pub payload: Vec<u8>,
+    |     ^^^^^^^^^^^^^^^^^^^^ the trait `TryFromVal<Env, soroban_sdk::Val>` is not implemented for `u8`
+    |
+    = help: the following other types implement trait `TryFromVal<E, V>`:
+              `i128` implements `TryFromVal<E, soroban_sdk::Val>`
+              `i128` implements `TryFromVal<Env, i128>`
+              `i32` implements `TryFromVal<E, soroban_sdk::Val>`
+              `i32` implements `TryFromVal<Env, i32>`
+              `i64` implements `TryFromVal<E, soroban_sdk::Val>`
+              `i64` implements `TryFromVal<Env, i64>`
+              `u128` implements `TryFromVal<E, soroban_sdk::Val>`
+              `u128` implements `TryFromVal<Env, u128>`
+            and 7 others
+    = note: required for `soroban_sdk::Vec<u8>` to implement `Debug`
+    = note: required for the cast from `&soroban_sdk::Vec<u8>` to `&dyn Debug`
+
+error[E0277]: the trait bound `soroban_sdk::Val: TryFromVal<Env, u8>` is not satisfied
+   --> token-factory/src/types.rs:320:5
+    |
+315 | #[derive(Clone, Debug, Eq, PartialEq)]
+    |                 ----- in this derive macro expansion
+...
+320 |     pub payload: Vec<u8>,
+    |     ^^^^^^^^^^^^^^^^^^^^ the trait `TryFromVal<Env, u8>` is not implemented for `soroban_sdk::Val`
+    |
+    = help: the following other types implement trait `TryFromVal<E, V>`:
+              `soroban_sdk::Val` implements `TryFromVal<E, &[u8]>`
+              `soroban_sdk::Val` implements `TryFromVal<E, &str>`
+              `soroban_sdk::Val` implements `TryFromVal<E, ()>`
+              `soroban_sdk::Val` implements `TryFromVal<E, (T0, T1)>`
+              `soroban_sdk::Val` implements `TryFromVal<E, (T0, T1, T2)>`
+              `soroban_sdk::Val` implements `TryFromVal<E, (T0, T1, T2, T3)>`
+              `soroban_sdk::Val` implements `TryFromVal<E, (T0, T1, T2, T3, T4)>`
+              `soroban_sdk::Val` implements `TryFromVal<E, (T0, T1, T2, T3, T4, T5)>`
+            and 129 others
+    = note: required for `soroban_sdk::Val` to implement `FromVal<Env, u8>`
+    = note: required for `u8` to implement `IntoVal<Env, soroban_sdk::Val>`
+    = note: required for `soroban_sdk::Vec<u8>` to implement `Debug`
+    = note: required for the cast from `&soroban_sdk::Vec<u8>` to `&dyn Debug`
+    = note: the full name for the type has been written to '/home/edohwares/Desktop/Room/grantfox/Nova-launch/contracts/target/debug/deps/token_factory-bc849197f8790f10.long-type-13403278390488745239.txt'
+    = note: consider using `--verbose` to print the full type name to the console
+
+error[E0277]: the trait bound `u8: TryFromVal<Env, soroban_sdk::Val>` is not satisfied
+   --> token-factory/src/types.rs:320:5
+    |
+315 | #[derive(Clone, Debug, Eq, PartialEq)]
+    |                        -- in this derive macro expansion
+...
+320 |     pub payload: Vec<u8>,
+    |     ^^^^^^^^^^^^^^^^^^^^ the trait `TryFromVal<Env, soroban_sdk::Val>` is not implemented for `u8`
+    |
+    = help: the following other types implement trait `TryFromVal<E, V>`:
+              `i128` implements `TryFromVal<E, soroban_sdk::Val>`
+              `i128` implements `TryFromVal<Env, i128>`
+              `i32` implements `TryFromVal<E, soroban_sdk::Val>`
+              `i32` implements `TryFromVal<Env, i32>`
+              `i64` implements `TryFromVal<E, soroban_sdk::Val>`
+              `i64` implements `TryFromVal<Env, i64>`
+              `u128` implements `TryFromVal<E, soroban_sdk::Val>`
+              `u128` implements `TryFromVal<Env, u128>`
+            and 7 others
+    = note: required for `soroban_sdk::Vec<u8>` to implement `core::cmp::Eq`
+note: required by a bound in `AssertParamIsEq`
+   --> /home/edohwares/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/cmp.rs:368:31
+    |
+368 | pub struct AssertParamIsEq<T: Eq + PointeeSized> {
+    |                               ^^ required by this bound in `AssertParamIsEq`
+
+error[E0277]: the trait bound `soroban_sdk::Val: TryFromVal<Env, u8>` is not satisfied
+   --> token-factory/src/types.rs:320:5
+    |
+315 | #[derive(Clone, Debug, Eq, PartialEq)]
+    |                        -- in this derive macro expansion
+...
+320 |     pub payload: Vec<u8>,
+    |     ^^^^^^^^^^^^^^^^^^^^ the trait `TryFromVal<Env, u8>` is not implemented for `soroban_sdk::Val`
+    |
+    = help: the following other types implement trait `TryFromVal<E, V>`:
+              `soroban_sdk::Val` implements `TryFromVal<E, &[u8]>`
+              `soroban_sdk::Val` implements `TryFromVal<E, &str>`
+              `soroban_sdk::Val` implements `TryFromVal<E, ()>`
+              `soroban_sdk::Val` implements `TryFromVal<E, (T0, T1)>`
+              `soroban_sdk::Val` implements `TryFromVal<E, (T0, T1, T2)>`
+              `soroban_sdk::Val` implements `TryFromVal<E, (T0, T1, T2, T3)>`
+              `soroban_sdk::Val` implements `TryFromVal<E, (T0, T1, T2, T3, T4)>`
+              `soroban_sdk::Val` implements `TryFromVal<E, (T0, T1, T2, T3, T4, T5)>`
+            and 129 others
+    = note: required for `soroban_sdk::Val` to implement `FromVal<Env, u8>`
+    = note: required for `u8` to implement `IntoVal<Env, soroban_sdk::Val>`
+    = note: required for `soroban_sdk::Vec<u8>` to implement `core::cmp::Eq`
+note: required by a bound in `AssertParamIsEq`
+   --> /home/edohwares/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/cmp.rs:368:31
+    |
+368 | pub struct AssertParamIsEq<T: Eq + PointeeSized> {
+    |                               ^^ required by this bound in `AssertParamIsEq`
+    = note: the full name for the type has been written to '/home/edohwares/Desktop/Room/grantfox/Nova-launch/contracts/target/debug/deps/token_factory-bc849197f8790f10.long-type-13403278390488745239.txt'
+    = note: consider using `--verbose` to print the full type name to the console
+
+error[E0369]: binary operation `==` cannot be applied to type `soroban_sdk::Vec<u8>`
+   --> token-factory/src/types.rs:320:5
+    |
+315 | #[derive(Clone, Debug, Eq, PartialEq)]
+    |                            --------- in this derive macro expansion
+...
+320 |     pub payload: Vec<u8>,
+    |     ^^^^^^^^^^^^^^^^^^^^
+    |
+note: the foreign item type `soroban_sdk::Val` doesn't implement `TryFromVal<Env, u8>`
+   --> /home/edohwares/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/soroban-env-common-21.2.1/src/val.rs:249:1
+    |
+249 | pub struct Val(u64);
+    | ^^^^^^^^^^^^^^ not implement `TryFromVal<Env, u8>`
+
+error[E0277]: the trait bound `u8: TryFromVal<Env, soroban_sdk::Val>` is not satisfied
+   --> token-factory/src/types.rs:314:1
+    |
+314 | #[contracttype]
+    | ^^^^^^^^^^^^^^^ the trait `TryFromVal<Env, soroban_sdk::Val>` is not implemented for `u8`
+    |
+    = help: the following other types implement trait `TryFromVal<E, V>`:
+              `i128` implements `TryFromVal<E, soroban_sdk::Val>`
+              `i128` implements `TryFromVal<Env, i128>`
+              `i32` implements `TryFromVal<E, soroban_sdk::Val>`
+              `i32` implements `TryFromVal<Env, i32>`
+              `i64` implements `TryFromVal<E, soroban_sdk::Val>`
+              `i64` implements `TryFromVal<Env, i64>`
+              `u128` implements `TryFromVal<E, soroban_sdk::Val>`
+              `u128` implements `TryFromVal<Env, u128>`
+            and 7 others
+    = note: required for `soroban_sdk::Vec<u8>` to implement `TryFromVal<Env, soroban_sdk::Val>`
+    = note: required for `soroban_sdk::Val` to implement `TryIntoVal<Env, soroban_sdk::Vec<u8>>`
+    = note: this error originates in the attribute macro `contracttype` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `soroban_sdk::Val: TryFromVal<Env, u8>` is not satisfied
+   --> token-factory/src/types.rs:314:1
+    |
+314 | #[contracttype]
+    | ^^^^^^^^^^^^^^^ the trait `TryFromVal<Env, u8>` is not implemented for `soroban_sdk::Val`
+    |
+    = help: the following other types implement trait `TryFromVal<E, V>`:
+              `soroban_sdk::Val` implements `TryFromVal<E, &[u8]>`
+              `soroban_sdk::Val` implements `TryFromVal<E, &str>`
+              `soroban_sdk::Val` implements `TryFromVal<E, ()>`
+              `soroban_sdk::Val` implements `TryFromVal<E, (T0, T1)>`
+              `soroban_sdk::Val` implements `TryFromVal<E, (T0, T1, T2)>`
+              `soroban_sdk::Val` implements `TryFromVal<E, (T0, T1, T2, T3)>`
+              `soroban_sdk::Val` implements `TryFromVal<E, (T0, T1, T2, T3, T4)>`
+              `soroban_sdk::Val` implements `TryFromVal<E, (T0, T1, T2, T3, T4, T5)>`
+            and 129 others
+    = note: required for `soroban_sdk::Val` to implement `FromVal<Env, u8>`
+    = note: required for `u8` to implement `IntoVal<Env, soroban_sdk::Val>`
+    = note: required for `soroban_sdk::Vec<u8>` to implement `TryFromVal<Env, soroban_sdk::Val>`
+    = note: required for `soroban_sdk::Val` to implement `TryIntoVal<Env, soroban_sdk::Vec<u8>>`
+    = note: the full name for the type has been written to '/home/edohwares/Desktop/Room/grantfox/Nova-launch/contracts/target/debug/deps/token_factory-bc849197f8790f10.long-type-13403278390488745239.txt'
+    = note: consider using `--verbose` to print the full type name to the console
+    = note: this error originates in the attribute macro `contracttype` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0061]: this function takes 7 arguments but 3 arguments were supplied
+   --> token-factory/src/token_creation.rs:89:5
+    |
+ 89 |       crate::events::emit_token_created(
+    |  _____^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^-
+ 90 | |         env,
+ 91 | |         &token_address,
+ 92 | |         creator,
+ 93 | |     );
+    | |_____- multiple arguments are missing
+    |
+note: function defined here
+   --> token-factory/src/events.rs:114:8
+    |
+114 | pub fn emit_token_created(
+    |        ^^^^^^^^^^^^^^^^^^
+...
+118 |     name: &String,
+    |     -------------
+119 |     symbol: &String,
+    |     ---------------
+120 |     decimals: u32,
+    |     -------------
+121 |     initial_supply: i128,
+    |     --------------------
+help: provide the arguments
+    |
+ 93 |     crate::events::emit_token_created(
+...
+ 96 |         creator,
+ 97 ~         /* &soroban_sdk::String */,
+ 98 +         /* &soroban_sdk::String */,
+ 99 +         /* u32 */,
+100 +         /* i128 */,
+101 ~     );
+    |
+
+error[E0599]: no variant or associated item named `StreamPaused` found for enum `types::Error` in the current scope
+   --> token-factory/src/streaming.rs:250:27
+    |
+250 |         return Err(Error::StreamPaused);
+    |                           ^^^^^^^^^^^^ variant or associated item not found in `types::Error`
+    |
+   ::: token-factory/src/types.rs:226:1
+    |
+226 | pub enum Error {
+    | -------------- variant or associated item `StreamPaused` not found for this enum
+
+error[E0599]: no variant or associated item named `InvalidTimeWindow` found for enum `types::Error` in the current scope
+   --> token-factory/src/timelock.rs:471:27
+    |
+471 |         return Err(Error::InvalidTimeWindow);
+    |                           ^^^^^^^^^^^^^^^^^ variant or associated item not found in `types::Error`
+    |
+   ::: token-factory/src/types.rs:226:1
+    |
+226 | pub enum Error {
+    | -------------- variant or associated item `InvalidTimeWindow` not found for this enum
+
+error[E0599]: no variant or associated item named `InvalidTimeWindow` found for enum `types::Error` in the current scope
+   --> token-factory/src/timelock.rs:476:27
+    |
+476 |         return Err(Error::InvalidTimeWindow);
+    |                           ^^^^^^^^^^^^^^^^^ variant or associated item not found in `types::Error`
+    |
+   ::: token-factory/src/types.rs:226:1
+    |
+226 | pub enum Error {
+    | -------------- variant or associated item `InvalidTimeWindow` not found for this enum
+
+error[E0599]: no variant or associated item named `InvalidTimeWindow` found for enum `types::Error` in the current scope
+   --> token-factory/src/timelock.rs:481:27
+    |
+481 |         return Err(Error::InvalidTimeWindow);
+    |                           ^^^^^^^^^^^^^^^^^ variant or associated item not found in `types::Error`
+    |
+   ::: token-factory/src/types.rs:226:1
+    |
+226 | pub enum Error {
+    | -------------- variant or associated item `InvalidTimeWindow` not found for this enum
+
+error[E0599]: no variant or associated item named `PayloadTooLarge` found for enum `types::Error` in the current scope
+   --> token-factory/src/timelock.rs:486:27
+    |
+486 |         return Err(Error::PayloadTooLarge);
+    |                           ^^^^^^^^^^^^^^^ variant or associated item not found in `types::Error`
+    |
+   ::: token-factory/src/types.rs:226:1
+    |
+226 | pub enum Error {
+    | -------------- variant or associated item `PayloadTooLarge` not found for this enum
+
+error[E0599]: no variant or associated item named `VotingNotStarted` found for enum `types::Error` in the current scope
+   --> token-factory/src/timelock.rs:903:27
+    |
+903 |         return Err(Error::VotingNotStarted);
+    |                           ^^^^^^^^^^^^^^^^ variant or associated item not found in `types::Error`
+    |
+   ::: token-factory/src/types.rs:226:1
+    |
+226 | pub enum Error {
+    | -------------- variant or associated item `VotingNotStarted` not found for this enum
+
+error[E0599]: no variant or associated item named `VotingEnded` found for enum `types::Error` in the current scope
+   --> token-factory/src/timelock.rs:907:27
+    |
+907 |         return Err(Error::VotingEnded);
+    |                           ^^^^^^^^^^^ variant or associated item not found in `types::Error`
+    |
+   ::: token-factory/src/types.rs:226:1
+    |
+226 | pub enum Error {
+    | -------------- variant or associated item `VotingEnded` not found for this enum
+
+error[E0599]: no variant or associated item named `AlreadyVoted` found for enum `types::Error` in the current scope
+   --> token-factory/src/timelock.rs:912:27
+    |
+912 |         return Err(Error::AlreadyVoted);
+    |                           ^^^^^^^^^^^^ variant or associated item not found in `types::Error`
+    |
+   ::: token-factory/src/types.rs:226:1
+    |
+226 | pub enum Error {
+    | -------------- variant or associated item `AlreadyVoted` not found for this enum
+
+error[E0599]: no function or associated item named `generate` found for struct `soroban_sdk::Address` in the current scope
+   --> token-factory/src/pagination.rs:197:31
+    |
+197 |             creator: Address::generate(env),
+    |                               ^^^^^^^^ function or associated item not found in `soroban_sdk::Address`
+    |
+note: if you're trying to build a new `soroban_sdk::Address` consider using one of the following associated functions:
+      soroban_sdk::Address::from_string
+      soroban_sdk::Address::from_string_bytes
+   --> /home/edohwares/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/soroban-sdk-21.7.7/src/address.rs:235:5
+    |
+235 |     pub fn from_string(strkey: &String) -> Self {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+257 |     pub fn from_string_bytes(strkey: &Bytes) -> Self {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[E0599]: no function or associated item named `generate` found for struct `soroban_sdk::Address` in the current scope
+   --> token-factory/src/pagination.rs:198:33
+    |
+198 |             recipient: Address::generate(env),
+    |                                 ^^^^^^^^ function or associated item not found in `soroban_sdk::Address`
+    |
+note: if you're trying to build a new `soroban_sdk::Address` consider using one of the following associated functions:
+      soroban_sdk::Address::from_string
+      soroban_sdk::Address::from_string_bytes
+   --> /home/edohwares/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/soroban-sdk-21.7.7/src/address.rs:235:5
+    |
+235 |     pub fn from_string(strkey: &String) -> Self {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+257 |     pub fn from_string_bytes(strkey: &Bytes) -> Self {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[E0599]: no function or associated item named `generate` found for struct `soroban_sdk::Address` in the current scope
+   --> token-factory/src/pagination.rs:560:32
+    |
+560 |         let creator = Address::generate(&env);
+    |                                ^^^^^^^^ function or associated item not found in `soroban_sdk::Address`
+    |
+note: if you're trying to build a new `soroban_sdk::Address` consider using one of the following associated functions:
+      soroban_sdk::Address::from_string
+      soroban_sdk::Address::from_string_bytes
+   --> /home/edohwares/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/soroban-sdk-21.7.7/src/address.rs:235:5
+    |
+235 |     pub fn from_string(strkey: &String) -> Self {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+257 |     pub fn from_string_bytes(strkey: &Bytes) -> Self {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[E0599]: no function or associated item named `generate` found for struct `soroban_sdk::Address` in the current scope
+   --> token-factory/src/pagination.rs:564:31
+    |
+564 |             address: Address::generate(&env),
+    |                               ^^^^^^^^ function or associated item not found in `soroban_sdk::Address`
+    |
+note: if you're trying to build a new `soroban_sdk::Address` consider using one of the following associated functions:
+      soroban_sdk::Address::from_string
+      soroban_sdk::Address::from_string_bytes
+   --> /home/edohwares/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/soroban-sdk-21.7.7/src/address.rs:235:5
+    |
+235 |     pub fn from_string(strkey: &String) -> Self {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+257 |     pub fn from_string_bytes(strkey: &Bytes) -> Self {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[E0599]: no function or associated item named `generate` found for struct `soroban_sdk::Address` in the current scope
+   --> token-factory/src/pagination.rs:838:33
+    |
+838 |         let proposer = Address::generate(&env);
+    |                                 ^^^^^^^^ function or associated item not found in `soroban_sdk::Address`
+    |
+note: if you're trying to build a new `soroban_sdk::Address` consider using one of the following associated functions:
+      soroban_sdk::Address::from_string
+      soroban_sdk::Address::from_string_bytes
+   --> /home/edohwares/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/soroban-sdk-21.7.7/src/address.rs:235:5
+    |
+235 |     pub fn from_string(strkey: &String) -> Self {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+257 |     pub fn from_string_bytes(strkey: &Bytes) -> Self {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[E0277]: the trait bound `u8: TryFromVal<Env, soroban_sdk::Val>` is not satisfied
+   --> token-factory/src/pagination.rs:846:26
+    |
+846 |                 payload: Vec::new(&env),
+    |                          ^^^^^^^^^^^^^^ the trait `TryFromVal<Env, soroban_sdk::Val>` is not implemented for `u8`
+    |
+    = help: the following other types implement trait `TryFromVal<E, V>`:
+              `i128` implements `TryFromVal<E, soroban_sdk::Val>`
+              `i128` implements `TryFromVal<Env, i128>`
+              `i32` implements `TryFromVal<E, soroban_sdk::Val>`
+              `i32` implements `TryFromVal<Env, i32>`
+              `i64` implements `TryFromVal<E, soroban_sdk::Val>`
+              `i64` implements `TryFromVal<Env, i64>`
+              `u128` implements `TryFromVal<E, soroban_sdk::Val>`
+              `u128` implements `TryFromVal<Env, u128>`
+            and 7 others
+note: required by a bound in `soroban_sdk::Vec::<T>::new`
+   --> /home/edohwares/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/soroban-sdk-21.7.7/src/vec.rs:349:28
+    |
+349 |     T: IntoVal<Env, Val> + TryFromVal<Env, Val>,
+    |                            ^^^^^^^^^^^^^^^^^^^^ required by this bound in `Vec::<T>::new`
+...
+353 |     pub fn new(env: &Env) -> Vec<T> {
+    |            --- required by a bound in this associated function
+
+error[E0277]: the trait bound `soroban_sdk::Val: TryFromVal<Env, u8>` is not satisfied
+   --> token-factory/src/pagination.rs:846:26
+    |
+846 |                 payload: Vec::new(&env),
+    |                          ^^^^^^^^^^^^^^ the trait `TryFromVal<Env, u8>` is not implemented for `soroban_sdk::Val`
+    |
+    = help: the following other types implement trait `TryFromVal<E, V>`:
+              `soroban_sdk::Val` implements `TryFromVal<E, &[u8]>`
+              `soroban_sdk::Val` implements `TryFromVal<E, &str>`
+              `soroban_sdk::Val` implements `TryFromVal<E, ()>`
+              `soroban_sdk::Val` implements `TryFromVal<E, (T0, T1)>`
+              `soroban_sdk::Val` implements `TryFromVal<E, (T0, T1, T2)>`
+              `soroban_sdk::Val` implements `TryFromVal<E, (T0, T1, T2, T3)>`
+              `soroban_sdk::Val` implements `TryFromVal<E, (T0, T1, T2, T3, T4)>`
+              `soroban_sdk::Val` implements `TryFromVal<E, (T0, T1, T2, T3, T4, T5)>`
+            and 129 others
+    = note: required for `soroban_sdk::Val` to implement `FromVal<Env, u8>`
+    = note: required for `u8` to implement `IntoVal<Env, soroban_sdk::Val>`
+note: required by a bound in `soroban_sdk::Vec::<T>::new`
+   --> /home/edohwares/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/soroban-sdk-21.7.7/src/vec.rs:349:8
+    |
+349 |     T: IntoVal<Env, Val> + TryFromVal<Env, Val>,
+    |        ^^^^^^^^^^^^^^^^^ required by this bound in `Vec::<T>::new`
+...
+353 |     pub fn new(env: &Env) -> Vec<T> {
+    |            --- required by a bound in this associated function
+    = note: the full name for the type has been written to '/home/edohwares/Desktop/Room/grantfox/Nova-launch/contracts/target/debug/deps/token_factory-bc849197f8790f10.long-type-13403278390488745239.txt'
+    = note: consider using `--verbose` to print the full type name to the console
+
+error[E0599]: no method named `to_string` found for reference `&'static str` in the current scope
+  --> token-factory/src/differential_engine.rs:21:39
+   |
+21 |             .ok_or_else(|| "Overflow".to_string())
+   |                                       ^^^^^^^^^ method not found in `&'static str`
+   |
+   = help: items from traits can only be used if the trait is in scope
+help: trait `ToString` which provides `to_string` is implemented but not in scope; perhaps you want to import it
+   |
+ 1 + use alloc::string::ToString;
+   |
+
+error[E0034]: multiple applicable items in scope
+   --> token-factory/src/differential_engine.rs:25:14
+    |
+ 25 |         self.calculate_vested(current_time)?.checked_sub(self.claimed_amount).ok_or_else(|| "Underflow".to_string())
+    |              ^^^^^^^^^^^^^^^^ multiple `calculate_vested` found
+    |
+note: candidate #1 is defined in an impl for the type `differential_engine::DifferentialVestingSchedule`
+   --> token-factory/src/differential_engine.rs:13:5
+    |
+ 13 |     pub fn calculate_vested(&self, current_time: u64) -> Result<i128, String> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+note: candidate #2 is defined in an impl for the type `differential_engine::DifferentialVestingSchedule`
+   --> token-factory/src/differential_engine.rs:107:5
+    |
+107 |     pub fn calculate_vested(&self, current_time: u64) -> Result<i128, String> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[E0599]: no method named `to_string` found for reference `&'static str` in the current scope
+  --> token-factory/src/differential_engine.rs:25:105
+   |
+25 |         self.calculate_vested(current_time)?.checked_sub(self.claimed_amount).ok_or_else(|| "Underflow".to_string())
+   |                                                                                                         ^^^^^^^^^ method not found in `&'static str`
+   |
+   = help: items from traits can only be used if the trait is in scope
+help: trait `ToString` which provides `to_string` is implemented but not in scope; perhaps you want to import it
+   |
+ 1 + use alloc::string::ToString;
+   |
+
+error[E0599]: no method named `to_string` found for reference `&'static str` in the current scope
+  --> token-factory/src/differential_engine.rs:42:51
+   |
+42 |         self.schedules.get(&id).ok_or("Not found".to_string())?.calculate_vested(current_time)
+   |                                                   ^^^^^^^^^ method not found in `&'static str`
+   |
+   = help: items from traits can only be used if the trait is in scope
+help: trait `ToString` which provides `to_string` is implemented but not in scope; perhaps you want to import it
+   |
+ 1 + use alloc::string::ToString;
+   |
+
+error[E0599]: no method named `to_string` found for reference `&'static str` in the current scope
+  --> token-factory/src/differential_engine.rs:46:51
+   |
+46 |         self.schedules.get(&id).ok_or("Not found".to_string())?.calculate_claimable(current_time)
+   |                                                   ^^^^^^^^^ method not found in `&'static str`
+   |
+   = help: items from traits can only be used if the trait is in scope
+help: trait `ToString` which provides `to_string` is implemented but not in scope; perhaps you want to import it
+   |
+ 1 + use alloc::string::ToString;
+   |
+
+error[E0599]: no method named `to_string` found for reference `&'static str` in the current scope
+  --> token-factory/src/differential_engine.rs:50:70
+   |
+50 |         let schedule = self.schedules.get_mut(&id).ok_or("Not found".to_string())?;
+   |                                                                      ^^^^^^^^^ method not found in `&'static str`
+   |
+   = help: items from traits can only be used if the trait is in scope
+help: trait `ToString` which provides `to_string` is implemented but not in scope; perhaps you want to import it
+   |
+ 1 + use alloc::string::ToString;
+   |
+
+error[E0599]: no method named `to_string` found for reference `&'static str` in the current scope
+  --> token-factory/src/differential_engine.rs:52:59
+   |
+52 |         if claimable == 0 { return Err("Nothing to claim".to_string()); }
+   |                                                           ^^^^^^^^^ method not found in `&'static str`
+   |
+   = help: items from traits can only be used if the trait is in scope
+help: trait `ToString` which provides `to_string` is implemented but not in scope; perhaps you want to import it
+   |
+ 1 + use alloc::string::ToString;
+   |
+
+error[E0599]: no method named `to_string` found for reference `&'static str` in the current scope
+  --> token-factory/src/differential_engine.rs:53:99
+   |
+53 |         schedule.claimed_amount = schedule.claimed_amount.checked_add(claimable).ok_or("Overflow".to_string())?;
+   |                                                                                                   ^^^^^^^^^ method not found in `&'static str`
+   |
+   = help: items from traits can only be used if the trait is in scope
+help: trait `ToString` which provides `to_string` is implemented but not in scope; perhaps you want to import it
+   |
+ 1 + use alloc::string::ToString;
+   |
+
+error[E0599]: no method named `to_string` found for reference `&str` in the current scope
+  --> token-factory/src/differential_engine.rs:74:33
+   |
+74 |         *self.balances.entry(to.to_string()).or_insert(0) = self.balances.get(to).unwrap_or(&0).checked_add(amount).ok_or("Overflow")?;
+   |                                 ^^^^^^^^^ method not found in `&str`
+   |
+   = help: items from traits can only be used if the trait is in scope
+help: trait `ToString` which provides `to_string` is implemented but not in scope; perhaps you want to import it
+   |
+ 1 + use alloc::string::ToString;
+   |
+
+error[E0599]: no method named `to_string` found for reference `&'static str` in the current scope
+  --> token-factory/src/differential_engine.rs:80:57
+   |
+80 |         if balance < amount { return Err("Insufficient".to_string()); }
+   |                                                         ^^^^^^^^^ method not found in `&'static str`
+   |
+   = help: items from traits can only be used if the trait is in scope
+help: trait `ToString` which provides `to_string` is implemented but not in scope; perhaps you want to import it
+   |
+ 1 + use alloc::string::ToString;
+   |
+
+error[E0599]: no method named `to_string` found for reference `&str` in the current scope
+  --> token-factory/src/differential_engine.rs:81:35
+   |
+81 |         self.balances.insert(from.to_string(), balance.checked_sub(amount).ok_or("Underflow")?);
+   |                                   ^^^^^^^^^ method not found in `&str`
+   |
+   = help: items from traits can only be used if the trait is in scope
+help: trait `ToString` which provides `to_string` is implemented but not in scope; perhaps you want to import it
+   |
+ 1 + use alloc::string::ToString;
+   |
+
+error[E0599]: no method named `to_string` found for reference `&'static str` in the current scope
+   --> token-factory/src/differential_engine.rs:115:39
+    |
+115 |             .ok_or_else(|| "Overflow".to_string())
+    |                                       ^^^^^^^^^ method not found in `&'static str`
+    |
+    = help: items from traits can only be used if the trait is in scope
+help: trait `ToString` which provides `to_string` is implemented but not in scope; perhaps you want to import it
+    |
+  1 + use alloc::string::ToString;
+    |
+
+error[E0034]: multiple applicable items in scope
+   --> token-factory/src/differential_engine.rs:119:14
+    |
+119 |         self.calculate_vested(current_time)?.checked_sub(self.claimed_amount).ok_or_else(|| "Underflow".to_string())
+    |              ^^^^^^^^^^^^^^^^ multiple `calculate_vested` found
+    |
+note: candidate #1 is defined in an impl for the type `differential_engine::DifferentialVestingSchedule`
+   --> token-factory/src/differential_engine.rs:13:5
+    |
+ 13 |     pub fn calculate_vested(&self, current_time: u64) -> Result<i128, String> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+note: candidate #2 is defined in an impl for the type `differential_engine::DifferentialVestingSchedule`
+   --> token-factory/src/differential_engine.rs:107:5
+    |
+107 |     pub fn calculate_vested(&self, current_time: u64) -> Result<i128, String> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[E0599]: no method named `to_string` found for reference `&'static str` in the current scope
+   --> token-factory/src/differential_engine.rs:119:105
+    |
+119 |         self.calculate_vested(current_time)?.checked_sub(self.claimed_amount).ok_or_else(|| "Underflow".to_string())
+    |                                                                                                         ^^^^^^^^^ method not found in `&'static str`
+    |
+    = help: items from traits can only be used if the trait is in scope
+help: trait `ToString` which provides `to_string` is implemented but not in scope; perhaps you want to import it
+    |
+  1 + use alloc::string::ToString;
+    |
+
+error[E0599]: no method named `to_string` found for reference `&'static str` in the current scope
+   --> token-factory/src/differential_engine.rs:136:51
+    |
+136 |         self.schedules.get(&id).ok_or("Not found".to_string())?.calculate_vested(current_time)
+    |                                                   ^^^^^^^^^ method not found in `&'static str`
+    |
+    = help: items from traits can only be used if the trait is in scope
+help: trait `ToString` which provides `to_string` is implemented but not in scope; perhaps you want to import it
+    |
+  1 + use alloc::string::ToString;
+    |
+
+error[E0599]: no method named `to_string` found for reference `&'static str` in the current scope
+   --> token-factory/src/differential_engine.rs:140:51
+    |
+140 |         self.schedules.get(&id).ok_or("Not found".to_string())?.calculate_claimable(current_time)
+    |                                                   ^^^^^^^^^ method not found in `&'static str`
+    |
+    = help: items from traits can only be used if the trait is in scope
+help: trait `ToString` which provides `to_string` is implemented but not in scope; perhaps you want to import it
+    |
+  1 + use alloc::string::ToString;
+    |
+
+error[E0599]: no method named `to_string` found for reference `&'static str` in the current scope
+   --> token-factory/src/differential_engine.rs:144:70
+    |
+144 |         let schedule = self.schedules.get_mut(&id).ok_or("Not found".to_string())?;
+    |                                                                      ^^^^^^^^^ method not found in `&'static str`
+    |
+    = help: items from traits can only be used if the trait is in scope
+help: trait `ToString` which provides `to_string` is implemented but not in scope; perhaps you want to import it
+    |
+  1 + use alloc::string::ToString;
+    |
+
+error[E0599]: no method named `to_string` found for reference `&'static str` in the current scope
+   --> token-factory/src/differential_engine.rs:146:59
+    |
+146 |         if claimable == 0 { return Err("Nothing to claim".to_string()); }
+    |                                                           ^^^^^^^^^ method not found in `&'static str`
+    |
+    = help: items from traits can only be used if the trait is in scope
+help: trait `ToString` which provides `to_string` is implemented but not in scope; perhaps you want to import it
+    |
+  1 + use alloc::string::ToString;
+    |
+
+error[E0599]: no method named `to_string` found for reference `&'static str` in the current scope
+   --> token-factory/src/differential_engine.rs:147:99
+    |
+147 |         schedule.claimed_amount = schedule.claimed_amount.checked_add(claimable).ok_or("Overflow".to_string())?;
+    |                                                                                                   ^^^^^^^^^ method not found in `&'static str`
+    |
+    = help: items from traits can only be used if the trait is in scope
+help: trait `ToString` which provides `to_string` is implemented but not in scope; perhaps you want to import it
+    |
+  1 + use alloc::string::ToString;
+    |
+
+error[E0599]: no method named `to_string` found for reference `&str` in the current scope
+   --> token-factory/src/differential_engine.rs:168:33
+    |
+168 |         *self.balances.entry(to.to_string()).or_insert(0) = self.balances.get(to).unwrap_or(&0).checked_add(amount).ok_or("Overflow")?;
+    |                                 ^^^^^^^^^ method not found in `&str`
+    |
+    = help: items from traits can only be used if the trait is in scope
+help: trait `ToString` which provides `to_string` is implemented but not in scope; perhaps you want to import it
+    |
+  1 + use alloc::string::ToString;
+    |
+
+error[E0599]: no method named `to_string` found for reference `&'static str` in the current scope
+   --> token-factory/src/differential_engine.rs:174:57
+    |
+174 |         if balance < amount { return Err("Insufficient".to_string()); }
+    |                                                         ^^^^^^^^^ method not found in `&'static str`
+    |
+    = help: items from traits can only be used if the trait is in scope
+help: trait `ToString` which provides `to_string` is implemented but not in scope; perhaps you want to import it
+    |
+  1 + use alloc::string::ToString;
+    |
+
+error[E0599]: no method named `to_string` found for reference `&str` in the current scope
+   --> token-factory/src/differential_engine.rs:175:35
+    |
+175 |         self.balances.insert(from.to_string(), balance.checked_sub(amount).ok_or("Underflow")?);
+    |                                   ^^^^^^^^^ method not found in `&str`
+    |
+    = help: items from traits can only be used if the trait is in scope
+help: trait `ToString` which provides `to_string` is implemented but not in scope; perhaps you want to import it
+    |
+  1 + use alloc::string::ToString;
+    |
+
+error[E0599]: no method named `to_string` found for reference `&str` in the current scope
+   --> token-factory/src/differential_engine.rs:206:33
+    |
+206 |         *self.balances.entry(to.to_string()).or_insert(0) = self.balances.get(to).unwrap_or(&0).checked_add(amount).ok_or("Overflow")?;
+    |                                 ^^^^^^^^^ method not found in `&str`
+    |
+    = help: items from traits can only be used if the trait is in scope
+help: trait `ToString` which provides `to_string` is implemented but not in scope; perhaps you want to import it
+    |
+  1 + use alloc::string::ToString;
+    |
+
+error[E0599]: no method named `to_string` found for reference `&'static str` in the current scope
+   --> token-factory/src/differential_engine.rs:212:57
+    |
+212 |         if balance < amount { return Err("Insufficient".to_string()); }
+    |                                                         ^^^^^^^^^ method not found in `&'static str`
+    |
+    = help: items from traits can only be used if the trait is in scope
+help: trait `ToString` which provides `to_string` is implemented but not in scope; perhaps you want to import it
+    |
+  1 + use alloc::string::ToString;
+    |
+
+error[E0599]: no method named `to_string` found for reference `&str` in the current scope
+   --> token-factory/src/differential_engine.rs:213:35
+    |
+213 |         self.balances.insert(from.to_string(), balance.checked_sub(amount).ok_or("Underflow")?);
+    |                                   ^^^^^^^^^ method not found in `&str`
+    |
+    = help: items from traits can only be used if the trait is in scope
+help: trait `ToString` which provides `to_string` is implemented but not in scope; perhaps you want to import it
+    |
+  1 + use alloc::string::ToString;
+    |
+
+error[E0599]: no method named `to_string` found for reference `&str` in the current scope
+   --> token-factory/src/differential_engine.rs:244:33
+    |
+244 |         *self.balances.entry(to.to_string()).or_insert(0) = self.balances.get(to).unwrap_or(&0).checked_add(amount).ok_or("Overflow")?;
+    |                                 ^^^^^^^^^ method not found in `&str`
+    |
+    = help: items from traits can only be used if the trait is in scope
+help: trait `ToString` which provides `to_string` is implemented but not in scope; perhaps you want to import it
+    |
+  1 + use alloc::string::ToString;
+    |
+
+error[E0599]: no method named `to_string` found for reference `&'static str` in the current scope
+   --> token-factory/src/differential_engine.rs:250:57
+    |
+250 |         if balance < amount { return Err("Insufficient".to_string()); }
+    |                                                         ^^^^^^^^^ method not found in `&'static str`
+    |
+    = help: items from traits can only be used if the trait is in scope
+help: trait `ToString` which provides `to_string` is implemented but not in scope; perhaps you want to import it
+    |
+  1 + use alloc::string::ToString;
+    |
+
+error[E0599]: no method named `to_string` found for reference `&str` in the current scope
+   --> token-factory/src/differential_engine.rs:251:35
+    |
+251 |         self.balances.insert(from.to_string(), balance.checked_sub(amount).ok_or("Underflow")?);
+    |                                   ^^^^^^^^^ method not found in `&str`
+    |
+    = help: items from traits can only be used if the trait is in scope
+help: trait `ToString` which provides `to_string` is implemented but not in scope; perhaps you want to import it
+    |
+  1 + use alloc::string::ToString;
+    |
+
+error[E0599]: no method named `to_string` found for reference `&str` in the current scope
+   --> token-factory/src/differential_engine.rs:282:33
+    |
+282 |         *self.balances.entry(to.to_string()).or_insert(0) = self.balances.get(to).unwrap_or(&0).checked_add(amount).ok_or("Overflow")?;
+    |                                 ^^^^^^^^^ method not found in `&str`
+    |
+    = help: items from traits can only be used if the trait is in scope
+help: trait `ToString` which provides `to_string` is implemented but not in scope; perhaps you want to import it
+    |
+  1 + use alloc::string::ToString;
+    |
+
+error[E0599]: no method named `to_string` found for reference `&'static str` in the current scope
+   --> token-factory/src/differential_engine.rs:288:57
+    |
+288 |         if balance < amount { return Err("Insufficient".to_string()); }
+    |                                                         ^^^^^^^^^ method not found in `&'static str`
+    |
+    = help: items from traits can only be used if the trait is in scope
+help: trait `ToString` which provides `to_string` is implemented but not in scope; perhaps you want to import it
+    |
+  1 + use alloc::string::ToString;
+    |
+
+error[E0599]: no method named `to_string` found for reference `&str` in the current scope
+   --> token-factory/src/differential_engine.rs:289:35
+    |
+289 |         self.balances.insert(from.to_string(), balance.checked_sub(amount).ok_or("Underflow")?);
+    |                                   ^^^^^^^^^ method not found in `&str`
+    |
+    = help: items from traits can only be used if the trait is in scope
+help: trait `ToString` which provides `to_string` is implemented but not in scope; perhaps you want to import it
+    |
+  1 + use alloc::string::ToString;
+    |
+
+error[E0599]: no function or associated item named `from_small_str` found for struct `soroban_sdk::String` in the current scope
+    --> token-factory/src/lib.rs:1758:33
+     |
+1758 |         let stream_id = String::from_small_str(&format!("stream_{}", stream_count));
+     |                                 ^^^^^^^^^^^^^^ function or associated item not found in `soroban_sdk::String`
+     |
+note: if you're trying to build a new `soroban_sdk::String` consider using one of the following associated functions:
+      soroban_sdk::String::from_slice
+      soroban_sdk::String::from_bytes
+      soroban_sdk::String::from_str
+    --> /home/edohwares/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/soroban-sdk-21.7.7/src/string.rs:220:5
+     |
+ 220 |     pub fn from_slice(env: &Env, slice: &str) -> String {
+     |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+ 225 |     pub fn from_bytes(env: &Env, b: &[u8]) -> String {
+     |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+ 233 |     pub fn from_str(env: &Env, s: &str) -> String {
+     |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+help: there is an associated function `from_str` with a similar name
+    --> /home/edohwares/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/soroban-sdk-21.7.7/src/string.rs:233:5
+     |
+ 233 |     pub fn from_str(env: &Env, s: &str) -> String {
+     |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[E0433]: failed to resolve: use of undeclared type `StreamStatus`
+    --> token-factory/src/lib.rs:1774:21
+     |
+1774 |             status: StreamStatus::Active,
+     |                     ^^^^^^^^^^^^ use of undeclared type `StreamStatus`
+
+error[E0061]: this function takes 3 arguments but 2 arguments were supplied
+    --> token-factory/src/lib.rs:1781:9
+     |
+1781 |         storage::set_stream(&env, &stream);
+     |         ^^^^^^^^^^^^^^^^^^^--------------- argument #3 of type `&types::StreamInfo` is missing
+     |
+note: function defined here
+    --> token-factory/src/storage.rs:930:8
+     |
+ 930 | pub fn set_stream(env: &Env, stream_id: u64, stream: &crate::types::StreamInfo) {
+     |        ^^^^^^^^^^                            ---------------------------------
+help: provide the argument
+     |
+1781 |         storage::set_stream(&env, &stream, /* &types::StreamInfo */);
+     |                                          ++++++++++++++++++++++++++
+
+error[E0599]: no function or associated item named `from_small_str` found for struct `soroban_sdk::String` in the current scope
+    --> token-factory/src/lib.rs:1785:33
+     |
+1785 |         let stream_id = String::from_small_str(&format!("stream_{}", stream_count));
+     |                                 ^^^^^^^^^^^^^^ function or associated item not found in `soroban_sdk::String`
+     |
+note: if you're trying to build a new `soroban_sdk::String` consider using one of the following associated functions:
+      soroban_sdk::String::from_slice
+      soroban_sdk::String::from_bytes
+      soroban_sdk::String::from_str
+    --> /home/edohwares/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/soroban-sdk-21.7.7/src/string.rs:220:5
+     |
+ 220 |     pub fn from_slice(env: &Env, slice: &str) -> String {
+     |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+ 225 |     pub fn from_bytes(env: &Env, b: &[u8]) -> String {
+     |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+ 233 |     pub fn from_str(env: &Env, s: &str) -> String {
+     |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+help: there is an associated function `from_str` with a similar name
+    --> /home/edohwares/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/soroban-sdk-21.7.7/src/string.rs:233:5
+     |
+ 233 |     pub fn from_str(env: &Env, s: &str) -> String {
+     |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[E0061]: this function takes 5 arguments but 2 arguments were supplied
+    --> token-factory/src/lib.rs:1800:9
+     |
+1800 |         events::emit_stream_created(&env, event);
+     |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^------------- three arguments of type `&soroban_sdk::Address`, `&soroban_sdk::Address`, and `i128` are missing
+     |
+note: function defined here
+    --> token-factory/src/events.rs:452:8
+     |
+ 452 | pub fn emit_stream_created(
+     |        ^^^^^^^^^^^^^^^^^^^
+...
+ 455 |     creator: &Address,
+     |     -----------------
+ 456 |     recipient: &Address,
+     |     -------------------
+ 457 |     amount: i128,
+     |     ------------
+help: provide the arguments
+     |
+1800 |         events::emit_stream_created(&env, event, /* &soroban_sdk::Address */, /* &soroban_sdk::Address */, /* i128 */);
+     |                                                ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+error[E0308]: mismatched types
+    --> token-factory/src/lib.rs:1819:52
+     |
+1819 |         let mut stream = storage::get_stream(&env, &stream_id)
+     |                          -------------------       ^^^^^^^^^^ expected `u64`, found `&String`
+     |                          |
+     |                          arguments to this function are incorrect
+     |
+note: function defined here
+    --> token-factory/src/storage.rs:923:8
+     |
+ 923 | pub fn get_stream(env: &Env, stream_id: u64) -> Option<crate::types::StreamInfo> {
+     |        ^^^^^^^^^^            --------------
+
+error[E0609]: no field `beneficiary` on type `types::StreamInfo`
+    --> token-factory/src/lib.rs:1823:30
+     |
+1823 |         if claimer != stream.beneficiary {
+     |                              ^^^^^^^^^^^ unknown field
+     |
+     = note: available fields are: `id`, `creator`, `recipient`, `token_index`, `total_amount` ... and 6 others
+
+error[E0609]: no field `status` on type `types::StreamInfo`
+    --> token-factory/src/lib.rs:1828:19
+     |
+1828 |         if stream.status != StreamStatus::Active {
+     |                   ^^^^^^ unknown field
+     |
+     = note: available fields are: `id`, `creator`, `recipient`, `token_index`, `total_amount` ... and 6 others
+
+error[E0433]: failed to resolve: use of undeclared type `StreamStatus`
+    --> token-factory/src/lib.rs:1828:29
+     |
+1828 |         if stream.status != StreamStatus::Active {
+     |                             ^^^^^^^^^^^^ use of undeclared type `StreamStatus`
+
+error[E0599]: no variant or associated item named `StreamNotActive` found for enum `types::Error` in the current scope
+    --> token-factory/src/lib.rs:1829:31
+     |
+1829 |             return Err(Error::StreamNotActive);
+     |                               ^^^^^^^^^^^^^^^ variant or associated item not found in `types::Error`
+     |
+    ::: token-factory/src/types.rs:226:1
+     |
+ 226 | pub enum Error {
+     | -------------- variant or associated item `StreamNotActive` not found for this enum
+
+error[E0609]: no field `token_address` on type `types::StreamInfo`
+    --> token-factory/src/lib.rs:1842:61
+     |
+1842 |         let token_client = token::Client::new(&env, &stream.token_address);
+     |                                                             ^^^^^^^^^^^^^ unknown field
+     |
+     = note: available fields are: `id`, `creator`, `recipient`, `token_index`, `total_amount` ... and 6 others
+
+error[E0609]: no field `last_claim_at` on type `types::StreamInfo`
+    --> token-factory/src/lib.rs:1847:16
+     |
+1847 |         stream.last_claim_at = Some(current_time);
+     |                ^^^^^^^^^^^^^ unknown field
+     |
+     = note: available fields are: `id`, `creator`, `recipient`, `token_index`, `total_amount` ... and 6 others
+
+error[E0609]: no field `claim_count` on type `types::StreamInfo`
+    --> token-factory/src/lib.rs:1848:16
+     |
+1848 |         stream.claim_count += 1;
+     |                ^^^^^^^^^^^ unknown field
+     |
+     = note: available fields are: `id`, `creator`, `recipient`, `token_index`, `total_amount` ... and 6 others
+
+error[E0609]: no field `status` on type `types::StreamInfo`
+    --> token-factory/src/lib.rs:1852:20
+     |
+1852 |             stream.status = StreamStatus::Completed;
+     |                    ^^^^^^ unknown field
+     |
+     = note: available fields are: `id`, `creator`, `recipient`, `token_index`, `total_amount` ... and 6 others
+
+error[E0433]: failed to resolve: use of undeclared type `StreamStatus`
+    --> token-factory/src/lib.rs:1852:29
+     |
+1852 |             stream.status = StreamStatus::Completed;
+     |                             ^^^^^^^^^^^^ use of undeclared type `StreamStatus`
+
+error[E0061]: this function takes 3 arguments but 2 arguments were supplied
+    --> token-factory/src/lib.rs:1855:9
+     |
+1855 |         storage::set_stream(&env, &stream);
+     |         ^^^^^^^^^^^^^^^^^^^       ------- argument #2 of type `u64` is missing
+     |
+note: function defined here
+    --> token-factory/src/storage.rs:930:8
+     |
+ 930 | pub fn set_stream(env: &Env, stream_id: u64, stream: &crate::types::StreamInfo) {
+     |        ^^^^^^^^^^            --------------
+help: provide the argument
+     |
+1855 |         storage::set_stream(&env, /* u64 */, &stream);
+     |                                   ++++++++++
+
+error[E0609]: no field `claim_count` on type `types::StreamInfo`
+    --> token-factory/src/lib.rs:1865:33
+     |
+1865 |             claim_count: stream.claim_count,
+     |                                 ^^^^^^^^^^^ unknown field
+     |
+     = note: available fields are: `id`, `creator`, `recipient`, `token_index`, `total_amount` ... and 6 others
+
+error[E0061]: this function takes 4 arguments but 2 arguments were supplied
+    --> token-factory/src/lib.rs:1868:9
+     |
+1868 |         events::emit_stream_claimed(&env, event);
+     |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^------------- two arguments of type `&soroban_sdk::Address` and `i128` are missing
+     |
+note: function defined here
+    --> token-factory/src/events.rs:482:8
+     |
+ 482 | pub fn emit_stream_claimed(
+     |        ^^^^^^^^^^^^^^^^^^^
+...
+ 485 |     recipient: &Address,
+     |     -------------------
+ 486 |     amount: i128,
+     |     ------------
+help: provide the arguments
+     |
+1868 |         events::emit_stream_claimed(&env, event, /* &soroban_sdk::Address */, /* i128 */);
+     |                                                +++++++++++++++++++++++++++++++++++++++++
+
+error[E0308]: mismatched types
+    --> token-factory/src/lib.rs:1887:52
+     |
+1887 |         let mut stream = storage::get_stream(&env, &stream_id)
+     |                          -------------------       ^^^^^^^^^^ expected `u64`, found `&String`
+     |                          |
+     |                          arguments to this function are incorrect
+     |
+note: function defined here
+    --> token-factory/src/storage.rs:923:8
+     |
+ 923 | pub fn get_stream(env: &Env, stream_id: u64) -> Option<crate::types::StreamInfo> {
+     |        ^^^^^^^^^^            --------------
+
+error[E0609]: no field `status` on type `types::StreamInfo`
+    --> token-factory/src/lib.rs:1897:19
+     |
+1897 |         if stream.status == StreamStatus::Cancelled || stream.status == StreamStatus::Completed {
+     |                   ^^^^^^ unknown field
+     |
+     = note: available fields are: `id`, `creator`, `recipient`, `token_index`, `total_amount` ... and 6 others
+
+error[E0433]: failed to resolve: use of undeclared type `StreamStatus`
+    --> token-factory/src/lib.rs:1897:29
+     |
+1897 |         if stream.status == StreamStatus::Cancelled || stream.status == StreamStatus::Completed {
+     |                             ^^^^^^^^^^^^ use of undeclared type `StreamStatus`
+
+error[E0609]: no field `status` on type `types::StreamInfo`
+    --> token-factory/src/lib.rs:1897:63
+     |
+1897 |         if stream.status == StreamStatus::Cancelled || stream.status == StreamStatus::Completed {
+     |                                                               ^^^^^^ unknown field
+     |
+     = note: available fields are: `id`, `creator`, `recipient`, `token_index`, `total_amount` ... and 6 others
+
+error[E0433]: failed to resolve: use of undeclared type `StreamStatus`
+    --> token-factory/src/lib.rs:1897:73
+     |
+1897 |         if stream.status == StreamStatus::Cancelled || stream.status == StreamStatus::Completed {
+     |                                                                         ^^^^^^^^^^^^ use of undeclared type `StreamStatus`
+
+error[E0599]: no variant or associated item named `StreamNotActive` found for enum `types::Error` in the current scope
+    --> token-factory/src/lib.rs:1898:31
+     |
+1898 |             return Err(Error::StreamNotActive);
+     |                               ^^^^^^^^^^^^^^^ variant or associated item not found in `types::Error`
+     |
+    ::: token-factory/src/types.rs:226:1
+     |
+ 226 | pub enum Error {
+     | -------------- variant or associated item `StreamNotActive` not found for this enum
+
+error[E0609]: no field `token_address` on type `types::StreamInfo`
+    --> token-factory/src/lib.rs:1911:65
+     |
+1911 |             let token_client = token::Client::new(&env, &stream.token_address);
+     |                                                                 ^^^^^^^^^^^^^ unknown field
+     |
+     = note: available fields are: `id`, `creator`, `recipient`, `token_index`, `total_amount` ... and 6 others
+
+error[E0609]: no field `beneficiary` on type `types::StreamInfo`
+    --> token-factory/src/lib.rs:1912:76
+     |
+1912 |             token_client.transfer(&env.current_contract_address(), &stream.beneficiary, &beneficiary_amount);
+     |                                                                            ^^^^^^^^^^^ unknown field
+     |
+     = note: available fields are: `id`, `creator`, `recipient`, `token_index`, `total_amount` ... and 6 others
+
+error[E0609]: no field `token_address` on type `types::StreamInfo`
+    --> token-factory/src/lib.rs:1917:65
+     |
+1917 |             let token_client = token::Client::new(&env, &stream.token_address);
+     |                                                                 ^^^^^^^^^^^^^ unknown field
+     |
+     = note: available fields are: `id`, `creator`, `recipient`, `token_index`, `total_amount` ... and 6 others
+
+error[E0609]: no field `status` on type `types::StreamInfo`
+    --> token-factory/src/lib.rs:1922:16
+     |
+1922 |         stream.status = StreamStatus::Cancelled;
+     |                ^^^^^^ unknown field
+     |
+     = note: available fields are: `id`, `creator`, `recipient`, `token_index`, `total_amount` ... and 6 others
+
+error[E0433]: failed to resolve: use of undeclared type `StreamStatus`
+    --> token-factory/src/lib.rs:1922:25
+     |
+1922 |         stream.status = StreamStatus::Cancelled;
+     |                         ^^^^^^^^^^^^ use of undeclared type `StreamStatus`
+
+error[E0061]: this function takes 3 arguments but 2 arguments were supplied
+    --> token-factory/src/lib.rs:1923:9
+     |
+1923 |         storage::set_stream(&env, &stream);
+     |         ^^^^^^^^^^^^^^^^^^^       ------- argument #2 of type `u64` is missing
+     |
+note: function defined here
+    --> token-factory/src/storage.rs:930:8
+     |
+ 930 | pub fn set_stream(env: &Env, stream_id: u64, stream: &crate::types::StreamInfo) {
+     |        ^^^^^^^^^^            --------------
+help: provide the argument
+     |
+1923 |         storage::set_stream(&env, /* u64 */, &stream);
+     |                                   ++++++++++
+
+error[E0599]: no function or associated item named `from_small_str` found for struct `soroban_sdk::String` in the current scope
+    --> token-factory/src/lib.rs:1933:42
+     |
+1933 |             cancellation_reason: String::from_small_str("manual_cancel"),
+     |                                          ^^^^^^^^^^^^^^ function or associated item not found in `soroban_sdk::String`
+     |
+note: if you're trying to build a new `soroban_sdk::String` consider using one of the following associated functions:
+      soroban_sdk::String::from_slice
+      soroban_sdk::String::from_bytes
+      soroban_sdk::String::from_str
+    --> /home/edohwares/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/soroban-sdk-21.7.7/src/string.rs:220:5
+     |
+ 220 |     pub fn from_slice(env: &Env, slice: &str) -> String {
+     |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+ 225 |     pub fn from_bytes(env: &Env, b: &[u8]) -> String {
+     |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+ 233 |     pub fn from_str(env: &Env, s: &str) -> String {
+     |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+help: there is an associated function `from_str` with a similar name
+    --> /home/edohwares/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/soroban-sdk-21.7.7/src/string.rs:233:5
+     |
+ 233 |     pub fn from_str(env: &Env, s: &str) -> String {
+     |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[E0061]: this function takes 3 arguments but 2 arguments were supplied
+    --> token-factory/src/lib.rs:1936:9
+     |
+1936 |         events::emit_stream_cancelled(&env, event);
+     |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^------------- argument #3 of type `&soroban_sdk::Address` is missing
+     |
+note: function defined here
+    --> token-factory/src/events.rs:497:8
+     |
+ 497 | pub fn emit_stream_cancelled(
+     |        ^^^^^^^^^^^^^^^^^^^^^
+...
+ 500 |     creator: &Address,
+     |     -----------------
+help: provide the argument
+     |
+1936 |         events::emit_stream_cancelled(&env, event, /* &soroban_sdk::Address */);
+     |                                                  +++++++++++++++++++++++++++++
+
+error[E0034]: multiple applicable items in scope
+  --> token-factory/src/lib.rs:54:1
+   |
+54 | #[contractimpl]
+   | ^^^^^^^^^^^^^^^ multiple `spec_xdr_create_stream` found
+   |
+note: candidate #1 is defined in an impl for the type `TokenFactory`
+  --> token-factory/src/lib.rs:54:1
+   |
+54 | #[contractimpl]
+   | ^^^^^^^^^^^^^^^
+note: candidate #2 is defined in an impl for the type `TokenFactory`
+  --> token-factory/src/lib.rs:54:1
+   |
+54 | #[contractimpl]
+   | ^^^^^^^^^^^^^^^
+   = note: this error originates in the attribute macro `soroban_sdk::contractspecfn` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0034]: multiple applicable items in scope
+  --> token-factory/src/lib.rs:54:1
+   |
+54 | #[contractimpl]
+   | ^^^^^^^^^^^^^^^ multiple `spec_xdr_claim_stream` found
+   |
+note: candidate #1 is defined in an impl for the type `TokenFactory`
+  --> token-factory/src/lib.rs:54:1
+   |
+54 | #[contractimpl]
+   | ^^^^^^^^^^^^^^^
+note: candidate #2 is defined in an impl for the type `TokenFactory`
+  --> token-factory/src/lib.rs:54:1
+   |
+54 | #[contractimpl]
+   | ^^^^^^^^^^^^^^^
+   = note: this error originates in the attribute macro `soroban_sdk::contractspecfn` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0034]: multiple applicable items in scope
+  --> token-factory/src/lib.rs:54:1
+   |
+54 | #[contractimpl]
+   | ^^^^^^^^^^^^^^^ multiple `spec_xdr_cancel_stream` found
+   |
+note: candidate #1 is defined in an impl for the type `TokenFactory`
+  --> token-factory/src/lib.rs:54:1
+   |
+54 | #[contractimpl]
+   | ^^^^^^^^^^^^^^^
+note: candidate #2 is defined in an impl for the type `TokenFactory`
+  --> token-factory/src/lib.rs:54:1
+   |
+54 | #[contractimpl]
+   | ^^^^^^^^^^^^^^^
+   = note: this error originates in the attribute macro `soroban_sdk::contractspecfn` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0061]: this function takes 3 arguments but 7 arguments were supplied
+    --> token-factory/src/lib.rs:54:1
+     |
+  54 | #[contractimpl]
+     | ^^^^^^^^^^^^^^^
+     | |
+     | unexpected argument #4
+     | unexpected argument #5
+     | unexpected argument #6
+     | unexpected argument #7
+     |
+note: associated function defined here
+    --> token-factory/src/lib.rs:1545:12
+     |
+1545 |     pub fn create_stream(
+     |            ^^^^^^^^^^^^^
+     = note: this error originates in the attribute macro `contractimpl` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+Some errors have detailed explanations: E0034, E0061, E0119, E0277, E0308, E0369, E0412, E0422, E0425...
+For more information about an error, try `rustc --explain E0034`.
+warning: `token-factory` (lib) generated 3 warnings
+error: could not compile `token-factory` (lib) due to 251 previous errors; 3 warnings emitted
