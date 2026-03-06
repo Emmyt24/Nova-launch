@@ -1,0 +1,272 @@
+Gas Benchmarking for Governance Flows - Complete Guide
+=======================================================
+
+OVERVIEW
+--------
+Comprehensive gas benchmarking suite for all governance operations in the
+Nova Launch Token Factory contract. Measures CPU instruction costs with
+statistical analysis and regression detection.
+
+GOVERNANCE OPERATIONS COVERED
+------------------------------
+1. transfer_admin()       - Transfer admin rights to new address
+2. pause()                - Pause contract operations
+3. unpause()              - Resume contract operations
+4. update_fees()          - Update deployment fees (single or both)
+5. batch_update_admin()   - Batch update multiple admin parameters
+6. set_clawback()         - Enable/disable clawback for tokens
+7. is_paused()            - Read pause status (read-only operation)
+
+RUN COMMANDS
+------------
+# Run all governance benchmarks
+cargo test bench_gov --test '*' -- --nocapture
+
+# Run specific benchmark
+cargo test bench_gov_transfer_admin -- --nocapture
+cargo test bench_gov_pause -- --nocapture
+cargo test bench_gov_unpause -- --nocapture
+cargo test bench_gov_update_fees_single -- --nocapture
+cargo test bench_gov_update_fees_both -- --nocapture
+cargo test bench_gov_batch_update_admin -- --nocapture
+cargo test bench_gov_set_clawback_enable -- --nocapture
+cargo test bench_gov_set_clawback_disable -- --nocapture
+cargo test bench_gov_is_paused -- --nocapture
+
+# Run comparative analysis
+cargo test bench_gov_update_fees_comparison -- --nocapture
+cargo test bench_gov_batch_vs_individual -- --nocapture
+
+# Run comprehensive report
+cargo test bench_gov_comprehensive_report -- --nocapture
+
+# Run stress test
+cargo test bench_gov_stress_rapid_changes -- --nocapture
+
+CONFIGURATION
+-------------
+File: contracts/token-factory/src/gas_benchmark_governance.rs
+
+Constants:
+- ITERATIONS: 100 (number of samples per test)
+- REGRESSION_THRESHOLD: 0.10 (10% increase triggers warning)
+
+Baseline values (update after initial run):
+- BASELINE_TRANSFER_ADMIN_CPU: 0
+- BASELINE_PAUSE_CPU: 0
+- BASELINE_UNPAUSE_CPU: 0
+- BASELINE_UPDATE_FEES_SINGLE_CPU: 0
+- BASELINE_UPDATE_FEES_BOTH_CPU: 0
+- BASELINE_BATCH_UPDATE_ADMIN_CPU: 0
+- BASELINE_SET_CLAWBACK_CPU: 0
+
+METRICS COLLECTED
+-----------------
+For each operation:
+- Min:            Minimum CPU instructions
+- Max:            Maximum CPU instructions
+- Average:        Mean CPU instructions
+- Median:         50th percentile
+- P95:            95th percentile
+- P99:            99th percentile
+- Std Deviation:  Standard deviation
+
+STATISTICAL ANALYSIS
+--------------------
+1. Regression Detection
+   - Compares current average to baseline
+   - Triggers warning if increase > 10%
+   - Helps identify performance degradation
+
+2. Comparative Analysis
+   - update_fees: Single vs Both fees
+   - batch_update_admin vs individual calls
+   - Read vs Write operations
+
+3. Efficiency Metrics
+   - Batch operation savings
+   - Fee update overhead
+   - Read/Write ratio
+
+EXPECTED OUTPUT
+---------------
+Example from comprehensive report:
+
+======================================================================
+GOVERNANCE OPERATIONS SUMMARY
+======================================================================
+Operation                                Avg        Min        Max        P95
+------------------------------------------------------------------------------
+transfer_admin                         12500      12000      13000      12800
+pause                                   8500       8200       8800       8700
+unpause                                 8600       8300       8900       8750
+update_fees [single]                   10000       9800      10200      10100
+update_fees [both]                     11500      11200      11800      11600
+batch_update_admin                     15000      14500      15500      15200
+set_clawback                           11000      10700      11300      11100
+is_paused [read-only]                   2500       2400       2600       2550
+------------------------------------------------------------------------------
+
+GAS EFFICIENCY ANALYSIS
+======================================================================
+
+1. Batch Operations Efficiency:
+   Individual calls (update_fees + pause): 20000 CPU
+   Batch call (batch_update_admin):       15000 CPU
+   Savings:                                5000 CPU (25.0%)
+
+2. Fee Update Overhead:
+   Single fee update:  10000 CPU
+   Both fees update:   11500 CPU
+   Overhead:           1500 CPU (15.0%)
+
+3. Read vs Write Operations:
+   Read (is_paused):   2500 CPU
+   Write (pause):      8500 CPU
+   Write/Read ratio:   3.4x
+
+BASELINE UPDATE RECOMMENDATIONS
+======================================================================
+Copy these values to update baseline constants:
+
+const BASELINE_TRANSFER_ADMIN_CPU: u64 = 12500;
+const BASELINE_PAUSE_CPU: u64 = 8500;
+const BASELINE_UNPAUSE_CPU: u64 = 8600;
+const BASELINE_UPDATE_FEES_SINGLE_CPU: u64 = 10000;
+const BASELINE_UPDATE_FEES_BOTH_CPU: u64 = 11500;
+const BASELINE_BATCH_UPDATE_ADMIN_CPU: u64 = 15000;
+const BASELINE_SET_CLAWBACK_CPU: u64 = 11000;
+
+INTERPRETATION GUIDE
+--------------------
+1. Lower is Better
+   - Fewer CPU instructions = lower gas costs
+   - Target: Minimize average and P95 values
+
+2. Consistency Matters
+   - Low standard deviation = predictable costs
+   - High std dev may indicate optimization opportunities
+
+3. Batch Savings
+   - Positive savings = batch operations are efficient
+   - Target: >20% savings for batch operations
+
+4. Regression Warnings
+   - [REGRESSION] tag indicates performance degradation
+   - Investigate code changes that increased costs
+
+OPTIMIZATION OPPORTUNITIES
+--------------------------
+Based on benchmark results:
+
+1. If batch savings < 20%:
+   - Review batch_update_admin implementation
+   - Consider combining more operations
+
+2. If fee update overhead > 20%:
+   - Optimize storage access patterns
+   - Consider caching strategies
+
+3. If read/write ratio > 5x:
+   - Normal for blockchain operations
+   - Ensure read operations are maximally optimized
+
+4. If std deviation > 10% of average:
+   - Investigate variability sources
+   - Consider code path optimization
+
+STRESS TESTING
+--------------
+The stress test simulates rapid governance changes:
+- Multiple operations in sequence
+- Alternating pause/unpause states
+- Continuous fee updates
+
+Use to verify:
+- No performance degradation over time
+- Consistent costs under load
+- No memory leaks or resource exhaustion
+
+INTEGRATION WITH CI/CD
+----------------------
+Recommended workflow:
+
+1. Run benchmarks before major releases
+2. Compare results to baselines
+3. Investigate any regressions > 10%
+4. Update baselines after verified optimizations
+5. Track trends over time
+
+Example GitHub Actions workflow:
+
+name: Gas Benchmarks
+on:
+  pull_request:
+    paths:
+      - 'contracts/token-factory/src/**'
+  workflow_dispatch:
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+      - name: Run Governance Benchmarks
+        run: |
+          cd contracts/token-factory
+          cargo test bench_gov_comprehensive_report -- --nocapture
+
+TROUBLESHOOTING
+---------------
+Issue: Tests timeout
+Solution: Reduce ITERATIONS constant
+
+Issue: High variability in results
+Solution: Run on dedicated hardware, close other applications
+
+Issue: Baseline not set warnings
+Solution: Run comprehensive report and update baseline constants
+
+Issue: Unexpected regressions
+Solution: Review recent code changes, check for new storage operations
+
+BEST PRACTICES
+--------------
+1. Run benchmarks on consistent hardware
+2. Close unnecessary applications during benchmarking
+3. Run multiple times and average results
+4. Update baselines only after verified changes
+5. Document reasons for baseline updates
+6. Track benchmark history in version control
+
+FILES
+-----
+Implementation:
+- contracts/token-factory/src/gas_benchmark_governance.rs
+
+Documentation:
+- contracts/token-factory/GAS_BENCHMARK_GOVERNANCE_GUIDE.txt (this file)
+- contracts/token-factory/GAS_BENCHMARK_GOVERNANCE_QUICK_REF.txt
+
+Integration:
+- contracts/token-factory/src/lib.rs (module declaration)
+
+RELATED DOCUMENTATION
+---------------------
+- gas_benchmark_comprehensive.rs - General contract benchmarks
+- PERFORMANCE_TESTING_COMPLETE.md - Overall performance testing
+- BURN_TESTS_IMPLEMENTATION.md - Burn operation tests
+
+SUPPORT
+-------
+For questions or issues:
+1. Review this guide
+2. Check GAS_BENCHMARK_GOVERNANCE_QUICK_REF.txt
+3. Run comprehensive report for detailed analysis
+4. Review code comments in gas_benchmark_governance.rs
+
+Version: 1.0.0
+Last Updated: 2026-03-06

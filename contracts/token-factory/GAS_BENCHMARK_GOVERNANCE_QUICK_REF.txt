@@ -1,0 +1,111 @@
+Gas Benchmarking for Governance Flows - Quick Reference
+========================================================
+
+RUN COMMANDS
+------------
+# All governance benchmarks
+cargo test bench_gov --test '*' -- --nocapture
+
+# Comprehensive report (recommended)
+cargo test bench_gov_comprehensive_report -- --nocapture
+
+# Individual operations
+cargo test bench_gov_transfer_admin -- --nocapture
+cargo test bench_gov_pause -- --nocapture
+cargo test bench_gov_unpause -- --nocapture
+cargo test bench_gov_update_fees_single -- --nocapture
+cargo test bench_gov_update_fees_both -- --nocapture
+cargo test bench_gov_batch_update_admin -- --nocapture
+cargo test bench_gov_set_clawback_enable -- --nocapture
+
+# Comparative analysis
+cargo test bench_gov_update_fees_comparison -- --nocapture
+cargo test bench_gov_batch_vs_individual -- --nocapture
+
+# Stress test
+cargo test bench_gov_stress_rapid_changes -- --nocapture
+
+OPERATIONS BENCHMARKED
+----------------------
+1. transfer_admin()       - Admin transfer
+2. pause()                - Pause contract
+3. unpause()              - Unpause contract
+4. update_fees()          - Update fees (single/both)
+5. batch_update_admin()   - Batch admin updates
+6. set_clawback()         - Toggle clawback
+7. is_paused()            - Read pause status
+
+METRICS
+-------
+- Min:     Minimum CPU instructions
+- Max:     Maximum CPU instructions
+- Avg:     Average CPU instructions
+- Median:  50th percentile
+- P95:     95th percentile
+- P99:     99th percentile
+- StdDev:  Standard deviation
+
+CONFIGURATION
+-------------
+File: contracts/token-factory/src/gas_benchmark_governance.rs
+
+ITERATIONS: 100
+REGRESSION_THRESHOLD: 0.10 (10%)
+
+BASELINES (update after first run)
+-----------------------------------
+BASELINE_TRANSFER_ADMIN_CPU: 0
+BASELINE_PAUSE_CPU: 0
+BASELINE_UNPAUSE_CPU: 0
+BASELINE_UPDATE_FEES_SINGLE_CPU: 0
+BASELINE_UPDATE_FEES_BOTH_CPU: 0
+BASELINE_BATCH_UPDATE_ADMIN_CPU: 0
+BASELINE_SET_CLAWBACK_CPU: 0
+
+INTERPRETATION
+--------------
+✅ Lower CPU = Better performance
+✅ Low StdDev = Consistent costs
+✅ Batch savings > 20% = Efficient batching
+⚠️  [REGRESSION] = Performance degradation detected
+
+QUICK WORKFLOW
+--------------
+1. Run: cargo test bench_gov_comprehensive_report -- --nocapture
+2. Review output metrics
+3. Copy baseline values from output
+4. Update baseline constants in gas_benchmark_governance.rs
+5. Commit baselines to version control
+
+EXPECTED RANGES (Example)
+--------------------------
+Operation                    Typical Range (CPU)
+transfer_admin               10,000 - 15,000
+pause/unpause                 8,000 - 10,000
+update_fees [single]          9,000 - 12,000
+update_fees [both]           11,000 - 14,000
+batch_update_admin           14,000 - 18,000
+set_clawback                 10,000 - 13,000
+is_paused [read]              2,000 -  3,000
+
+EFFICIENCY TARGETS
+------------------
+Batch savings:        > 20%
+Fee update overhead:  < 20%
+Read/Write ratio:     3-5x
+Std deviation:        < 10% of average
+
+TROUBLESHOOTING
+---------------
+Timeout:              Reduce ITERATIONS
+High variability:     Run on dedicated hardware
+Baseline warnings:    Update baseline constants
+Regressions:          Review recent code changes
+
+FILES
+-----
+Implementation:  contracts/token-factory/src/gas_benchmark_governance.rs
+Guide:           contracts/token-factory/GAS_BENCHMARK_GOVERNANCE_GUIDE.txt
+Quick Ref:       contracts/token-factory/GAS_BENCHMARK_GOVERNANCE_QUICK_REF.txt
+
+Version: 1.0.0
