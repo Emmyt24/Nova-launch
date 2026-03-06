@@ -202,7 +202,7 @@ mod streaming_integration_tests {
         });
 
         let result = streaming::claim_stream(&env, &recipient, stream_id);
-        assert_eq!(result, Err(Error::InvalidAmount)); // Nothing to claim
+        assert_eq!(result, Err(Error::CliffNotReached));
     }
 
     #[test]

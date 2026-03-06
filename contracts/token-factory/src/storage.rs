@@ -1,6 +1,6 @@
 use soroban_sdk::{Address, Env};
 
-use crate::types::{DataKey, FactoryState, TokenInfo, Stream, StreamStatus};
+use crate::types::{DataKey, FactoryState, TokenInfo};
 
 // ============================================================
 // Storage Functions - Burn Tracking
@@ -774,6 +774,76 @@ pub fn get_creator_token_count(env: &Env, creator: &Address) -> u32 {
     env.storage()
         .persistent()
         .get(&DataKey::CreatorTokenCount(creator.clone()))
+        .unwrap_or(0)
+}
+
+
+// ── Token-stream indexing functions ─────────────────────────────
+
+/// Add a stream ID to a token's stream list
+/// 
+/// Appends the stream_id to the token's stream vector and updates
+/// the TokenStreamCount atomically. If the token has no existing
+/// streams, initializes an empty vector first.
+/// 
+/// # Arguments
+/// * `env` - The contract environment
+/// * `token_index` - Index of the token
+/// * `stream_id` - ID of the stream to add
+pub fn add_token_stream(env: &Env, token_index: u32, stream_id: u32) {
+    let key = DataKey::TokenStreams(token_index);
+    let mut streams: soroban_sdk::Vec<u32> = env
+        .storage()
+        .instance()
+        .get(&key)
+        .unwrap_or(soroban_sdk::Vec::new(env));
+    
+    streams.push_back(stream_id);
+    
+    env.storage()
+        .instance()
+        .set(&key, &streams);
+    
+    // Update count atomically
+    let count = streams.len();
+    env.storage()
+        .instance()
+        .set(&DataKey::TokenStreamCount(token_index), &count);
+}
+
+/// Get all stream IDs for a token
+/// 
+/// Retrieves the vector of stream IDs associated with the specified token.
+/// Returns an empty vector if the token has no streams.
+/// 
+/// # Arguments
+/// * `env` - The contract environment
+/// * `token_index` - Index of the token
+/// 
+/// # Returns
+/// Vector of stream IDs for this token (empty if none exist)
+pub fn get_token_streams(env: &Env, token_index: u32) -> soroban_sdk::Vec<u32> {
+    env.storage()
+        .instance()
+        .get(&DataKey::TokenStreams(token_index))
+        .unwrap_or(soroban_sdk::Vec::new(env))
+}
+
+/// Get the count of streams for a token
+/// 
+/// Retrieves the stream count without loading the full stream data.
+/// Returns 0 if the token has no streams.
+/// 
+/// # Arguments
+/// * `env` - The contract environment
+/// * `token_index` - Index of the token
+/// 
+/// # Returns
+/// Number of streams for this token
+pub fn get_token_stream_count(env: &Env, token_index: u32) -> u32 {
+    env.storage()
+        .instance()
+        .get(&DataKey::TokenStreamCount(token_index))
         .unwrap_or(0)
 }
 

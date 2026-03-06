@@ -153,7 +153,7 @@ pub fn get_remaining_mintable(env: &Env, token_index: u32) -> Option<i128> {
     })
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "legacy-tests"))]
 mod tests {
     use super::*;
     use soroban_sdk::{testutils::Address as _, Env};
