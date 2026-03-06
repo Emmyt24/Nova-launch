@@ -1,7 +1,8 @@
 #![cfg(test)]
 
 use crate::{TokenFactory, TokenFactoryClient};
-use soroban_sdk::{testutils::{Address as _, Ledger}, Address, Env};
+use crate::test_helpers::{set_time, advance_time, set_time_at_progress};
+use soroban_sdk::{testutils::Address as _, Address, Env};
 
 fn setup() -> (Env, TokenFactoryClient, Address, Address) {
     let env = Env::default();
@@ -40,7 +41,7 @@ fn test_claim_before_cliff() {
     );
     
     // Set time before cliff
-    env.ledger().with_mut(|li| li.timestamp = 150);
+    set_time(&env, 150);
     
     // Should fail - cliff not reached
     client.claim_stream(&stream_id, &recipient);
@@ -68,7 +69,7 @@ fn test_claim_at_cliff() {
     );
     
     // Set time at cliff (50% through vesting period)
-    env.ledger().with_mut(|li| li.timestamp = 200);
+    set_time(&env, 200);
     
     // Should claim 50% of tokens
     let claimed = client.claim_stream(&stream_id, &recipient);
@@ -77,6 +78,71 @@ fn test_claim_at_cliff() {
     // Verify stream updated
     let stream = client.get_stream(&stream_id);
     assert_eq!(stream.claimed, 500_0000000);
+}
+
+#[test]
+fn test_claim_at_end_using_progress() {
+    let (env, client, _admin, _treasury) = setup();
+    
+    let creator = Address::generate(&env);
+    let recipient = Address::generate(&env);
+    let token = Address::generate(&env);
+    
+    let stream_id = client.create_stream(
+        &creator,
+        &recipient,
+        &token,
+        &1000_0000000,
+        &100,
+        &200,
+        &300,
+        &None,
+    );
+    
+    // Set time to 100% completion using helper
+    set_time_at_progress(&env, 100, 300, 1.0);
+    
+    let claimed = client.claim_stream(&stream_id, &recipient);
+    assert_eq!(claimed, 1000_0000000);
+}
+
+#[test]
+fn test_claim_multiple_times_with_advance() {
+    let (env, client, _admin, _treasury) = setup();
+    
+    let creator = Address::generate(&env);
+    let recipient = Address::generate(&env);
+    let token = Address::generate(&env);
+    
+    let stream_id = client.create_stream(
+        &creator,
+        &recipient,
+        &token,
+        &1000_0000000,
+        &0,
+        &0,
+        &1000,
+        &None,
+    );
+    
+    // Claim at 25%
+    set_time(&env, 250);
+    let claimed1 = client.claim_stream(&stream_id, &recipient);
+    assert_eq!(claimed1, 250_0000000);
+    
+    // Advance to 50%
+    advance_time(&env, 250);
+    let claimed2 = client.claim_stream(&stream_id, &recipient);
+    assert_eq!(claimed2, 250_0000000);
+    
+    // Advance to 100%
+    advance_time(&env, 500);
+    let claimed3 = client.claim_stream(&stream_id, &recipient);
+    assert_eq!(claimed3, 500_0000000);
+    
+    // Total claimed
+    let stream = client.get_stream(&stream_id);
+    assert_eq!(stream.claimed, 1000_0000000);
 }
 
 #[test]
