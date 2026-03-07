@@ -54,11 +54,26 @@ jobs:
       - name: Run property tests
         working-directory: contracts/token-factory
         continue-on-error: true
+        id: property-tests
         run: |
           echo "🧪 Running property-based tests with deterministic configuration"
           echo "⚠️  Note: Tests may fail due to missing create_token function in contract"
           cargo test --lib --profile ci burn_property_test -- --nocapture || echo "Tests failed - contract needs create_token implementation"
           cargo test --lib --profile ci supply_conservation_test -- --nocapture || echo "Tests failed - contract compilation errors"
+
+      - name: Upload test artifacts
+        if: failure() && steps.property-tests.outcome == 'failure'
+        run: |
+          chmod +x scripts/upload-test-artifacts.sh
+          ./scripts/upload-test-artifacts.sh
+        
+      - name: Upload artifacts to GitHub
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-failure-artifacts-${{ github.run_number }}
+          path: test-artifacts/
+          retention-days: 30
 
       - name: Validate test configuration
         working-directory: contracts/token-factory

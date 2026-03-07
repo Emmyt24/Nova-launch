@@ -47,12 +47,28 @@ jobs:
         key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
     
     - name: Run fuzz tests
+      id: fuzz-tests
       working-directory: contracts/token-factory
       run: cargo test --release fuzz_ -- --nocapture
     
     - name: Run edge case tests
+      id: edge-tests
       working-directory: contracts/token-factory
       run: cargo test --release edge_cases -- --nocapture
+    
+    - name: Upload test artifacts
+      if: failure()
+      run: |
+        chmod +x scripts/upload-test-artifacts.sh
+        ./scripts/upload-test-artifacts.sh
+    
+    - name: Upload artifacts to GitHub
+      if: failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: fuzz-failure-artifacts-${{ github.run_number }}
+        path: test-artifacts/
+        retention-days: 30
     
     - name: Generate test report
       if: always()

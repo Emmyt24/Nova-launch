@@ -41,7 +41,16 @@ npm-debug.log*
 !GLOBAL_ERROR_HANDLING.md
 !docs/user-guides/*.md
 !ACCESSIBILITY_TESTING_GUIDE.md
+!TEST_ARTIFACTS_GUIDE.md
+!TEST_ARTIFACTS_QUICK_REF.md
+!TEST_ARTIFACTS_IMPLEMENTATION.md
+!TEST_ARTIFACTS_CHECKLIST.md
+!TEST_ARTIFACTS_GUIDE.md
+!TEST_ARTIFACTS_QUICK_REF.md
 
 # Deployment artifacts (generated during deployment)
 deployment-testnet.json
 deployment-mainnet.json
+
+# Test artifacts (generated during test failures)
+test-artifacts/
