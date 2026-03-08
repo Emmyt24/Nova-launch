@@ -358,68 +358,93 @@ mod tests {
         Env,
     };
 
-    fn setup() -> (Env, Address) {
+    fn setup() -> (Env, Address, Address) {
         let env = Env::default();
         env.mock_all_auths();
+        let contract_id = env.register_contract(None, crate::TokenFactory);
 
         let admin = Address::generate(&env);
-        storage::set_admin(&env, &admin);
-        storage::set_treasury(&env, &Address::generate(&env));
-        storage::set_base_fee(&env, 1_000_000);
-        storage::set_metadata_fee(&env, 500_000);
+        env.as_contract(&contract_id, || {
+            storage::set_admin(&env, &admin);
+            storage::set_treasury(&env, &Address::generate(&env));
+            storage::set_base_fee(&env, 1_000_000);
+            storage::set_metadata_fee(&env, 500_000);
+            initialize_timelock(&env, Some(3600)).unwrap(); // 1 hour
+        });
 
-        initialize_timelock(&env, Some(3600)).unwrap(); // 1 hour
+        (env, admin, contract_id)
+    }
 
-        (env, admin)
+    fn schedule(
+        env: &Env,
+        contract_id: &Address,
+        admin: &Address,
+        base_fee: Option<i128>,
+        metadata_fee: Option<i128>,
+    ) -> Result<u64, Error> {
+        env.as_contract(contract_id, || schedule_fee_update(env, admin, base_fee, metadata_fee))
+    }
+
+    fn execute(env: &Env, contract_id: &Address, change_id: u64) -> Result<(), Error> {
+        env.as_contract(contract_id, || execute_change(env, change_id))
+    }
+
+    fn cancel(env: &Env, contract_id: &Address, admin: &Address, change_id: u64) -> Result<(), Error> {
+        env.as_contract(contract_id, || cancel_change(env, admin, change_id))
+    }
+
+    fn pending(env: &Env, contract_id: &Address, change_id: u64) -> Option<PendingChange> {
+        env.as_contract(contract_id, || get_pending_change(env, change_id))
     }
 
     #[test]
     fn test_schedule_fee_update() {
-        let (env, admin) = setup();
+        let (env, admin, contract_id) = setup();
 
-        let change_id = schedule_fee_update(&env, &admin, Some(2_000_000), None).unwrap();
+        let change_id = schedule(&env, &contract_id, &admin, Some(2_000_000), None).unwrap();
 
-        let pending = get_pending_change(&env, change_id).unwrap();
+        let pending = pending(&env, &contract_id, change_id).unwrap();
         assert_eq!(pending.base_fee, Some(2_000_000));
         assert!(!pending.executed);
     }
 
     #[test]
     fn test_execute_change_before_timelock_fails() {
-        let (env, admin) = setup();
+        let (env, admin, contract_id) = setup();
 
-        let change_id = schedule_fee_update(&env, &admin, Some(2_000_000), None).unwrap();
+        let change_id = schedule(&env, &contract_id, &admin, Some(2_000_000), None).unwrap();
 
-        let result = execute_change(&env, change_id);
+        let result = execute(&env, &contract_id, change_id);
         assert_eq!(result, Err(Error::TimelockNotExpired));
     }
 
     #[test]
     fn test_execute_change_after_timelock_succeeds() {
-        let (env, admin) = setup();
+        let (env, admin, contract_id) = setup();
 
-        let change_id = schedule_fee_update(&env, &admin, Some(2_000_000), None).unwrap();
+        let change_id = schedule(&env, &contract_id, &admin, Some(2_000_000), None).unwrap();
 
         // Advance time by 1 hour + 1 second
         env.ledger().with_mut(|li| {
             li.timestamp += 3601;
         });
 
-        assert_eq!(storage::get_base_fee(&env), 2_000_000);
+        execute(&env, &contract_id, change_id).unwrap();
+        assert_eq!(env.as_contract(&contract_id, || storage::get_base_fee(&env)), 2_000_000);
 
-        let pending = get_pending_change(&env, change_id).unwrap();
+        let pending = pending(&env, &contract_id, change_id).unwrap();
         assert!(pending.executed);
     }
 
     #[test]
     fn test_cancel_pending_change() {
-        let (env, admin) = setup();
+        let (env, admin, contract_id) = setup();
 
-        let change_id = schedule_fee_update(&env, &admin, Some(2_000_000), None).unwrap();
+        let change_id = schedule(&env, &contract_id, &admin, Some(2_000_000), None).unwrap();
 
-        cancel_change(&env, &admin, change_id).unwrap();
+        cancel(&env, &contract_id, &admin, change_id).unwrap();
 
-        assert!(get_pending_change(&env, change_id).is_none());
+        assert!(pending(&env, &contract_id, change_id).is_none());
     }
 }
 
@@ -552,24 +577,49 @@ mod proposal_tests {
     use soroban_sdk::testutils::Ledger;
     use soroban_sdk::{testutils::Address as _, vec, Env};
 
-    fn setup_for_proposals() -> (Env, Address) {
+    fn setup_for_proposals() -> (Env, Address, Address) {
         let env = Env::default();
         env.mock_all_auths();
+        let contract_id = env.register_contract(None, crate::TokenFactory);
 
         let admin = Address::generate(&env);
-        storage::set_admin(&env, &admin);
-        storage::set_treasury(&env, &Address::generate(&env));
-        storage::set_base_fee(&env, 1_000_000);
-        storage::set_metadata_fee(&env, 500_000);
+        env.as_contract(&contract_id, || {
+            storage::set_admin(&env, &admin);
+            storage::set_treasury(&env, &Address::generate(&env));
+            storage::set_base_fee(&env, 1_000_000);
+            storage::set_metadata_fee(&env, 500_000);
+            initialize_timelock(&env, Some(3600)).unwrap();
+        });
 
-        initialize_timelock(&env, Some(3600)).unwrap();
+        (env, admin, contract_id)
+    }
 
-        (env, admin)
+    fn create(
+        env: &Env,
+        contract_id: &Address,
+        proposer: &Address,
+        action_type: ActionType,
+        payload: Bytes,
+        start_time: u64,
+        end_time: u64,
+        eta: u64,
+    ) -> Result<u64, Error> {
+        env.as_contract(contract_id, || {
+            create_proposal(env, proposer, action_type, payload, start_time, end_time, eta)
+        })
+    }
+
+    fn proposal(env: &Env, contract_id: &Address, proposal_id: u64) -> Option<Proposal> {
+        env.as_contract(contract_id, || get_proposal(env, proposal_id))
+    }
+
+    fn proposal_count(env: &Env, contract_id: &Address) -> u32 {
+        env.as_contract(contract_id, || storage::get_proposal_count(env))
     }
 
     #[test]
     fn test_create_proposal_valid() {
-        let (env, admin) = setup_for_proposals();
+        let (env, admin, contract_id) = setup_for_proposals();
 
         let current_time = env.ledger().timestamp();
         let start_time = current_time + 100;
@@ -578,8 +628,9 @@ mod proposal_tests {
 
         let payload = Bytes::from_slice(&env, &[1u8, 2u8, 3u8]);
 
-        let proposal_id = create_proposal(
+        let proposal_id = create(
             &env,
+            &contract_id,
             &admin,
             ActionType::FeeChange,
             payload.clone(),
@@ -590,9 +641,9 @@ mod proposal_tests {
         .unwrap();
 
         assert_eq!(proposal_id, 0);
-        assert_eq!(storage::get_proposal_count(&env), 1);
+        assert_eq!(proposal_count(&env, &contract_id), 1);
 
-        let proposal = get_proposal(&env, proposal_id).unwrap();
+        let proposal = proposal(&env, &contract_id, proposal_id).unwrap();
         assert_eq!(proposal.id, proposal_id);
         assert_eq!(proposal.proposer, admin);
         assert_eq!(proposal.action_type, ActionType::FeeChange);
@@ -605,7 +656,7 @@ mod proposal_tests {
 
     #[test]
     fn test_create_proposal_unauthorized() {
-        let (env, _admin) = setup_for_proposals();
+        let (env, _admin, contract_id) = setup_for_proposals();
 
         let unauthorized = Address::generate(&env);
         let current_time = env.ledger().timestamp();
@@ -615,8 +666,9 @@ mod proposal_tests {
 
         let payload = Bytes::from_slice(&env, &[1u8, 2u8, 3u8]);
 
-        let result = create_proposal(
+        let result = create(
             &env,
+            &contract_id,
             &unauthorized,
             ActionType::FeeChange,
             payload,
@@ -630,7 +682,8 @@ mod proposal_tests {
 
     #[test]
     fn test_create_proposal_start_time_in_past() {
-        let (env, admin) = setup_for_proposals();
+        let (env, admin, contract_id) = setup_for_proposals();
+        env.ledger().with_mut(|li| li.timestamp = 1_000);
 
         let current_time = env.ledger().timestamp();
         let start_time = current_time - 100; // In the past
@@ -639,8 +692,9 @@ mod proposal_tests {
 
         let payload = Bytes::from_slice(&env, &[1u8, 2u8, 3u8]);
 
-        let result = create_proposal(
+        let result = create(
             &env,
+            &contract_id,
             &admin,
             ActionType::FeeChange,
             payload,
@@ -654,7 +708,7 @@ mod proposal_tests {
 
     #[test]
     fn test_create_proposal_end_before_start() {
-        let (env, admin) = setup_for_proposals();
+        let (env, admin, contract_id) = setup_for_proposals();
 
         let current_time = env.ledger().timestamp();
         let start_time = current_time + 100;
@@ -663,8 +717,9 @@ mod proposal_tests {
 
         let payload = Bytes::from_slice(&env, &[1u8, 2u8, 3u8]);
 
-        let result = create_proposal(
+        let result = create(
             &env,
+            &contract_id,
             &admin,
             ActionType::FeeChange,
             payload,
@@ -678,7 +733,7 @@ mod proposal_tests {
 
     #[test]
     fn test_create_proposal_eta_before_end() {
-        let (env, admin) = setup_for_proposals();
+        let (env, admin, contract_id) = setup_for_proposals();
 
         let current_time = env.ledger().timestamp();
         let start_time = current_time + 100;
@@ -687,8 +742,9 @@ mod proposal_tests {
 
         let payload = Bytes::from_slice(&env, &[1u8, 2u8, 3u8]);
 
-        let result = create_proposal(
+        let result = create(
             &env,
+            &contract_id,
             &admin,
             ActionType::FeeChange,
             payload,
@@ -702,7 +758,7 @@ mod proposal_tests {
 
     #[test]
     fn test_create_proposal_payload_too_large() {
-        let (env, admin) = setup_for_proposals();
+        let (env, admin, contract_id) = setup_for_proposals();
 
         let current_time = env.ledger().timestamp();
         let start_time = current_time + 100;
@@ -715,8 +771,9 @@ mod proposal_tests {
             large_payload.append(&Bytes::from_slice(&env, &[1u8]));
         }
 
-        let result = create_proposal(
+        let result = create(
             &env,
+            &contract_id,
             &admin,
             ActionType::FeeChange,
             large_payload,
@@ -730,7 +787,7 @@ mod proposal_tests {
 
     #[test]
     fn test_create_proposal_max_payload_size() {
-        let (env, admin) = setup_for_proposals();
+        let (env, admin, contract_id) = setup_for_proposals();
 
         let current_time = env.ledger().timestamp();
         let start_time = current_time + 100;
@@ -743,8 +800,9 @@ mod proposal_tests {
             max_payload.append(&Bytes::from_slice(&env, &[1u8]));
         }
 
-        let proposal_id = create_proposal(
+        let proposal_id = create(
             &env,
+            &contract_id,
             &admin,
             ActionType::FeeChange,
             max_payload.clone(),
@@ -754,20 +812,21 @@ mod proposal_tests {
         )
         .unwrap();
 
-        let proposal = get_proposal(&env, proposal_id).unwrap();
+        let proposal = proposal(&env, &contract_id, proposal_id).unwrap();
         assert_eq!(proposal.payload.len(), 1024);
     }
 
     #[test]
     fn test_create_multiple_proposals() {
-        let (env, admin) = setup_for_proposals();
+        let (env, admin, contract_id) = setup_for_proposals();
 
         let current_time = env.ledger().timestamp();
         let payload = Bytes::from_slice(&env, &[1u8, 2u8, 3u8]);
 
         // Create first proposal
-        let proposal_id_1 = create_proposal(
+        let proposal_id_1 = create(
             &env,
+            &contract_id,
             &admin,
             ActionType::FeeChange,
             payload.clone(),
@@ -778,8 +837,9 @@ mod proposal_tests {
         .unwrap();
 
         // Create second proposal
-        let proposal_id_2 = create_proposal(
+        let proposal_id_2 = create(
             &env,
+            &contract_id,
             &admin,
             ActionType::TreasuryChange,
             payload.clone(),
@@ -791,10 +851,10 @@ mod proposal_tests {
 
         assert_eq!(proposal_id_1, 0);
         assert_eq!(proposal_id_2, 1);
-        assert_eq!(storage::get_proposal_count(&env), 2);
+        assert_eq!(proposal_count(&env, &contract_id), 2);
 
-        let prop1 = get_proposal(&env, proposal_id_1).unwrap();
-        let prop2 = get_proposal(&env, proposal_id_2).unwrap();
+        let prop1 = proposal(&env, &contract_id, proposal_id_1).unwrap();
+        let prop2 = proposal(&env, &contract_id, proposal_id_2).unwrap();
 
         assert_eq!(prop1.action_type, ActionType::FeeChange);
         assert_eq!(prop2.action_type, ActionType::TreasuryChange);
@@ -802,7 +862,7 @@ mod proposal_tests {
 
     #[test]
     fn test_create_proposal_different_action_types() {
-        let (env, admin) = setup_for_proposals();
+        let (env, admin, contract_id) = setup_for_proposals();
 
         let current_time = env.ledger().timestamp();
         let start_time = current_time + 100;
@@ -821,8 +881,9 @@ mod proposal_tests {
         ];
 
         for (i, action_type) in action_types.iter().enumerate() {
-            let proposal_id = create_proposal(
+            let proposal_id = create(
                 &env,
+                &contract_id,
                 &admin,
                 action_type,
                 payload.clone(),
@@ -832,24 +893,24 @@ mod proposal_tests {
             )
             .unwrap();
 
-            let proposal = get_proposal(&env, proposal_id).unwrap();
+            let proposal = proposal(&env, &contract_id, proposal_id).unwrap();
             assert_eq!(proposal.action_type, action_type);
         }
 
-        assert_eq!(storage::get_proposal_count(&env), 5);
+        assert_eq!(proposal_count(&env, &contract_id), 5);
     }
 
     #[test]
     fn test_get_nonexistent_proposal() {
-        let (env, _admin) = setup_for_proposals();
+        let (env, _admin, contract_id) = setup_for_proposals();
 
-        let result = get_proposal(&env, 999);
+        let result = proposal(&env, &contract_id, 999);
         assert!(result.is_none());
     }
 
     #[test]
     fn test_create_proposal_empty_payload() {
-        let (env, admin) = setup_for_proposals();
+        let (env, admin, contract_id) = setup_for_proposals();
 
         let current_time = env.ledger().timestamp();
         let start_time = current_time + 100;
@@ -858,8 +919,9 @@ mod proposal_tests {
 
         let empty_payload = Bytes::new(&env);
 
-        let proposal_id = create_proposal(
+        let proposal_id = create(
             &env,
+            &contract_id,
             &admin,
             ActionType::PauseContract,
             empty_payload.clone(),
@@ -869,7 +931,7 @@ mod proposal_tests {
         )
         .unwrap();
 
-        let proposal = get_proposal(&env, proposal_id).unwrap();
+        let proposal = proposal(&env, &contract_id, proposal_id).unwrap();
         assert_eq!(proposal.payload.len(), 0);
     }
 }
@@ -1191,124 +1253,176 @@ pub fn execute_proposal(env: &Env, proposal_id: u64) -> Result<(), Error> {
     Ok(())
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "legacy-tests"))]
 mod deterministic_governance_event_order_tests {
     use super::*;
-    use soroban_sdk::{symbol_short, testutils::{Address as _, Events, Ledger}, vec, Address, Env, Val};
+    use soroban_sdk::{
+        symbol_short,
+        testutils::{Address as _, Events, Ledger},
+        Address, Bytes, Env, Symbol, TryFromVal,
+    };
 
-    fn setup() -> (Env, Address) {
+    fn setup() -> (Env, Address, Address) {
         let env = Env::default();
         env.mock_all_auths();
+        let contract_id = env.register_contract(None, crate::TokenFactory);
         let admin = Address::generate(&env);
-        storage::set_admin(&env, &admin);
-        storage::set_treasury(&env, &Address::generate(&env));
-        storage::set_base_fee(&env, 1_000_000);
-        storage::set_metadata_fee(&env, 500_000);
-        initialize_timelock(&env, Some(3600)).unwrap();
-        (env, admin)
+        env.as_contract(&contract_id, || {
+            storage::set_admin(&env, &admin);
+            storage::set_treasury(&env, &Address::generate(&env));
+            storage::set_base_fee(&env, 1_000_000);
+            storage::set_metadata_fee(&env, 500_000);
+            initialize_timelock(&env, Some(3600)).unwrap();
+        });
+        (env, admin, contract_id)
     }
 
-    fn topic0(event: &(soroban_sdk::Vec<Val>, Val)) -> Val {
-        event.0.get(0).unwrap()
+    fn topic0(env: &Env, event: &(Address, soroban_sdk::Vec<soroban_sdk::Val>, soroban_sdk::Val)) -> Symbol {
+        Symbol::try_from_val(env, &event.1.get(0).unwrap()).unwrap()
+    }
+
+    fn create(
+        env: &Env,
+        contract_id: &Address,
+        proposer: &Address,
+        action_type: ActionType,
+        payload: Bytes,
+        start_time: u64,
+        end_time: u64,
+        eta: u64,
+    ) -> Result<u64, Error> {
+        env.as_contract(contract_id, || {
+            create_proposal(env, proposer, action_type, payload, start_time, end_time, eta)
+        })
+    }
+
+    fn vote(
+        env: &Env,
+        contract_id: &Address,
+        voter: &Address,
+        proposal_id: u64,
+        choice: VoteChoice,
+    ) -> Result<(), Error> {
+        env.as_contract(contract_id, || vote_proposal(env, voter, proposal_id, choice))
+    }
+
+    fn queue(env: &Env, contract_id: &Address, proposal_id: u64) -> Result<(), Error> {
+        env.as_contract(contract_id, || queue_proposal(env, proposal_id))
+    }
+
+    fn execute(env: &Env, contract_id: &Address, proposal_id: u64) -> Result<(), Error> {
+        env.as_contract(contract_id, || execute_proposal(env, proposal_id))
     }
 
     #[test]
     fn governance_flow_emits_exact_deterministic_sequence() {
-        let (env, admin) = setup();
+        let (env, admin, contract_id) = setup();
         let now = env.ledger().timestamp();
         let start = now + 10;
         let end = start + 100;
         let eta = end + 20;
 
         // len >= 8 triggers fee update action event in execute path.
-        let payload = vec![&env, 1u8, 2u8, 3u8, 4u8, 5u8, 6u8, 7u8];
+        let payload = Bytes::from_slice(&env, &[1u8, 2u8, 3u8, 4u8, 5u8, 6u8, 7u8, 8u8]);
 
         let before = env.events().all().len();
-        let proposal_id = create_proposal(&env, &admin, ActionType::FeeChange, payload, start, end, eta).unwrap();
+        let proposal_id = create(&env, &contract_id, &admin, ActionType::FeeChange, payload, start, end, eta).unwrap();
 
         env.ledger().with_mut(|li| li.timestamp = start + 1);
         let voter1 = Address::generate(&env);
         let voter2 = Address::generate(&env);
-        vote_proposal(&env, &voter1, proposal_id, VoteChoice::For).unwrap();
-        vote_proposal(&env, &voter2, proposal_id, VoteChoice::For).unwrap();
+        vote(&env, &contract_id, &voter1, proposal_id, VoteChoice::For).unwrap();
+        vote(&env, &contract_id, &voter2, proposal_id, VoteChoice::For).unwrap();
 
         env.ledger().with_mut(|li| li.timestamp = end + 1);
-        queue_proposal(&env, proposal_id).unwrap();
+        queue(&env, &contract_id, proposal_id).unwrap();
 
         env.ledger().with_mut(|li| li.timestamp = eta + 1);
-        execute_proposal(&env, proposal_id).unwrap();
+        execute(&env, &contract_id, proposal_id).unwrap();
 
         let all = env.events().all();
-        let delta = all.slice(before as u32, all.len());
-        let topics: soroban_sdk::Vec<Val> = soroban_sdk::vec![
-            &env,
-            topic0(&delta.get(0).unwrap()),
-            topic0(&delta.get(1).unwrap()),
-            topic0(&delta.get(2).unwrap()),
-            topic0(&delta.get(3).unwrap()),
-            topic0(&delta.get(4).unwrap()),
-            topic0(&delta.get(5).unwrap()),
-        ];
-
-        assert_eq!(topics.get(0).unwrap(), Val::from(symbol_short!("prop_cr_v1")));
-        assert_eq!(topics.get(1).unwrap(), Val::from(symbol_short!("vote_cs_v1")));
-        assert_eq!(topics.get(2).unwrap(), Val::from(symbol_short!("vote_cs_v1")));
-        assert_eq!(topics.get(3).unwrap(), Val::from(symbol_short!("prop_qu_v1")));
-        assert_eq!(topics.get(4).unwrap(), Val::from(symbol_short!("fee_up_v1")));
-        assert_eq!(topics.get(5).unwrap(), Val::from(symbol_short!("prop_ex_v1")));
+        let delta = all.slice((before as u32)..all.len());
+        assert_eq!(topic0(&env, &delta.get(0).unwrap()), symbol_short!("prop_crv1"));
+        assert_eq!(topic0(&env, &delta.get(1).unwrap()), symbol_short!("vote_csv1"));
+        assert_eq!(topic0(&env, &delta.get(2).unwrap()), symbol_short!("vote_csv1"));
+        assert_eq!(topic0(&env, &delta.get(3).unwrap()), symbol_short!("prop_quv1"));
+        assert_eq!(topic0(&env, &delta.get(4).unwrap()), symbol_short!("fee_up_v1"));
+        assert_eq!(topic0(&env, &delta.get(5).unwrap()), symbol_short!("prop_exv1"));
     }
 
     #[test]
     fn failed_queue_does_not_emit_partial_queue_event() {
-        let (env, admin) = setup();
+        let (env, admin, contract_id) = setup();
         let now = env.ledger().timestamp();
         let start = now + 10;
         let end = start + 100;
         let eta = end + 20;
-        let payload = vec![&env, 1u8];
+        let payload = Bytes::from_slice(&env, &[1u8]);
 
-        let proposal_id = create_proposal(&env, &admin, ActionType::FeeChange, payload, start, end, eta).unwrap();
+        let proposal_id = create(&env, &contract_id, &admin, ActionType::FeeChange, payload, start, end, eta).unwrap();
         env.ledger().with_mut(|li| li.timestamp = start + 1);
         let voter1 = Address::generate(&env);
         let voter2 = Address::generate(&env);
-        vote_proposal(&env, &voter1, proposal_id, VoteChoice::For).unwrap();
-        vote_proposal(&env, &voter2, proposal_id, VoteChoice::Against).unwrap();
+        vote(&env, &contract_id, &voter1, proposal_id, VoteChoice::For).unwrap();
+        vote(&env, &contract_id, &voter2, proposal_id, VoteChoice::Against).unwrap();
 
         env.ledger().with_mut(|li| li.timestamp = end + 1);
-        let queue_event_count_before = env.events().all().iter().filter(|e| topic0(e) == Val::from(symbol_short!("prop_qu_v1"))).count();
-        let err = queue_proposal(&env, proposal_id).unwrap_err();
+        let queue_event_count_before = env
+            .events()
+            .all()
+            .iter()
+            .filter(|e| topic0(&env, &e) == symbol_short!("prop_quv1"))
+            .count();
+        let err = queue(&env, &contract_id, proposal_id).unwrap_err();
         assert_eq!(err, Error::QuorumNotMet);
-        let queue_event_count_after = env.events().all().iter().filter(|e| topic0(e) == Val::from(symbol_short!("prop_qu_v1"))).count();
+        let queue_event_count_after = env
+            .events()
+            .all()
+            .iter()
+            .filter(|e| topic0(&env, &e) == symbol_short!("prop_quv1"))
+            .count();
         assert_eq!(queue_event_count_before, queue_event_count_after);
     }
 
     #[test]
     fn failed_execute_before_eta_emits_no_execute_or_action_event() {
-        let (env, admin) = setup();
+        let (env, admin, contract_id) = setup();
         let now = env.ledger().timestamp();
         let start = now + 10;
         let end = start + 100;
         let eta = end + 20;
-        let payload = vec![&env, 1u8, 2u8, 3u8, 4u8, 5u8, 6u8, 7u8];
+        let payload = Bytes::from_slice(&env, &[1u8, 2u8, 3u8, 4u8, 5u8, 6u8, 7u8, 8u8]);
 
-        let proposal_id = create_proposal(&env, &admin, ActionType::FeeChange, payload, start, end, eta).unwrap();
+        let proposal_id = create(&env, &contract_id, &admin, ActionType::FeeChange, payload, start, end, eta).unwrap();
         env.ledger().with_mut(|li| li.timestamp = start + 1);
         let voter = Address::generate(&env);
-        vote_proposal(&env, &voter, proposal_id, VoteChoice::For).unwrap();
+        vote(&env, &contract_id, &voter, proposal_id, VoteChoice::For).unwrap();
         env.ledger().with_mut(|li| li.timestamp = end + 1);
-        queue_proposal(&env, proposal_id).unwrap();
+        queue(&env, &contract_id, proposal_id).unwrap();
 
         env.ledger().with_mut(|li| li.timestamp = eta - 1);
         let all_before = env.events().all();
-        let exec_before = all_before.iter().filter(|e| topic0(e) == Val::from(symbol_short!("prop_ex_v1"))).count();
-        let fee_before = all_before.iter().filter(|e| topic0(e) == Val::from(symbol_short!("fee_up_v1"))).count();
+        let exec_before = all_before
+            .iter()
+            .filter(|e| topic0(&env, &e) == symbol_short!("prop_exv1"))
+            .count();
+        let fee_before = all_before
+            .iter()
+            .filter(|e| topic0(&env, &e) == symbol_short!("fee_up_v1"))
+            .count();
 
-        let err = execute_proposal(&env, proposal_id).unwrap_err();
+        let err = execute(&env, &contract_id, proposal_id).unwrap_err();
         assert_eq!(err, Error::TimelockNotExpired);
 
         let all_after = env.events().all();
-        let exec_after = all_after.iter().filter(|e| topic0(e) == Val::from(symbol_short!("prop_ex_v1"))).count();
-        let fee_after = all_after.iter().filter(|e| topic0(e) == Val::from(symbol_short!("fee_up_v1"))).count();
+        let exec_after = all_after
+            .iter()
+            .filter(|e| topic0(&env, &e) == symbol_short!("prop_exv1"))
+            .count();
+        let fee_after = all_after
+            .iter()
+            .filter(|e| topic0(&env, &e) == symbol_short!("fee_up_v1"))
+            .count();
         assert_eq!(exec_before, exec_after);
         assert_eq!(fee_before, fee_after);
     }

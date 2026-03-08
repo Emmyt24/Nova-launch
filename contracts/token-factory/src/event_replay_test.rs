@@ -1,649 +1,687 @@
-//! Event Replay Testing Suite
-//!
-//! This module verifies that emitted events are sufficient and consistent to
-//! reconstruct contract state off-chain. It builds an event replay interpreter
-//! that reconstructs state from events only and compares against direct queries.
-//!
-//! Tests cover:
-//! - State reconstruction from events
-//! - Event payload completeness
-//! - Topic versioning consistency
-//! - Reorg-like replay ordering
-//! - Missing/inconsistent event detection
-
 #![cfg(test)]
+//! Event replay guarantees validated in this module:
+//! - Token: admin/treasury/fees/paused, token count, per-token creator/address/total_supply.
+//! - Stream: creator/recipient/total_amount/claimed_amount/cancelled.
+//! - Governance: per-proposal vote totals and queued/executed/cancelled lifecycle flags.
+//! - Unsupported by current schemas (not asserted): per-holder balances and stream token_index.
 
-use crate::{TokenFactory, TokenFactoryClient};
-use proptest::prelude::*;
+extern crate std;
+
+use crate::{
+    governance, storage, streaming, timelock,
+    types::{ActionType, StreamParams, VoteChoice},
+    TokenFactory, TokenFactoryClient,
+};
 use soroban_sdk::{
     symbol_short,
     testutils::{Address as _, Events, Ledger},
-    Address, Env, Symbol, Val, Vec as SorobanVec,
+    Address, Bytes, Env, String, Symbol, TryFromVal, TryIntoVal, Val,
 };
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 
-/// Reconstructed contract state from events
-#[derive(Debug, Clone, PartialEq)]
-struct ReconstructedState {
+#[derive(Debug, Clone, Default)]
+struct ReplayTokenState {
+    address: Option<Address>,
+    creator: Option<Address>,
+    total_supply: i128,
+}
+
+#[derive(Debug, Clone)]
+struct ReplayStreamState {
+    creator: Address,
+    recipient: Address,
+    total_amount: i128,
+    claimed_amount: i128,
+    cancelled: bool,
+}
+
+#[derive(Debug, Clone, Default)]
+struct ReplayProposalState {
+    votes_for: i128,
+    votes_against: i128,
+    votes_abstain: i128,
+    queued: bool,
+    executed: bool,
+    cancelled: bool,
+}
+
+#[derive(Debug, Default)]
+struct ReplayState {
     admin: Option<Address>,
     treasury: Option<Address>,
     base_fee: Option<i128>,
     metadata_fee: Option<i128>,
     paused: bool,
     token_count: u32,
-    treasury_policy: Option<TreasuryPolicyState>,
-    allowlist: HashMap<String, bool>,
-    timelock_changes: HashMap<u64, bool>, // change_id -> executed
+    tokens: BTreeMap<u32, ReplayTokenState>,
+    streams: BTreeMap<u64, ReplayStreamState>,
+    proposals: BTreeMap<u64, ReplayProposalState>,
 }
 
-#[derive(Debug, Clone, PartialEq)]
-struct TreasuryPolicyState {
-    daily_cap: i128,
-    allowlist_enabled: bool,
-}
-
-impl ReconstructedState {
-    fn new() -> Self {
-        Self {
-            admin: None,
-            treasury: None,
-            base_fee: None,
-            metadata_fee: None,
-            paused: false,
-            token_count: 0,
-            treasury_policy: None,
-            allowlist: HashMap::new(),
-            timelock_changes: HashMap::new(),
+impl ReplayState {
+    fn apply(&mut self, env: &Env, topics: &soroban_sdk::Vec<Val>, data: &Val) {
+        if topics.len() == 0 {
+            return;
         }
-    }
-    
-    /// Apply an event to update reconstructed state
-    fn apply_event(&mut self, topic: &Symbol, data: &SorobanVec<Val>, env: &Env) {
-        let topic_str = topic.to_string();
-        
-        match topic_str.as_str() {
-            "init_v1" | "init" => {
-                // Event: (admin, treasury, base_fee, metadata_fee)
-                if data.len() >= 4 {
-                    self.admin = Some(data.get(0).unwrap().try_into_val(env).unwrap());
-                    self.treasury = Some(data.get(1).unwrap().try_into_val(env).unwrap());
-                    self.base_fee = Some(data.get(2).unwrap().try_into_val(env).unwrap());
-                    self.metadata_fee = Some(data.get(3).unwrap().try_into_val(env).unwrap());
+
+        let Ok(topic0) = Symbol::try_from_val(env, &topics.get(0).unwrap()) else {
+            return;
+        };
+
+        match topic0 {
+            s if s == symbol_short!("init_v1") => {
+                let decoded: Result<(Address, Address, i128, i128), _> = data.try_into_val(env);
+                if let Ok((admin, treasury, base_fee, metadata_fee)) = decoded
+                {
+                    self.admin = Some(admin);
+                    self.treasury = Some(treasury);
+                    self.base_fee = Some(base_fee);
+                    self.metadata_fee = Some(metadata_fee);
                 }
             }
-            "tok_rg_v1" | "tok_reg" => {
-                // Token registered
-                self.token_count += 1;
-            }
-            "adm_xf_v1" | "adm_xfer" => {
-                // Event: (old_admin, new_admin)
-                if data.len() >= 2 {
-                    self.admin = Some(data.get(1).unwrap().try_into_val(env).unwrap());
+            s if s == symbol_short!("adm_xf_v1") => {
+                let decoded: Result<(Address, Address), _> = data.try_into_val(env);
+                if let Ok((_old, new_admin)) = decoded {
+                    self.admin = Some(new_admin);
                 }
             }
-            "pause_v1" | "pause" => {
+            s if s == symbol_short!("pause_v1") => {
                 self.paused = true;
             }
-            "unpaus_v1" | "unpause" => {
+            s if s == symbol_short!("unpaus_v1") => {
                 self.paused = false;
             }
-            "fee_up_v1" | "fee_upd" => {
-                // Event: (base_fee, metadata_fee)
-                if data.len() >= 2 {
-                    self.base_fee = Some(data.get(0).unwrap().try_into_val(env).unwrap());
-                    self.metadata_fee = Some(data.get(1).unwrap().try_into_val(env).unwrap());
+            s if s == symbol_short!("fee_up_v1") => {
+                let decoded: Result<(i128, i128), _> = data.try_into_val(env);
+                if let Ok((base_fee, metadata_fee)) = decoded {
+                    self.base_fee = Some(base_fee);
+                    self.metadata_fee = Some(metadata_fee);
                 }
             }
-            "trs_upd" => {
-                // Event: (new_treasury)
-                if data.len() >= 1 {
-                    self.treasury = Some(data.get(0).unwrap().try_into_val(env).unwrap());
+            s if s == symbol_short!("tok_crt") => {
+                if topics.len() < 2 {
+                    return;
+                }
+                let token_addr_decoded: Result<Address, _> = topics.get(1).unwrap().try_into_val(env);
+                let Ok(token_address) = token_addr_decoded else {
+                    return;
+                };
+                let decoded: Result<(Address, String, String, u32, i128), _> = data.try_into_val(env);
+                let Ok((creator, _name, _symbol, _decimals, initial_supply)) = decoded
+                else {
+                    return;
+                };
+
+                let idx = self.token_count;
+                self.token_count += 1;
+                self.tokens.insert(
+                    idx,
+                    ReplayTokenState {
+                        address: Some(token_address),
+                        creator: Some(creator),
+                        total_supply: initial_supply,
+                    },
+                );
+            }
+            s if s == symbol_short!("mint") => {
+                if topics.len() < 2 {
+                    return;
+                }
+                let token_idx_decoded: Result<u32, _> = topics.get(1).unwrap().try_into_val(env);
+                let Ok(token_index) = token_idx_decoded else {
+                    return;
+                };
+                let decoded: Result<(Address, i128), _> = data.try_into_val(env);
+                let Ok((_to, amount)) = decoded else {
+                    return;
+                };
+                let token = self.tokens.entry(token_index).or_default();
+                token.total_supply += amount;
+            }
+            s if s == symbol_short!("burn_v1") => {
+                if topics.len() < 2 {
+                    return;
+                }
+                let token_idx_decoded: Result<u32, _> = topics.get(1).unwrap().try_into_val(env);
+                let Ok(token_index) = token_idx_decoded else {
+                    return;
+                };
+                let decoded: Result<(Address, i128, i128), _> = data.try_into_val(env);
+                let Ok((_caller, _amount, new_supply)) = decoded
+                else {
+                    return;
+                };
+                let token = self.tokens.entry(token_index).or_default();
+                token.total_supply = new_supply;
+            }
+            s if s == symbol_short!("adm_bn_v1") => {
+                if topics.len() < 2 {
+                    return;
+                }
+                let token_idx_decoded: Result<u32, _> = topics.get(1).unwrap().try_into_val(env);
+                let Ok(token_index) = token_idx_decoded else {
+                    return;
+                };
+                let decoded: Result<(Address, Address, i128, i128), _> = data.try_into_val(env);
+                let Ok((_admin, _holder, _amount, new_supply)) = decoded
+                else {
+                    return;
+                };
+                let token = self.tokens.entry(token_index).or_default();
+                token.total_supply = new_supply;
+            }
+            s if s == symbol_short!("bch_bn_v1") => {
+                if topics.len() < 2 {
+                    return;
+                }
+                let token_idx_decoded: Result<u32, _> = topics.get(1).unwrap().try_into_val(env);
+                let Ok(token_index) = token_idx_decoded else {
+                    return;
+                };
+                let decoded: Result<(Address, u32, i128, i128), _> = data.try_into_val(env);
+                let Ok((_admin, _count, _total_burned, new_supply)) = decoded
+                else {
+                    return;
+                };
+                let token = self.tokens.entry(token_index).or_default();
+                token.total_supply = new_supply;
+            }
+            s if s == symbol_short!("strm_cr") => {
+                let decoded: Result<(u64, Address, Address, i128), _> = data.try_into_val(env);
+                let Ok((stream_id, creator, recipient, amount)) = decoded
+                else {
+                    return;
+                };
+                self.streams.insert(
+                    stream_id,
+                    ReplayStreamState {
+                        creator,
+                        recipient,
+                        total_amount: amount,
+                        claimed_amount: 0,
+                        cancelled: false,
+                    },
+                );
+            }
+            s if s == symbol_short!("strm_clm") => {
+                let decoded: Result<(u64, Address, i128), _> = data.try_into_val(env);
+                let Ok((stream_id, _recipient, amount)) = decoded
+                else {
+                    return;
+                };
+                if let Some(stream) = self.streams.get_mut(&stream_id) {
+                    stream.claimed_amount += amount;
                 }
             }
-            "trs_pol" => {
-                // Event: (daily_cap, allowlist_enabled)
-                if data.len() >= 2 {
-                    let daily_cap: i128 = data.get(0).unwrap().try_into_val(env).unwrap();
-                    let allowlist_enabled: bool = data.get(1).unwrap().try_into_val(env).unwrap();
-                    self.treasury_policy = Some(TreasuryPolicyState {
-                        daily_cap,
-                        allowlist_enabled,
-                    });
+            s if s == symbol_short!("strm_cnl") => {
+                let decoded: Result<(u64, Address), _> = data.try_into_val(env);
+                let Ok((stream_id, _creator)) = decoded else {
+                    return;
+                };
+                if let Some(stream) = self.streams.get_mut(&stream_id) {
+                    stream.cancelled = true;
                 }
             }
-            "rec_add" => {
-                // Event: (recipient)
-                if data.len() >= 1 {
-                    let recipient: Address = data.get(0).unwrap().try_into_val(env).unwrap();
-                    self.allowlist.insert(format!("{:?}", recipient), true);
+            s if s == symbol_short!("prop_crv1") => {
+                if topics.len() < 2 {
+                    return;
+                }
+                let proposal_decoded: Result<u64, _> = topics.get(1).unwrap().try_into_val(env);
+                let Ok(proposal_id) = proposal_decoded else {
+                    return;
+                };
+                let _: Result<(Address, ActionType, u64, u64, u64), _> = data.try_into_val(env);
+                self.proposals.entry(proposal_id).or_default();
+            }
+            s if s == symbol_short!("vote_csv1") => {
+                if topics.len() < 2 {
+                    return;
+                }
+                let proposal_decoded: Result<u64, _> = topics.get(1).unwrap().try_into_val(env);
+                let Ok(proposal_id) = proposal_decoded else {
+                    return;
+                };
+                let decoded: Result<(Address, VoteChoice), _> = data.try_into_val(env);
+                let Ok((_voter, choice)) = decoded else {
+                    return;
+                };
+                let proposal = self.proposals.entry(proposal_id).or_default();
+                match choice {
+                    VoteChoice::For => proposal.votes_for += 1,
+                    VoteChoice::Against => proposal.votes_against += 1,
+                    VoteChoice::Abstain => proposal.votes_abstain += 1,
                 }
             }
-            "rec_rem" => {
-                // Event: (recipient)
-                if data.len() >= 1 {
-                    let recipient: Address = data.get(0).unwrap().try_into_val(env).unwrap();
-                    self.allowlist.insert(format!("{:?}", recipient), false);
+            s if s == symbol_short!("prop_quv1") => {
+                if topics.len() < 2 {
+                    return;
                 }
+                let proposal_decoded: Result<u64, _> = topics.get(1).unwrap().try_into_val(env);
+                let Ok(proposal_id) = proposal_decoded else {
+                    return;
+                };
+                self.proposals.entry(proposal_id).or_default().queued = true;
             }
-            "ch_exec" => {
-                // Event: (change_id, change_type)
-                // Extract change_id from topics if available
-                // For now, mark that a change was executed
+            s if s == symbol_short!("prop_exv1") => {
+                if topics.len() < 2 {
+                    return;
+                }
+                let proposal_decoded: Result<u64, _> = topics.get(1).unwrap().try_into_val(env);
+                let Ok(proposal_id) = proposal_decoded else {
+                    return;
+                };
+                self.proposals.entry(proposal_id).or_default().executed = true;
             }
-            _ => {
-                // Unknown event, skip
+            s if s == symbol_short!("prop_cav1") => {
+                if topics.len() < 2 {
+                    return;
+                }
+                let proposal_decoded: Result<u64, _> = topics.get(1).unwrap().try_into_val(env);
+                let Ok(proposal_id) = proposal_decoded else {
+                    return;
+                };
+                self.proposals.entry(proposal_id).or_default().cancelled = true;
             }
+            _ => {}
         }
-    }
-    
-    /// Compare with actual contract state
-    fn compare_with_actual(
-        &self,
-        client: &TokenFactoryClient,
-        env: &Env,
-    ) -> Vec<String> {
-        let mut diffs = Vec::new();
-        let actual_state = client.get_state();
-        
-        // Compare admin
-        if let Some(reconstructed_admin) = &self.admin {
-            if *reconstructed_admin != actual_state.admin {
-                diffs.push(format!(
-                    "admin: reconstructed {:?} != actual {:?}",
-                    reconstructed_admin, actual_state.admin
-                ));
-            }
-        } else {
-            diffs.push("admin: not reconstructed from events".to_string());
-        }
-        
-        // Compare treasury
-        if let Some(reconstructed_treasury) = &self.treasury {
-            if *reconstructed_treasury != actual_state.treasury {
-                diffs.push(format!(
-                    "treasury: reconstructed {:?} != actual {:?}",
-                    reconstructed_treasury, actual_state.treasury
-                ));
-            }
-        } else {
-            diffs.push("treasury: not reconstructed from events".to_string());
-        }
-        
-        // Compare base_fee
-        if let Some(reconstructed_fee) = self.base_fee {
-            if reconstructed_fee != actual_state.base_fee {
-                diffs.push(format!(
-                    "base_fee: reconstructed {} != actual {}",
-                    reconstructed_fee, actual_state.base_fee
-                ));
-            }
-        } else {
-            diffs.push("base_fee: not reconstructed from events".to_string());
-        }
-        
-        // Compare metadata_fee
-        if let Some(reconstructed_fee) = self.metadata_fee {
-            if reconstructed_fee != actual_state.metadata_fee {
-                diffs.push(format!(
-                    "metadata_fee: reconstructed {} != actual {}",
-                    reconstructed_fee, actual_state.metadata_fee
-                ));
-            }
-        } else {
-            diffs.push("metadata_fee: not reconstructed from events".to_string());
-        }
-        
-        // Compare paused
-        if self.paused != actual_state.paused {
-            diffs.push(format!(
-                "paused: reconstructed {} != actual {}",
-                self.paused, actual_state.paused
-            ));
-        }
-        
-        // Compare token_count
-        let actual_token_count = client.get_token_count();
-        if self.token_count != actual_token_count {
-            diffs.push(format!(
-                "token_count: reconstructed {} != actual {}",
-                self.token_count, actual_token_count
-            ));
-        }
-        
-        diffs
     }
 }
 
-/// Event replay interpreter
-struct EventReplayInterpreter {
-    state: ReconstructedState,
+fn replay_from_env(env: &Env) -> ReplayState {
+    let mut replay = ReplayState::default();
+    for event in env.events().all().iter() {
+        let (_contract, topics, data) = event;
+        replay.apply(env, &topics, &data);
+    }
+    replay
 }
 
-impl EventReplayInterpreter {
-    fn new() -> Self {
-        Self {
-            state: ReconstructedState::new(),
-        }
-    }
-    
-    /// Replay all events from the environment
-    fn replay_events(&mut self, env: &Env) {
-        let events = env.events().all();
-        
-        for event in events.iter() {
-            // Extract topic and data from event
-            let (topics, data): (SorobanVec<Val>, SorobanVec<Val>) = event;
-            
-            if topics.len() > 0 {
-                let topic: Symbol = topics.get(0).unwrap().try_into_val(env).unwrap();
-                self.state.apply_event(&topic, &data, env);
-            }
-        }
-    }
-    
-    /// Get reconstructed state
-    fn get_state(&self) -> &ReconstructedState {
-        &self.state
-    }
-}
-
-/// Setup factory with known state
-fn setup_factory(env: &Env) -> (TokenFactoryClient, Address, Address) {
+fn setup_factory(env: &Env) -> (TokenFactoryClient<'_>, Address, Address) {
     let contract_id = env.register_contract(None, TokenFactory);
     let client = TokenFactoryClient::new(env, &contract_id);
-    
+
     let admin = Address::generate(env);
     let treasury = Address::generate(env);
-    
-    client.initialize(&admin, &treasury, &100_0000000, &50_0000000).unwrap();
-    
+    client.initialize(&admin, &treasury, &100_000_000, &50_000_000);
+
     (client, admin, treasury)
 }
 
-// ============================================================================
-// Event Replay Tests
-// ============================================================================
+fn assert_replay_matches_contract(
+    env: &Env,
+    client: &TokenFactoryClient,
+    replay: &ReplayState,
+) {
+    let state = client.get_state();
 
-#[test]
-fn test_replay_initialization() {
-    let env = Env::default();
-    let (client, admin, treasury) = setup_factory(&env);
-    
-    // Replay events
-    let mut interpreter = EventReplayInterpreter::new();
-    interpreter.replay_events(&env);
-    
-    // Compare with actual state
-    let diffs = interpreter.get_state().compare_with_actual(&client, &env);
-    
-    assert!(diffs.is_empty(), "State reconstruction failed:\n{}", diffs.join("\n"));
-}
+    assert_eq!(replay.admin.as_ref(), Some(&state.admin));
+    assert_eq!(replay.treasury.as_ref(), Some(&state.treasury));
+    assert_eq!(replay.base_fee, Some(state.base_fee));
+    assert_eq!(replay.metadata_fee, Some(state.metadata_fee));
+    assert_eq!(replay.paused, state.paused);
 
-#[test]
-fn test_replay_admin_transfer() {
-    let env = Env::default();
-    let (client, admin, _treasury) = setup_factory(&env);
-    
-    env.mock_all_auths();
-    
-    // Perform admin transfer
-    let new_admin = Address::generate(&env);
-    client.transfer_admin(&admin, &new_admin).unwrap();
-    
-    // Replay events
-    let mut interpreter = EventReplayInterpreter::new();
-    interpreter.replay_events(&env);
-    
-    // Compare with actual state
-    let diffs = interpreter.get_state().compare_with_actual(&client, &env);
-    
-    assert!(diffs.is_empty(), "State reconstruction failed:\n{}", diffs.join("\n"));
-}
+    let token_count = storage::get_token_count(env);
+    assert_eq!(replay.token_count, token_count);
 
-#[test]
-fn test_replay_fee_updates() {
-    let env = Env::default();
-    let (client, admin, _treasury) = setup_factory(&env);
-    
-    env.mock_all_auths();
-    
-    // Update fees
-    client.update_fees(&admin, &Some(200_0000000), &Some(100_0000000)).unwrap();
-    
-    // Replay events
-    let mut interpreter = EventReplayInterpreter::new();
-    interpreter.replay_events(&env);
-    
-    // Compare with actual state
-    let diffs = interpreter.get_state().compare_with_actual(&client, &env);
-    
-    assert!(diffs.is_empty(), "State reconstruction failed:\n{}", diffs.join("\n"));
-}
-
-#[test]
-fn test_replay_pause_unpause() {
-    let env = Env::default();
-    let (client, admin, _treasury) = setup_factory(&env);
-    
-    env.mock_all_auths();
-    
-    // Pause and unpause
-    client.pause(&admin).unwrap();
-    client.unpause(&admin).unwrap();
-    
-    // Replay events
-    let mut interpreter = EventReplayInterpreter::new();
-    interpreter.replay_events(&env);
-    
-    // Compare with actual state
-    let diffs = interpreter.get_state().compare_with_actual(&client, &env);
-    
-    assert!(diffs.is_empty(), "State reconstruction failed:\n{}", diffs.join("\n"));
-}
-
-#[test]
-fn test_replay_treasury_policy() {
-    let env = Env::default();
-    let (client, admin, _treasury) = setup_factory(&env);
-    
-    env.mock_all_auths();
-    
-    // Initialize treasury policy
-    client.initialize_treasury_policy(&admin, &Some(150_0000000), &true).unwrap();
-    
-    // Replay events
-    let mut interpreter = EventReplayInterpreter::new();
-    interpreter.replay_events(&env);
-    
-    // Verify treasury policy was reconstructed
-    let state = interpreter.get_state();
-    assert!(state.treasury_policy.is_some(), "Treasury policy not reconstructed");
-    
-    let policy = state.treasury_policy.as_ref().unwrap();
-    assert_eq!(policy.daily_cap, 150_0000000, "Daily cap mismatch");
-    assert_eq!(policy.allowlist_enabled, true, "Allowlist enabled mismatch");
-}
-
-#[test]
-fn test_replay_allowlist_operations() {
-    let env = Env::default();
-    let (client, admin, _treasury) = setup_factory(&env);
-    
-    env.mock_all_auths();
-    
-    client.initialize_treasury_policy(&admin, &Some(100_0000000), &true).unwrap();
-    
-    let recipient1 = Address::generate(&env);
-    let recipient2 = Address::generate(&env);
-    
-    // Add recipients
-    client.add_allowed_recipient(&admin, &recipient1).unwrap();
-    client.add_allowed_recipient(&admin, &recipient2).unwrap();
-    
-    // Remove one
-    client.remove_allowed_recipient(&admin, &recipient1).unwrap();
-    
-    // Replay events
-    let mut interpreter = EventReplayInterpreter::new();
-    interpreter.replay_events(&env);
-    
-    // Verify allowlist was reconstructed
-    let state = interpreter.get_state();
-    let r1_key = format!("{:?}", recipient1);
-    let r2_key = format!("{:?}", recipient2);
-    
-    assert_eq!(state.allowlist.get(&r1_key), Some(&false), "Recipient1 should be removed");
-    assert_eq!(state.allowlist.get(&r2_key), Some(&true), "Recipient2 should be allowed");
-}
-
-// ============================================================================
-// Property-Based Event Replay Tests
-// ============================================================================
-
-proptest! {
-    #![proptest_config(ProptestConfig::with_cases(100))]
-
-    /// Property: State reconstruction after random fee updates
-    #[test]
-    fn prop_replay_random_fee_updates(
-        base_fee in 1i128..=1000_0000000i128,
-        metadata_fee in 1i128..=1000_0000000i128,
-    ) {
-        let env = Env::default();
-        let (client, admin, _treasury) = setup_factory(&env);
-        
-        env.mock_all_auths();
-        
-        // Update fees
-        client.update_fees(&admin, &Some(base_fee), &Some(metadata_fee)).unwrap();
-        
-        // Replay events
-        let mut interpreter = EventReplayInterpreter::new();
-        interpreter.replay_events(&env);
-        
-        // Compare with actual state
-        let diffs = interpreter.get_state().compare_with_actual(&client, &env);
-        
-        prop_assert!(diffs.is_empty(),
-            "State reconstruction failed:\n{}",
-            diffs.join("\n"));
+    for idx in 0..token_count {
+        let token_info = client.get_token_info(&idx);
+        let projected = replay.tokens.get(&idx).expect("missing projected token");
+        assert_eq!(projected.address.as_ref(), Some(&token_info.address));
+        assert_eq!(projected.creator.as_ref(), Some(&token_info.creator));
+        assert_eq!(projected.total_supply, token_info.total_supply);
     }
 
-    /// Property: State reconstruction after random admin transfers
-    #[test]
-    fn prop_replay_admin_transfer_chain(
-        transfer_count in 1usize..=5usize,
-    ) {
-        let env = Env::default();
-        let (client, admin, _treasury) = setup_factory(&env);
-        
-        env.mock_all_auths();
-        
-        // Chain of admin transfers
-        let mut current_admin = admin;
-        for _ in 0..transfer_count {
-            let new_admin = Address::generate(&env);
-            client.transfer_admin(&current_admin, &new_admin).unwrap();
-            current_admin = new_admin;
+    for (stream_id, projected) in &replay.streams {
+        let stream = streaming::get_stream(env, *stream_id).expect("missing on-chain stream");
+        assert_eq!(projected.creator, stream.creator);
+        assert_eq!(projected.recipient, stream.recipient);
+        assert_eq!(projected.total_amount, stream.total_amount);
+        assert_eq!(projected.claimed_amount, stream.claimed_amount);
+        assert_eq!(projected.cancelled, stream.cancelled);
+    }
+
+    for (proposal_id, projected) in &replay.proposals {
+        let proposal = timelock::get_proposal(env, *proposal_id).expect("missing on-chain proposal");
+        assert_eq!(projected.votes_for, proposal.votes_for);
+        assert_eq!(projected.votes_against, proposal.votes_against);
+        assert_eq!(projected.votes_abstain, proposal.votes_abstain);
+
+        if projected.executed {
+            assert_eq!(proposal.state, crate::types::ProposalState::Executed);
         }
-        
-        // Replay events
-        let mut interpreter = EventReplayInterpreter::new();
-        interpreter.replay_events(&env);
-        
-        // Compare with actual state
-        let diffs = interpreter.get_state().compare_with_actual(&client, &env);
-        
-        prop_assert!(diffs.is_empty(),
-            "State reconstruction failed:\n{}",
-            diffs.join("\n"));
+        if projected.cancelled {
+            assert_eq!(proposal.state, crate::types::ProposalState::Cancelled);
+        }
+        if projected.queued && !projected.executed {
+            assert_eq!(proposal.state, crate::types::ProposalState::Queued);
+        }
     }
+}
 
-    /// Property: State reconstruction after pause/unpause sequences
-    #[test]
-    fn prop_replay_pause_sequences(
-        pause_count in 1usize..=10usize,
-    ) {
-        let env = Env::default();
-        let (client, admin, _treasury) = setup_factory(&env);
-        
-        env.mock_all_auths();
-        
-        // Alternate pause/unpause
-        for i in 0..pause_count {
-            if i % 2 == 0 {
-                client.pause(&admin).unwrap();
-            } else {
-                client.unpause(&admin).unwrap();
+fn count_topic(env: &Env, topic: Symbol) -> u32 {
+    let mut count = 0u32;
+    for event in env.events().all().iter() {
+        let (_addr, topics, _data) = event;
+        if topics.len() == 0 {
+            continue;
+        }
+        if let Ok(t0) = Symbol::try_from_val(env, &topics.get(0).unwrap()) {
+            if t0 == topic {
+                count += 1;
             }
         }
-        
-        // Replay events
-        let mut interpreter = EventReplayInterpreter::new();
-        interpreter.replay_events(&env);
-        
-        // Compare with actual state
-        let diffs = interpreter.get_state().compare_with_actual(&client, &env);
-        
-        prop_assert!(diffs.is_empty(),
-            "State reconstruction failed:\n{}",
-            diffs.join("\n"));
     }
-}
-
-// ============================================================================
-// Reorg-like Replay Ordering Tests
-// ============================================================================
-
-#[test]
-fn test_replay_ordering_admin_then_fees() {
-    let env = Env::default();
-    let (client, admin, _treasury) = setup_factory(&env);
-    
-    env.mock_all_auths();
-    
-    // Sequence: admin transfer then fee update
-    let new_admin = Address::generate(&env);
-    client.transfer_admin(&admin, &new_admin).unwrap();
-    client.update_fees(&new_admin, &Some(200_0000000), &None).unwrap();
-    
-    // Replay events
-    let mut interpreter = EventReplayInterpreter::new();
-    interpreter.replay_events(&env);
-    
-    // Verify correct ordering
-    let diffs = interpreter.get_state().compare_with_actual(&client, &env);
-    assert!(diffs.is_empty(), "Ordering-dependent reconstruction failed");
+    count
 }
 
 #[test]
-fn test_replay_ordering_pause_then_unpause() {
+fn replay_roundtrip_token_stream_governance() {
     let env = Env::default();
-    let (client, admin, _treasury) = setup_factory(&env);
-    
     env.mock_all_auths();
-    
-    // Sequence: pause then unpause
-    client.pause(&admin).unwrap();
-    client.unpause(&admin).unwrap();
-    
-    // Replay events
-    let mut interpreter = EventReplayInterpreter::new();
-    interpreter.replay_events(&env);
-    
-    // Final state should be unpaused
-    assert!(!interpreter.get_state().paused, "Final state should be unpaused");
-    
-    let diffs = interpreter.get_state().compare_with_actual(&client, &env);
-    assert!(diffs.is_empty(), "Ordering-dependent reconstruction failed");
-}
+    env.ledger().with_mut(|li| li.timestamp = 1_000);
 
-#[test]
-fn test_replay_ordering_allowlist_add_remove() {
-    let env = Env::default();
     let (client, admin, _treasury) = setup_factory(&env);
-    
-    env.mock_all_auths();
-    
-    client.initialize_treasury_policy(&admin, &Some(100_0000000), &true).unwrap();
-    
+
+    governance::initialize_governance(&env, Some(30), Some(51)).unwrap();
+
+    let token_addr = client
+        .create_token(
+            &admin,
+            &String::from_str(&env, "Replay Token"),
+            &String::from_str(&env, "RPLY"),
+            &7,
+            &1_000_000_000,
+            &None,
+            &100_000_000,
+        );
+    let _ = token_addr;
+
+    client.mint(&admin, &0, &admin, &250_000_000);
+    client.burn(&admin, &0, &100_000_000);
+
     let recipient = Address::generate(&env);
-    
-    // Sequence: add then remove
-    client.add_allowed_recipient(&admin, &recipient).unwrap();
-    client.remove_allowed_recipient(&admin, &recipient).unwrap();
-    
-    // Replay events
-    let mut interpreter = EventReplayInterpreter::new();
-    interpreter.replay_events(&env);
-    
-    // Final state should be removed
-    let state = interpreter.get_state();
-    let key = format!("{:?}", recipient);
-    assert_eq!(state.allowlist.get(&key), Some(&false), "Final state should be removed");
+    let stream_id = streaming::create_stream(
+        &env,
+        &admin,
+        &StreamParams {
+            recipient: recipient.clone(),
+            token_index: 0,
+            total_amount: 600_000_000,
+            start_time: 1_000,
+            end_time: 2_000,
+            cliff_time: 1_000,
+        },
+    )
+    .unwrap();
+
+    env.ledger().with_mut(|li| li.timestamp = 1_600);
+    streaming::claim_stream(&env, &recipient, stream_id).unwrap();
+    streaming::cancel_stream(&env, &admin, stream_id).unwrap();
+
+    let proposal_id = timelock::create_proposal(
+        &env,
+        &admin,
+        ActionType::FeeChange,
+        Bytes::from_slice(&env, &[1, 2, 3, 4, 5, 6, 7, 8]),
+        1_700,
+        1_800,
+        1_900,
+    )
+    .unwrap();
+
+    env.ledger().with_mut(|li| li.timestamp = 1_750);
+    timelock::vote_proposal(&env, &Address::generate(&env), proposal_id, VoteChoice::For).unwrap();
+
+    env.ledger().with_mut(|li| li.timestamp = 1_850);
+    timelock::queue_proposal(&env, proposal_id).unwrap();
+
+    env.ledger().with_mut(|li| li.timestamp = 2_000);
+    timelock::execute_proposal(&env, proposal_id).unwrap();
+
+    let replay = replay_from_env(&env);
+    assert_replay_matches_contract(&env, &client, &replay);
 }
 
-// ============================================================================
-// Event Completeness Tests
-// ============================================================================
-
 #[test]
-fn test_event_payload_completeness_initialization() {
-    let env = Env::default();
-    let (client, admin, treasury) = setup_factory(&env);
-    
-    // Check initialization event
-    let events = env.events().all();
-    assert!(events.len() > 0, "No events emitted");
-    
-    // First event should be initialization
-    let (topics, data): (SorobanVec<Val>, SorobanVec<Val>) = events.get(0).unwrap();
-    
-    // Verify topic
-    let topic: Symbol = topics.get(0).unwrap().try_into_val(&env).unwrap();
-    assert!(
-        topic.to_string().contains("init"),
-        "First event should be initialization"
-    );
-    
-    // Verify data completeness (admin, treasury, base_fee, metadata_fee)
-    assert!(data.len() >= 4, "Initialization event missing data fields");
-}
+fn replay_matches_after_randomized_operation_sequences() {
+    for seed in 1u64..=8u64 {
+        let env = Env::default();
+        env.mock_all_auths();
+        env.ledger().with_mut(|li| li.timestamp = 1_000 + seed);
 
-#[test]
-fn test_event_payload_completeness_admin_transfer() {
-    let env = Env::default();
-    let (client, admin, _treasury) = setup_factory(&env);
-    
-    env.mock_all_auths();
-    
-    let new_admin = Address::generate(&env);
-    client.transfer_admin(&admin, &new_admin).unwrap();
-    
-    // Find admin transfer event
-    let events = env.events().all();
-    let mut found_transfer = false;
-    
-    for event in events.iter() {
-        let (topics, data): (SorobanVec<Val>, SorobanVec<Val>) = event;
-        if topics.len() > 0 {
-            let topic: Symbol = topics.get(0).unwrap().try_into_val(&env).unwrap();
-            if topic.to_string().contains("adm") {
-                // Verify data completeness (old_admin, new_admin)
-                assert!(data.len() >= 2, "Admin transfer event missing data fields");
-                found_transfer = true;
-                break;
+        let (client, admin, _treasury) = setup_factory(&env);
+        governance::initialize_governance(&env, Some(20), Some(51)).unwrap();
+
+        client
+            .create_token(
+                &admin,
+                &String::from_str(&env, "SeedToken"),
+                &String::from_str(&env, "SEED"),
+                &7,
+                &1_500_000_000,
+                &None,
+                &100_000_000,
+            );
+
+        let mut rng = seed;
+        let mut current_admin = admin.clone();
+        let mut streams: std::vec::Vec<(u64, Address)> = std::vec::Vec::new();
+        let mut proposals: std::vec::Vec<u64> = std::vec::Vec::new();
+
+        for step in 0..64u64 {
+            rng = rng.wrapping_mul(6364136223846793005).wrapping_add(1);
+            let op = (rng % 14) as u32;
+            let now = 1_200 + step * 20;
+            env.ledger().with_mut(|li| li.timestamp = now);
+
+            match op {
+                0 => {
+                    let _ = client.try_update_fees(
+                        &current_admin,
+                        &Some(100_000_000 + (step as i128 * 1_000)),
+                        &Some(50_000_000 + (step as i128 * 500)),
+                    );
+                }
+                1 => {
+                    let _ = client.try_pause(&current_admin);
+                }
+                2 => {
+                    let _ = client.try_unpause(&current_admin);
+                }
+                3 => {
+                    let new_admin = Address::generate(&env);
+                    if client.try_transfer_admin(&current_admin, &new_admin).is_ok() {
+                        current_admin = new_admin;
+                    }
+                }
+                4 => {
+                    let creator = Address::generate(&env);
+                    let _ = client.try_create_token(
+                        &creator,
+                        &String::from_str(&env, "RandToken"),
+                        &String::from_str(&env, "RAND"),
+                        &7,
+                        &200_000_000,
+                        &None,
+                        &100_000_000,
+                    );
+                }
+                5 => {
+                    let _ = client.try_mint(&admin, &0, &admin, &10_000);
+                }
+                6 => {
+                    let _ = client.try_burn(&admin, &0, &5_000);
+                }
+                7 => {
+                    let recipient = Address::generate(&env);
+                    if let Ok(id) = streaming::create_stream(
+                        &env,
+                        &admin,
+                        &StreamParams {
+                            recipient: recipient.clone(),
+                            token_index: 0,
+                            total_amount: 100_000,
+                            start_time: now,
+                            end_time: now + 100,
+                            cliff_time: now,
+                        },
+                    ) {
+                        streams.push((id, recipient));
+                    }
+                }
+                8 => {
+                    if !streams.is_empty() {
+                        let idx = (rng as usize) % streams.len();
+                        let (id, recipient) = streams[idx].clone();
+                        env.ledger().with_mut(|li| li.timestamp = now + 200);
+                        let _ = streaming::claim_stream(&env, &recipient, id);
+                    }
+                }
+                9 => {
+                    if !streams.is_empty() {
+                        let idx = (rng as usize) % streams.len();
+                        let (id, _) = streams[idx];
+                        let _ = streaming::cancel_stream(&env, &admin, id);
+                    }
+                }
+                10 => {
+                    if let Ok(id) = timelock::create_proposal(
+                        &env,
+                        &current_admin,
+                        ActionType::FeeChange,
+                        Bytes::from_slice(&env, &[1, 2, 3, 4, 5, 6, 7, 8]),
+                        now + 10,
+                        now + 40,
+                        now + 80,
+                    ) {
+                        proposals.push(id);
+                    }
+                }
+                11 => {
+                    if !proposals.is_empty() {
+                        let id = proposals[(rng as usize) % proposals.len()];
+                        env.ledger().with_mut(|li| li.timestamp = now + 20);
+                        let _ = timelock::vote_proposal(
+                            &env,
+                            &Address::generate(&env),
+                            id,
+                            VoteChoice::For,
+                        );
+                    }
+                }
+                12 => {
+                    if !proposals.is_empty() {
+                        let id = proposals[(rng as usize) % proposals.len()];
+                        env.ledger().with_mut(|li| li.timestamp = now + 60);
+                        let _ = timelock::queue_proposal(&env, id);
+                    }
+                }
+                _ => {
+                    if !proposals.is_empty() {
+                        let id = proposals[(rng as usize) % proposals.len()];
+                        env.ledger().with_mut(|li| li.timestamp = now + 100);
+                        let _ = timelock::execute_proposal(&env, id);
+                    }
+                }
             }
         }
+
+        let replay = replay_from_env(&env);
+        assert_replay_matches_contract(&env, &client, &replay);
     }
-    
-    assert!(found_transfer, "Admin transfer event not found");
 }
 
 #[test]
-fn test_event_versioning_consistency() {
+fn failed_token_tx_emits_no_partial_success_event() {
     let env = Env::default();
-    let (client, admin, _treasury) = setup_factory(&env);
-    
     env.mock_all_auths();
-    
-    // Perform various operations
-    client.update_fees(&admin, &Some(200_0000000), &None).unwrap();
-    client.pause(&admin).unwrap();
-    client.unpause(&admin).unwrap();
-    
-    // Check all events have version suffixes or consistent naming
-    let events = env.events().all();
-    
-    for event in events.iter() {
-        let (topics, _data): (SorobanVec<Val>, SorobanVec<Val>) = event;
-        if topics.len() > 0 {
-            let topic: Symbol = topics.get(0).unwrap().try_into_val(&env).unwrap();
-            let topic_str = topic.to_string();
-            
-            // Events should have consistent naming (either versioned or not)
-            // This test documents the current state
-            assert!(!topic_str.is_empty(), "Event topic should not be empty");
-        }
-    }
+
+    let (client, admin, _treasury) = setup_factory(&env);
+    let before_len = env.events().all().len();
+    let before_fee_events = count_topic(&env, symbol_short!("fee_up_v1"));
+
+    let unauthorized = Address::generate(&env);
+    let result = client.try_update_fees(&unauthorized, &Some(200_000_000), &None);
+    assert!(result.is_err());
+
+    assert_eq!(env.events().all().len(), before_len);
+    assert_eq!(count_topic(&env, symbol_short!("fee_up_v1")), before_fee_events);
+
+    let state = client.get_state();
+    assert_eq!(state.admin, admin);
+}
+
+#[test]
+fn failed_stream_tx_emits_no_partial_success_event() {
+    let env = Env::default();
+    env.mock_all_auths();
+    env.ledger().with_mut(|li| li.timestamp = 1_000);
+
+    let (client, admin, _treasury) = setup_factory(&env);
+    client
+        .create_token(
+            &admin,
+            &String::from_str(&env, "StreamToken"),
+            &String::from_str(&env, "STRM"),
+            &7,
+            &1_000_000_000,
+            &None,
+            &100_000_000,
+        );
+
+    let recipient = Address::generate(&env);
+    let stream_id = streaming::create_stream(
+        &env,
+        &admin,
+        &StreamParams {
+            recipient: recipient.clone(),
+            token_index: 0,
+            total_amount: 300_000_000,
+            start_time: 1_000,
+            end_time: 2_000,
+            cliff_time: 1_500,
+        },
+    )
+    .unwrap();
+
+    let before_len = env.events().all().len();
+    let before_claim_events = count_topic(&env, symbol_short!("strm_clm"));
+
+    env.ledger().with_mut(|li| li.timestamp = 1_200);
+    let result = streaming::claim_stream(&env, &recipient, stream_id);
+    assert!(result.is_err());
+
+    assert_eq!(env.events().all().len(), before_len);
+    assert_eq!(count_topic(&env, symbol_short!("strm_clm")), before_claim_events);
+}
+
+#[test]
+fn failed_governance_tx_emits_no_partial_success_event() {
+    let env = Env::default();
+    env.mock_all_auths();
+    env.ledger().with_mut(|li| li.timestamp = 1_000);
+
+    let (_client, admin, _treasury) = setup_factory(&env);
+    governance::initialize_governance(&env, Some(30), Some(51)).unwrap();
+
+    let proposal_id = timelock::create_proposal(
+        &env,
+        &admin,
+        ActionType::PauseContract,
+        Bytes::new(&env),
+        1_100,
+        1_200,
+        1_300,
+    )
+    .unwrap();
+
+    let before_len = env.events().all().len();
+    let before_vote_events = count_topic(&env, symbol_short!("vote_csv1"));
+
+    env.ledger().with_mut(|li| li.timestamp = 1_050);
+    let result = timelock::vote_proposal(&env, &Address::generate(&env), proposal_id, VoteChoice::For);
+    assert!(result.is_err());
+
+    assert_eq!(env.events().all().len(), before_len);
+    assert_eq!(count_topic(&env, symbol_short!("vote_csv1")), before_vote_events);
 }

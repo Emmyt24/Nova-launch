@@ -157,120 +157,147 @@ mod tests {
     use super::*;
     use soroban_sdk::{testutils::Address as _, Env};
 
-    fn setup() -> (Env, Address) {
+    fn setup() -> (Env, Address, soroban_sdk::Address) {
         let env = Env::default();
         env.mock_all_auths();
+        let contract_id = env.register_contract(None, crate::TokenFactory);
 
         let admin = Address::generate(&env);
-        storage::set_admin(&env, &admin);
+        env.as_contract(&contract_id, || {
+            storage::set_admin(&env, &admin);
+        });
 
-        (env, admin)
+        (env, admin, contract_id)
     }
 
     #[test]
     fn test_initialize_governance_defaults() {
-        let (env, _) = setup();
+        let (env, _, contract_id) = setup();
 
-        initialize_governance(&env, None, None).unwrap();
+        env.as_contract(&contract_id, || {
+            initialize_governance(&env, None, None).unwrap();
+        });
 
-        let config = get_governance_config(&env);
+        let config = env.as_contract(&contract_id, || get_governance_config(&env));
         assert_eq!(config.quorum_percent, 30);
         assert_eq!(config.approval_percent, 51);
     }
 
     #[test]
     fn test_initialize_governance_custom() {
-        let (env, _) = setup();
+        let (env, _, contract_id) = setup();
 
-        initialize_governance(&env, Some(40), Some(60)).unwrap();
+        env.as_contract(&contract_id, || {
+            initialize_governance(&env, Some(40), Some(60)).unwrap();
+        });
 
-        let config = get_governance_config(&env);
+        let config = env.as_contract(&contract_id, || get_governance_config(&env));
         assert_eq!(config.quorum_percent, 40);
         assert_eq!(config.approval_percent, 60);
     }
 
     #[test]
     fn test_initialize_governance_zero_percent() {
-        let (env, _) = setup();
+        let (env, _, contract_id) = setup();
 
-        initialize_governance(&env, Some(0), Some(0)).unwrap();
+        env.as_contract(&contract_id, || {
+            initialize_governance(&env, Some(0), Some(0)).unwrap();
+        });
 
-        let config = get_governance_config(&env);
+        let config = env.as_contract(&contract_id, || get_governance_config(&env));
         assert_eq!(config.quorum_percent, 0);
         assert_eq!(config.approval_percent, 0);
     }
 
     #[test]
     fn test_initialize_governance_hundred_percent() {
-        let (env, _) = setup();
+        let (env, _, contract_id) = setup();
 
-        initialize_governance(&env, Some(100), Some(100)).unwrap();
+        env.as_contract(&contract_id, || {
+            initialize_governance(&env, Some(100), Some(100)).unwrap();
+        });
 
-        let config = get_governance_config(&env);
+        let config = env.as_contract(&contract_id, || get_governance_config(&env));
         assert_eq!(config.quorum_percent, 100);
         assert_eq!(config.approval_percent, 100);
     }
 
     #[test]
     fn test_initialize_governance_invalid_quorum() {
-        let (env, _) = setup();
+        let (env, _, contract_id) = setup();
 
-        let result = initialize_governance(&env, Some(101), Some(50));
+        let result = env.as_contract(&contract_id, || initialize_governance(&env, Some(101), Some(50)));
         assert_eq!(result, Err(Error::InvalidParameters));
     }
 
     #[test]
     fn test_initialize_governance_invalid_approval() {
-        let (env, _) = setup();
+        let (env, _, contract_id) = setup();
 
-        let result = initialize_governance(&env, Some(50), Some(101));
+        let result = env.as_contract(&contract_id, || initialize_governance(&env, Some(50), Some(101)));
         assert_eq!(result, Err(Error::InvalidParameters));
     }
 
     #[test]
     fn test_update_governance_config() {
-        let (env, admin) = setup();
+        let (env, admin, contract_id) = setup();
 
-        initialize_governance(&env, Some(30), Some(51)).unwrap();
+        env.as_contract(&contract_id, || {
+            initialize_governance(&env, Some(30), Some(51)).unwrap();
+        });
 
-        update_governance_config(&env, &admin, Some(50), Some(75)).unwrap();
+        env.as_contract(&contract_id, || {
+            update_governance_config(&env, &admin, Some(50), Some(75)).unwrap();
+        });
 
-        let config = get_governance_config(&env);
+        let config = env.as_contract(&contract_id, || get_governance_config(&env));
         assert_eq!(config.quorum_percent, 50);
         assert_eq!(config.approval_percent, 75);
     }
 
     #[test]
     fn test_update_governance_partial() {
-        let (env, admin) = setup();
+        let (env, admin, contract_id) = setup();
 
-        initialize_governance(&env, Some(30), Some(51)).unwrap();
+        env.as_contract(&contract_id, || {
+            initialize_governance(&env, Some(30), Some(51)).unwrap();
+        });
 
-        update_governance_config(&env, &admin, Some(40), None).unwrap();
+        env.as_contract(&contract_id, || {
+            update_governance_config(&env, &admin, Some(40), None).unwrap();
+        });
 
-        let config = get_governance_config(&env);
+        let config = env.as_contract(&contract_id, || get_governance_config(&env));
         assert_eq!(config.quorum_percent, 40);
         assert_eq!(config.approval_percent, 51);
     }
 
     #[test]
     fn test_update_governance_unauthorized() {
-        let (env, admin) = setup();
+        let (env, _admin, contract_id) = setup();
 
-        initialize_governance(&env, Some(30), Some(51)).unwrap();
+        env.as_contract(&contract_id, || {
+            initialize_governance(&env, Some(30), Some(51)).unwrap();
+        });
 
         let non_admin = Address::generate(&env);
-        let result = update_governance_config(&env, &non_admin, Some(50), None);
+        let result = env.as_contract(&contract_id, || {
+            update_governance_config(&env, &non_admin, Some(50), None)
+        });
         assert_eq!(result, Err(Error::Unauthorized));
     }
 
     #[test]
     fn test_update_governance_both_none() {
-        let (env, admin) = setup();
+        let (env, admin, contract_id) = setup();
 
-        initialize_governance(&env, Some(30), Some(51)).unwrap();
+        env.as_contract(&contract_id, || {
+            initialize_governance(&env, Some(30), Some(51)).unwrap();
+        });
 
-        let result = update_governance_config(&env, &admin, None, None);
+        let result = env.as_contract(&contract_id, || {
+            update_governance_config(&env, &admin, None, None)
+        });
         assert_eq!(result, Err(Error::InvalidParameters));
     }
 

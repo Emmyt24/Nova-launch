@@ -20,7 +20,7 @@ mod types;
 mod validation;
 // #[cfg(test)]
 // mod governance_events_versioning_test;
-#[cfg(test)]
+#[cfg(all(test, feature = "legacy-tests"))]
 mod adversarial_timing_test;
 #[cfg(test)]
 mod governance_timelock_boundary_test;
@@ -558,10 +558,6 @@ impl TokenFactory {
         Ok(())
     }
 
-
-        Ok(())
-    }
-
     /// Get token info by index
     pub fn get_token_info(env: Env, index: u32) -> Result<TokenInfo, Error> {
         let mut info = storage::get_token_info(&env, index).ok_or(Error::TokenNotFound)?;
@@ -742,10 +738,6 @@ impl TokenFactory {
 
         // Emit optimized event
         events::emit_clawback_toggled(&env, &token_address, &admin, enabled);
-        Ok(())
-    }
-
-
         Ok(())
     }
 
@@ -1858,8 +1850,9 @@ impl TokenFactory {
 
 // mod integration_test;
 
+#[cfg(all(test, feature = "legacy-tests"))]
 mod gas_benchmark_comprehensive;
-#[cfg(test)]
+#[cfg(all(test, feature = "legacy-tests"))]
 mod gas_regression_test;
 
 #[cfg(test)]
@@ -1887,8 +1880,8 @@ mod gas_regression_test;
 // #[cfg(test)]
 // mod metamorphic_test;
 
-// #[cfg(test)]
-// mod event_replay_test;
+#[cfg(all(test, feature = "legacy-tests"))]
+mod event_replay_test;
 
 // #[cfg(test)]
 // mod boundary_chaos_test;

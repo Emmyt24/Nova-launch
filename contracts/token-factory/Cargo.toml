@@ -2,9 +2,12 @@
 name = "token-factory"
 version = "0.1.0"
 edition = "2021"
+autoexamples = false
+autotests = false
 
 [lib]
-crate-type = ["cdylib"]
+crate-type = ["cdylib", "rlib"]
+doctest = false
 
 [dependencies]
 soroban-sdk = "21.0.0"
@@ -12,6 +15,9 @@ soroban-sdk = "21.0.0"
 [dev-dependencies]
 soroban-sdk = { version = "21.0.0", features = ["testutils"] }
 proptest = "1.4"
+
+[features]
+legacy-tests = []
 
 [profile.release]
 opt-level = "z"

@@ -21,7 +21,7 @@ use crate::{TokenFactory, TokenFactoryClient};
 const THRESHOLD_INITIALIZE:     u64 = 2_000_000;
 const THRESHOLD_CREATE_TOKEN:   u64 = 6_000_000;
 const THRESHOLD_BURN:           u64 = 4_000_000;
-const THRESHOLD_BATCH_BURN_5:   u64 = 12_000_000;
+const THRESHOLD_BURN_X5:        u64 = 12_000_000;
 const THRESHOLD_UPDATE_FEES:    u64 = 2_000_000;
 const THRESHOLD_GET_STATE:      u64 = 1_500_000;
 const THRESHOLD_GET_TOKEN_INFO: u64 = 1_500_000;
@@ -48,13 +48,13 @@ fn assert_threshold(operation: &str, measured: u64, threshold: u64) {
     );
 }
 
-fn setup(env: &Env) -> (Address, TokenFactoryClient) {
-    let contract_id = env.register(TokenFactory, ());
+fn setup(env: &Env) -> (Address, TokenFactoryClient, Address) {
+    let contract_id = env.register_contract(None, TokenFactory);
     let client = TokenFactoryClient::new(env, &contract_id);
     let admin = Address::generate(env);
     let treasury = Address::generate(env);
     client.initialize(&admin, &treasury, &70_000_000, &30_000_000);
-    (contract_id, client)
+    (contract_id, client, admin)
 }
 
 // ── Regression tests ──────────────────────────────────────────────────
@@ -63,7 +63,7 @@ fn setup(env: &Env) -> (Address, TokenFactoryClient) {
 fn regression_initialize() {
     let env = Env::default();
     env.mock_all_auths();
-    let contract_id = env.register(TokenFactory, ());
+    let contract_id = env.register_contract(None, TokenFactory);
     let client = TokenFactoryClient::new(&env, &contract_id);
     let admin = Address::generate(&env);
     let treasury = Address::generate(&env);
@@ -79,7 +79,7 @@ fn regression_initialize() {
 fn regression_create_token() {
     let env = Env::default();
     env.mock_all_auths();
-    let (_id, client) = setup(&env);
+    let (_id, client, _admin) = setup(&env);
     let creator = Address::generate(&env);
 
     let cpu = measure_cpu(&env, || {
@@ -101,11 +101,9 @@ fn regression_create_token() {
 fn regression_burn() {
     let env = Env::default();
     env.mock_all_auths();
-    let (_id, client) = setup(&env);
-    let creator = Address::generate(&env);
-    let user = Address::generate(&env);
-
-    let token_address = client.create_token(
+    let (_id, client, setup_admin) = setup(&env);
+    let creator = setup_admin.clone();
+    client.create_token(
         &creator,
         &String::from_str(&env, "Burn Token"),
         &String::from_str(&env, "BRN"),
@@ -116,20 +114,20 @@ fn regression_burn() {
     );
 
     let cpu = measure_cpu(&env, || {
-        client.burn(&token_address, &user, &1_000_000);
+        client.burn(&creator, &0, &1_000_000);
     });
 
     assert_threshold("burn", cpu, THRESHOLD_BURN);
 }
 
 #[test]
-fn regression_batch_burn_5() {
+fn regression_burn_x5() {
     let env = Env::default();
     env.mock_all_auths();
-    let (_id, client) = setup(&env);
-    let creator = Address::generate(&env);
+    let (_id, client, setup_admin) = setup(&env);
+    let creator = setup_admin.clone();
 
-    let token_address = client.create_token(
+    client.create_token(
         &creator,
         &String::from_str(&env, "Batch Token"),
         &String::from_str(&env, "BAT"),
@@ -139,28 +137,22 @@ fn regression_batch_burn_5() {
         &70_000_000,
     );
 
-    let burns = soroban_sdk::vec![
-        &env,
-        (Address::generate(&env), 1_000_000_i128),
-        (Address::generate(&env), 1_000_000_i128),
-        (Address::generate(&env), 1_000_000_i128),
-        (Address::generate(&env), 1_000_000_i128),
-        (Address::generate(&env), 1_000_000_i128),
-    ];
-
     let cpu = measure_cpu(&env, || {
-        client.burn_batch(&token_address, &burns);
+        client.burn(&creator, &0, &1_000_000);
+        client.burn(&creator, &0, &1_000_000);
+        client.burn(&creator, &0, &1_000_000);
+        client.burn(&creator, &0, &1_000_000);
+        client.burn(&creator, &0, &1_000_000);
     });
 
-    assert_threshold("batch_burn_5", cpu, THRESHOLD_BATCH_BURN_5);
+    assert_threshold("burn_x5", cpu, THRESHOLD_BURN_X5);
 }
 
 #[test]
 fn regression_update_fees() {
     let env = Env::default();
     env.mock_all_auths();
-    let (_id, client) = setup(&env);
-    let admin = Address::generate(&env);
+    let (_id, client, admin) = setup(&env);
 
     let cpu = measure_cpu(&env, || {
         client.update_fees(&admin, &Some(100_000_000_i128), &Some(50_000_000_i128));
@@ -173,7 +165,7 @@ fn regression_update_fees() {
 fn regression_get_state() {
     let env = Env::default();
     env.mock_all_auths();
-    let (_id, client) = setup(&env);
+    let (_id, client, _admin) = setup(&env);
 
     let cpu = measure_cpu(&env, || {
         let _ = client.get_state();
@@ -186,8 +178,7 @@ fn regression_get_state() {
 fn regression_get_token_info() {
     let env = Env::default();
     env.mock_all_auths();
-    let (_id, client) = setup(&env);
-    let creator = Address::generate(&env);
+    let (_id, client, creator) = setup(&env);
 
     client.create_token(
         &creator,
@@ -213,7 +204,7 @@ fn gas_regression_report() {
     let env = Env::default();
     env.mock_all_auths();
 
-    let contract_id = env.register(TokenFactory, ());
+    let contract_id = env.register_contract(None, TokenFactory);
     let init_client = TokenFactoryClient::new(&env, &contract_id);
     let admin = Address::generate(&env);
     let treasury = Address::generate(&env);
@@ -221,12 +212,11 @@ fn gas_regression_report() {
         init_client.initialize(&admin, &treasury, &70_000_000, &30_000_000);
     });
 
-    let (_id, client) = setup(&env);
-    let creator = Address::generate(&env);
+    let (_id, client, setup_admin) = setup(&env);
 
     env.budget().reset_unlimited();
-    let token_address = client.create_token(
-        &creator,
+    client.create_token(
+        &setup_admin,
         &String::from_str(&env, "Report Token"),
         &String::from_str(&env, "RPT"),
         &7,
@@ -236,12 +226,11 @@ fn gas_regression_report() {
     );
     let cpu_create = env.budget().cpu_instruction_cost();
 
-    let user = Address::generate(&env);
     let cpu_burn = measure_cpu(&env, || {
-        client.burn(&token_address, &user, &1_000_000);
+        client.burn(&setup_admin, &0, &1_000_000);
     });
     let cpu_update = measure_cpu(&env, || {
-        client.update_fees(&admin, &Some(100_000_000_i128), &Some(50_000_000_i128));
+        client.update_fees(&setup_admin, &Some(100_000_000_i128), &Some(50_000_000_i128));
     });
     let cpu_state = measure_cpu(&env, || { let _ = client.get_state(); });
     let cpu_info  = measure_cpu(&env, || { let _ = client.get_token_info(&0_u32); });
