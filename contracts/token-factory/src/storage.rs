@@ -29,6 +29,23 @@ pub fn has_admin(env: &Env) -> bool {
     env.storage().instance().has(&DataKey::Admin)
 }
 
+// Pending admin management (two-step transfer)
+pub fn get_pending_admin(env: &Env) -> Option<Address> {
+    env.storage().instance().get(&DataKey::PendingAdmin)
+}
+
+pub fn set_pending_admin(env: &Env, admin: &Address) {
+    env.storage().instance().set(&DataKey::PendingAdmin, admin);
+}
+
+pub fn clear_pending_admin(env: &Env) {
+    env.storage().instance().remove(&DataKey::PendingAdmin);
+}
+
+pub fn has_pending_admin(env: &Env) -> bool {
+    env.storage().instance().has(&DataKey::PendingAdmin)
+}
+
 // Treasury management
 pub fn get_treasury(env: &Env) -> Address {
     env.storage().instance().get(&DataKey::Treasury).unwrap()
@@ -969,7 +986,10 @@ pub fn get_next_stream_id(env: &Env) -> u64 {
 
 /// Get the total number of vaults created.
 pub fn get_vault_count(env: &Env) -> u64 {
-    env.storage().instance().get(&DataKey::VaultCount).unwrap_or(0_u64)
+    env.storage()
+        .instance()
+        .get(&DataKey::VaultCount)
+        .unwrap_or(0_u64)
 }
 
 /// Increment vault count and return the new vault id.
@@ -988,30 +1008,36 @@ pub fn get_vault(env: &Env, vault_id: u64) -> Option<crate::types::Vault> {
 
 /// Persist a vault and maintain owner/creator index mappings.
 pub fn set_vault(env: &Env, vault: &crate::types::Vault) -> Result<(), Error> {
+    let is_new_vault = !env.storage().persistent().has(&DataKey::Vault(vault.id));
+
     env.storage()
         .persistent()
         .set(&DataKey::Vault(vault.id), vault);
 
-    let owner_slot = get_owner_vault_count(env, &vault.owner);
-    env.storage().persistent().set(
-        &DataKey::VaultByOwner(vault.owner.clone(), owner_slot),
-        &vault.id,
-    );
-    let next_owner_slot = owner_slot.checked_add(1).ok_or(Error::ArithmeticError)?;
-    env.storage()
-        .persistent()
-        .set(&DataKey::OwnerVaultCount(vault.owner.clone()), &next_owner_slot);
+    if is_new_vault {
+        let owner_slot = get_owner_vault_count(env, &vault.owner);
+        env.storage().persistent().set(
+            &DataKey::VaultByOwner(vault.owner.clone(), owner_slot),
+            &vault.id,
+        );
+        let next_owner_slot = owner_slot.checked_add(1).ok_or(Error::ArithmeticError)?;
+        env.storage().persistent().set(
+            &DataKey::OwnerVaultCount(vault.owner.clone()),
+            &next_owner_slot,
+        );
 
-    let creator_slot = get_creator_vault_count(env, &vault.creator);
-    env.storage().persistent().set(
-        &DataKey::VaultByCreator(vault.creator.clone(), creator_slot),
-        &vault.id,
-    );
-    let next_creator_slot = creator_slot.checked_add(1).ok_or(Error::ArithmeticError)?;
-    env.storage().persistent().set(
-        &DataKey::CreatorVaultCount(vault.creator.clone()),
-        &next_creator_slot,
-    );
+        let creator_slot = get_creator_vault_count(env, &vault.creator);
+        env.storage().persistent().set(
+            &DataKey::VaultByCreator(vault.creator.clone(), creator_slot),
+            &vault.id,
+        );
+        let next_creator_slot = creator_slot.checked_add(1).ok_or(Error::ArithmeticError)?;
+        env.storage().persistent().set(
+            &DataKey::CreatorVaultCount(vault.creator.clone()),
+            &next_creator_slot,
+        );
+    }
+
     Ok(())
 }
 
@@ -1027,6 +1053,112 @@ pub fn get_creator_vault_count(env: &Env, creator: &Address) -> u32 {
         .persistent()
         .get(&DataKey::CreatorVaultCount(creator.clone()))
         .unwrap_or(0)
+}
+
+/// Get a page of vaults in ascending vault_id order
+///
+/// # Parameters
+/// * `cursor` - Starting position (0 = start from vault_id 1, N = start from vault_id N)
+/// * `limit` - Maximum number of vaults to return
+///
+/// # Returns
+/// VaultsPage with vaults vector and optional next_cursor
+pub fn get_vaults_page(env: &Env, cursor: u64, limit: u32) -> crate::types::VaultsPage {
+    use soroban_sdk::Vec;
+    
+    let total_count = get_vault_count(env);
+    let mut vaults = Vec::new(env);
+    
+    // Handle edge cases
+    if limit == 0 || cursor > total_count {
+        return crate::types::VaultsPage {
+            vaults,
+            next_cursor: None,
+        };
+    }
+    
+    // Calculate range
+    let start = if cursor == 0 { 1 } else { cursor };
+    let end = (start + limit as u64).min(total_count + 1);
+    
+    // Collect vaults
+    for vault_id in start..end {
+        if let Some(vault) = get_vault(env, vault_id) {
+            vaults.push_back(vault);
+        }
+    }
+    
+    // Calculate next cursor
+    let next_cursor = if end <= total_count {
+        Some(end)
+    } else {
+        None
+    };
+    
+    crate::types::VaultsPage {
+        vaults,
+        next_cursor,
+    }
+}
+
+/// Get a page of vaults owned by a specific address
+///
+/// # Parameters
+/// * `owner` - Address to filter by
+/// * `cursor` - Starting position in owner's vault list (0-indexed)
+/// * `limit` - Maximum number of vaults to return
+///
+/// # Returns
+/// VaultsPage with filtered vaults and optional next_cursor
+pub fn get_vaults_by_owner(
+    env: &Env,
+    owner: &Address,
+    cursor: u64,
+    limit: u32,
+) -> crate::types::VaultsPage {
+    use soroban_sdk::Vec;
+    
+    let owner_count = get_owner_vault_count(env, owner) as u64;
+    let mut vaults = Vec::new(env);
+    
+    // Handle edge cases
+    if limit == 0 || cursor >= owner_count {
+        return crate::types::VaultsPage {
+            vaults,
+            next_cursor: None,
+        };
+    }
+    
+    // Calculate range
+    let start = cursor;
+    let end = (start + limit as u64).min(owner_count);
+    
+    // Collect vaults
+    for index in start..end {
+        let vault_id: u64 = env
+            .storage()
+            .persistent()
+            .get(&DataKey::VaultByOwner(owner.clone(), index as u32))
+            .unwrap_or(0);
+        
+        if vault_id > 0 {
+            if let Some(vault) = get_vault(env, vault_id) {
+                vaults.push_back(vault);
+            }
+        }
+    }
+    
+    // Calculate next cursor
+    let next_cursor = if end < owner_count {
+        Some(end)
+    } else {
+        None
+    };
+    
+    crate::types::VaultsPage {
+        vaults,
+        next_cursor,
+    }
 }
 
 // ── Governance proposal storage ─────────────────────────────────────────
@@ -1128,4 +1260,26 @@ pub fn set_governance_config(env: &Env, config: &crate::types::GovernanceConfig)
     env.storage()
         .instance()
         .set(&DataKey::GovernanceConfig, config);
+}
+
+// ── Milestone Verification (Stub Testing) ────────────────────────────────────────────────────────────────────
+
+/// Set a valid proof for milestone verification testing
+/// This is used by the MilestoneVerifierStub for testing purposes only
+pub fn set_valid_proof(env: &Env, milestone_hash: &soroban_sdk::BytesN<32>, proof: &soroban_sdk::Bytes) {
+    use soroban_sdk::Symbol;
+    let key = (Symbol::new(env, "valid_proof"), milestone_hash.clone());
+    env.storage()
+        .temporary()
+        .set(&key, proof);
+}
+
+/// Get a valid proof for milestone verification testing
+/// This is used by the MilestoneVerifierStub for testing purposes only
+pub fn get_valid_proof(env: &Env, milestone_hash: &soroban_sdk::BytesN<32>) -> Option<soroban_sdk::Bytes> {
+    use soroban_sdk::Symbol;
+    let key = (Symbol::new(env, "valid_proof"), milestone_hash.clone());
+    env.storage()
+        .temporary()
+        .get(&key)
 }

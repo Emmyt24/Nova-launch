@@ -55,7 +55,7 @@
                   "u32": 0
                 },
                 {
-                  "bool": true
+                  "bool": false
                 }
               ]
             }
@@ -80,7 +80,7 @@
                   "u32": 0
                 },
                 {
-                  "bool": false
+                  "bool": true
                 }
               ]
             }
@@ -305,7 +305,7 @@
                         "symbol": "in_favor"
                       },
                       "val": {
-                        "bool": true
+                        "bool": false
                       }
                     },
                     {
@@ -392,7 +392,7 @@
                         "symbol": "in_favor"
                       },
                       "val": {
-                        "bool": false
+                        "bool": true
                       }
                     },
                     {
@@ -873,7 +873,7 @@
                   "u32": 0
                 },
                 {
-                  "bool": true
+                  "bool": false
                 }
               ]
             }
@@ -930,7 +930,7 @@
                   "u32": 0
                 },
                 {
-                  "bool": false
+                  "bool": true
                 }
               ]
             }

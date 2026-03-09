@@ -246,6 +246,138 @@ mod two_step_admin_tests {
     }
 
     // ═══════════════════════════════════════════════════════
+    //  Replay & Duplicate Acceptance Tests
+    // ═══════════════════════════════════════════════════════
+
+    #[test]
+    fn test_duplicate_accept_fails() {
+        let (_env, client, admin, _treasury) = setup();
+        let new_admin = Address::generate(&_env);
+
+        client.propose_admin(&admin, &new_admin).unwrap();
+        client.accept_admin(&new_admin).unwrap();
+
+        // Second acceptance should fail (no pending admin)
+        let result = client.try_accept_admin(&new_admin);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_stale_proposal_cannot_be_accepted() {
+        let (_env, client, admin, _treasury) = setup();
+        let first_proposed = Address::generate(&_env);
+        let second_proposed = Address::generate(&_env);
+
+        // First proposal
+        client.propose_admin(&admin, &first_proposed).unwrap();
+
+        // Second proposal overwrites first
+        client.propose_admin(&admin, &second_proposed).unwrap();
+
+        // Stale proposal cannot be accepted
+        let result = client.try_accept_admin(&first_proposed);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_accept_after_admin_changed_fails() {
+        let (_env, client, admin, _treasury) = setup();
+        let proposed = Address::generate(&_env);
+        let third_admin = Address::generate(&_env);
+
+        // Propose transfer
+        client.propose_admin(&admin, &proposed).unwrap();
+
+        // Admin uses old single-step transfer to change admin
+        #[allow(deprecated)]
+        client.transfer_admin(&admin, &third_admin).unwrap();
+
+        // Original proposed admin cannot accept (admin already changed)
+        let result = client.try_accept_admin(&proposed);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_only_one_pending_admin_at_a_time() {
+        let (_env, client, admin, _treasury) = setup();
+        let first = Address::generate(&_env);
+        let second = Address::generate(&_env);
+        let third = Address::generate(&_env);
+
+        // Multiple proposals
+        client.propose_admin(&admin, &first).unwrap();
+        client.propose_admin(&admin, &second).unwrap();
+        client.propose_admin(&admin, &third).unwrap();
+
+        // Only the last one can accept
+        assert!(client.try_accept_admin(&first).is_err());
+        assert!(client.try_accept_admin(&second).is_err());
+        client.accept_admin(&third).unwrap();
+
+        let state = client.get_state();
+        assert_eq!(state.admin, third);
+    }
+
+    #[test]
+    fn test_unauthorized_cannot_accept_valid_proposal() {
+        let (_env, client, admin, _treasury) = setup();
+        let proposed = Address::generate(&_env);
+        let unauthorized = Address::generate(&_env);
+
+        client.propose_admin(&admin, &proposed).unwrap();
+
+        // Wrong address tries to accept
+        let result = client.try_accept_admin(&unauthorized);
+        assert!(result.is_err());
+
+        // Admin unchanged
+        let state = client.get_state();
+        assert_eq!(state.admin, admin);
+    }
+
+    #[test]
+    fn test_accept_without_proposal_fails() {
+        let (_env, client, _admin, _treasury) = setup();
+        let random = Address::generate(&_env);
+
+        // No proposal exists
+        let result = client.try_accept_admin(&random);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_old_admin_cannot_propose_after_transfer() {
+        let (_env, client, admin, _treasury) = setup();
+        let new_admin = Address::generate(&_env);
+        let third = Address::generate(&_env);
+
+        // Complete transfer
+        client.propose_admin(&admin, &new_admin).unwrap();
+        client.accept_admin(&new_admin).unwrap();
+
+        // Old admin tries to propose
+        let result = client.try_propose_admin(&admin, &third);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_propose_clears_previous_pending() {
+        let (_env, client, admin, _treasury) = setup();
+        let first = Address::generate(&_env);
+        let second = Address::generate(&_env);
+
+        client.propose_admin(&admin, &first).unwrap();
+        client.propose_admin(&admin, &second).unwrap();
+
+        // First cannot accept
+        assert!(client.try_accept_admin(&first).is_err());
+
+        // Second can accept
+        client.accept_admin(&second).unwrap();
+        assert_eq!(client.get_state().admin, second);
+    }
+
+    // ═══════════════════════════════════════════════════════
     //  Event Emission Tests
     // ═══════════════════════════════════════════════════════
 

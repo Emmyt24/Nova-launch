@@ -361,7 +361,7 @@ fn test_mint_tokens_admin() {
     let admin = Address::generate(&env);
     let treasury = Address::generate(&env);
     let _creator = Address::generate(&env);
-    let recipient = Address::generate(&env);
+    let _recipient = Address::generate(&env);
 
     let base_fee = 70_000_000;
     client.initialize(&admin, &treasury, &base_fee, &30_000_000);
@@ -397,7 +397,7 @@ fn test_mint_tokens_unauthorized() {
     let client = TokenFactoryClient::new(&env, &contract_id);
 
     let admin = Address::generate(&env);
-    let non_admin = Address::generate(&env);
+    let _non_admin = Address::generate(&env);
     let treasury = Address::generate(&env);
 
     client.initialize(&admin, &treasury, &70_000_000, &30_000_000);

@@ -1,5 +1,6 @@
 [workspace]
 members = ["token-factory", "governance"]
+default-members = ["token-factory"]
 resolver = "2"
 
 [profile.ci]

@@ -35,6 +35,7 @@
 - [Smart Contracts](#-smart-contracts)
 - [Frontend Application](#-frontend-application)
 - [Testing](#-testing)
+- [CI/CD](#-cicd)
 - [Deployment](#-deployment)
 - [Configuration](#-configuration)
 - [API Reference](#-api-reference)
@@ -810,6 +811,41 @@ npm run test:coverage
 # View report
 open coverage/index.html
 ```
+
+---
+
+## 🔄 CI/CD
+
+### Continuous Integration
+
+The project uses GitHub Actions for automated testing and validation. All checks must pass before code can be merged.
+
+#### CI Pipeline
+
+- **Rust Contract Tests**: Formatting, linting, tests, and WASM build
+- **Frontend Tests**: Linting, tests, and production build
+- **Security Audit**: Dependency vulnerability scanning
+- **Spec Validation**: Ensures all spec files are complete
+
+#### Running Checks Locally
+
+Before pushing code, run the local CI validation:
+
+```bash
+./scripts/ci-check.sh
+```
+
+This runs all CI checks locally to catch issues early.
+
+#### Setting Up Git Hooks
+
+Enable pre-commit hooks to catch issues before committing:
+
+```bash
+git config core.hooksPath .githooks
+```
+
+For more details, see [CI/CD Guide](CI_CD_GUIDE.md).
 
 ---
 

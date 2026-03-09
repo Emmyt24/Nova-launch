@@ -125,6 +125,7 @@ pub struct TokenCreationParams {
     pub symbol: String,
     pub decimals: u32,
     pub initial_supply: i128,
+    pub max_supply: Option<i128>,
     pub metadata_uri: Option<String>,
 }
 
@@ -208,29 +209,6 @@ pub struct FeeUpdate {
 }
 
 /// Storage keys for contract data
-///
-/// Defines all storage locations used by the factory contract.
-/// Each variant maps to a specific piece of contract state.
-///
-/// # Variants
-/// * `Admin` - Factory administrator address
-/// * `Treasury` - Fee collection address
-/// * `BaseFee` - Base deployment fee amount
-/// * `MetadataFee` - Metadata deployment fee amount
-/// * `TokenCount` - Total number of tokens created
-/// * `Token(u32)` - Token info by index
-/// * `Balance(u32, Address)` - Token balance for holder
-/// * `BurnCount(u32)` - Number of burns for token
-/// * `TokenByAddress(Address)` - Token info lookup by address
-/// * `Paused` - Contract pause state
-/// * `TimelockConfig` - Timelock configuration
-/// * `PendingChange(u64)` - Pending change by ID
-/// * `NextChangeId` - Next available change ID
-/// * `CreatorTokens(Address)` - Vector of token indices for a creator
-/// * `CreatorTokenCount(Address)` - Number of tokens created by address
-/// * `TreasuryPolicy` - Treasury withdrawal policy
-/// * `WithdrawalPeriod` - Current withdrawal period tracking
-/// * `AllowedRecipient(Address)` - Whether address is allowed recipient
 #[contracttype]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum DataKey {
@@ -273,14 +251,9 @@ pub enum DataKey {
     OwnerVaultCount(Address),
     VaultByCreator(Address, u32),
     CreatorVaultCount(Address),
-    BuybackCampaign(u64),
+    PendingAdmin,
 }
 
-/// Contract error codes
-///
-/// Every variant maps to a stable numeric code consumed by downstream clients.
-/// Vault lifecycle failures use codes 60-65 (`VaultNotFound`, `VaultLocked`,
-/// `VaultAlreadyClaimed`, `VaultCancelled`, `InvalidVaultConfig`, `NothingToClaim`).
 #[contracterror]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Error {
@@ -319,20 +292,21 @@ pub enum Error {
     InvalidMaxSupply = 33,
     MintingDisabled = 34,
     TokenPaused = 35,
-    StreamPaused = 36,
-    InvalidTimeWindow = 37,
-    PayloadTooLarge = 38,
-    ProposalNotFound = 39,
-    VotingNotStarted = 40,
-    VotingEnded = 41,
-    AlreadyVoted = 42,
-    CampaignNotFound = 43,
-    CampaignInactive = 44,
-    ExceedsStepLimit = 45,
-    InsufficientBudget = 46,
-    SlippageExceeded = 47,
-    ReconciliationFailed = 48,
-    InvariantViolation = 49,
+    FreezeNotEnabled = 36,
+    AddressFrozen = 37,
+    AddressNotFrozen = 38,
+    ProposalInTerminalState = 39,
+    InvalidStateTransition = 40,
+    InvalidTimeWindow = 41,
+    PayloadTooLarge = 42,
+    ProposalNotFound = 43,
+    VotingNotStarted = 44,
+    VotingEnded = 45,
+    VotingClosed = 46,
+    AlreadyVoted = 47,
+    ProposalNotQueued = 48,
+    ProposalCancelled = 49,
+    QuorumNotMet = 50,
 }
 
 /// Type of pending change
@@ -463,6 +437,22 @@ pub struct PaginatedTokens {
     pub tokens: soroban_sdk::Vec<TokenInfo>,
     pub has_more: bool,
     pub cursor: PaginationCursor,
+}
+
+/// Paginated vault result
+///
+/// Contains a page of vaults and an optional cursor for fetching the next page.
+///
+/// # Fields
+/// * `vaults` - Vector of vault records in ascending vault_id order
+/// * `next_cursor` - Cursor for next page (None = no more results)
+///   - For get_vaults_page: next vault_id to fetch
+///   - For get_vaults_by_owner: next index in owner's vault list
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct VaultsPage {
+    pub vaults: soroban_sdk::Vec<Vault>,
+    pub next_cursor: Option<u64>,
 }
 
 /// Treasury withdrawal policy

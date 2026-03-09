@@ -208,32 +208,6 @@ describe('StreamEventParser', () => {
       expect(stream?.metadata).toBe('Updated via parseEvent');
     });
   });
-});
-      await parser.parseCreatedEvent(streamEventFixtures.created);
-      await parser.parseClaimedEvent(streamEventFixtures.claimed);
-
-      const stream = await prisma.stream.findUnique({
-        where: { streamId: streamEventFixtures.claimed.streamId },
-      });
-
-      expect(stream?.status).toBe(StreamStatus.CLAIMED);
-      expect(stream?.claimedAt).toEqual(streamEventFixtures.claimed.timestamp);
-    });
-  });
-
-  describe('parseCancelledEvent', () => {
-    it('should update stream status to CANCELLED', async () => {
-      await parser.parseCreatedEvent(streamEventFixtures.createdWithoutMetadata);
-      await parser.parseCancelledEvent(streamEventFixtures.cancelled);
-
-      const stream = await prisma.stream.findUnique({
-        where: { streamId: streamEventFixtures.cancelled.streamId },
-      });
-
-      expect(stream?.status).toBe(StreamStatus.CANCELLED);
-      expect(stream?.cancelledAt).toEqual(streamEventFixtures.cancelled.timestamp);
-    });
-  });
 
   describe('parseEvent - full lifecycle', () => {
     it('should handle complete stream lifecycle: created -> claimed', async () => {

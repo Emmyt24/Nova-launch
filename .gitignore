@@ -33,7 +33,10 @@ npm-debug.log*
 # Documentation (excluding specific files)
 *.md
 !README.md
-!.nova/specs/stellar-token-deployer/design.md
+!CI_CD_GUIDE.md
+!.nova/specs/**/design.md
+!.nova/specs/**/requirements.md
+!.nova/specs/**/tasks.md
 !contracts/token-factory/TESTING.md
 !DEPLOYMENT_GUIDE.md
 !DEPLOYMENT_CHECKLIST.md

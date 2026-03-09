@@ -100,9 +100,6 @@ export function BurnStatistics({
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
-      setRefreshing(false);
-    }
   }, [tokenAddress]);
 
   useEffect(() => {

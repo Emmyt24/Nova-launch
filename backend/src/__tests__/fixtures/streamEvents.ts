@@ -1,4 +1,4 @@
-import { StreamCreatedEvent, StreamClaimedEvent, StreamCancelledEvent } from '../types/stream';
+import { StreamCreatedEvent, StreamClaimedEvent, StreamCancelledEvent } from '../../types/stream';
 
 export const streamEventFixtures = {
   created: {

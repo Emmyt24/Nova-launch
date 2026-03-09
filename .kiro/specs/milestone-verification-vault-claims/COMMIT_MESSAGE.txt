@@ -1,0 +1,50 @@
+feat: add error code stability protection for API consumers
+
+Implemented comprehensive error code stability tests and CI checks to protect
+API consumers from breaking changes in contract error codes.
+
+Changes:
+- Added error_code_stability_test.rs with 15 test functions
+- Created dedicated CI workflow for error code stability checks
+- Protected 57 unique error codes across 9 categories
+- Added tests for common failure scenarios (auth, validation, not-found, paused, replay)
+- Added tests for milestone verification errors (InvalidProof, ProofRequired)
+- Added tests for vault lifecycle errors (VaultLocked, VaultAlreadyClaimed, etc.)
+- Implemented collision detection and range validation
+- Added breaking change detection in CI
+
+Coverage:
+- Core errors (1-10): 10 codes
+- Token errors (11-18): 8 codes
+- Treasury errors (19-20): 2 codes
+- Validation errors (21-26): 6 codes
+- Stream errors (27-31): 5 codes
+- Governance errors (32-41): 10 codes
+- Milestone errors (42-43): 2 codes
+- Misc errors (44-51): 8 codes
+- Vault errors (60-65): 6 codes
+
+Benefits:
+- Prevents accidental enum reordering
+- Detects error code drift in CI
+- Protects client applications from breaking changes
+- Ensures stable error handling across versions
+- Documents all error codes and their purposes
+
+CI Integration:
+- Runs on changes to types.rs or error stability tests
+- Fails on any error code change (breaking change)
+- Generates detailed error code mapping report
+- Blocks PRs with breaking changes
+
+Files:
+- contracts/token-factory/src/error_code_stability_test.rs (new)
+- .github/workflows/error-code-stability.yml (new)
+- contracts/token-factory/src/lib.rs (modified)
+- .kiro/specs/milestone-verification-vault-claims/ERROR_CODE_STABILITY_IMPLEMENTATION.md (new)
+
+Acceptance Criteria Met:
+✅ Tests assert canonical error codes for common failure paths
+✅ Cover auth failures, invalid parameters, not-found, paused, and replay-like rejections
+✅ CI check detects accidental enum reordering or code drift
+✅ Error-code mapping is stable and protected by automated tests

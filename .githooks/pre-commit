@@ -1,0 +1,39 @@
+#!/bin/bash
+# Pre-commit hook to run quick checks before committing
+
+set -e
+
+echo "🔍 Running pre-commit checks..."
+
+# Check if we're in the right directory
+if [ ! -f "Cargo.toml" ] && [ ! -d "contracts" ]; then
+    echo "⚠️  Not in project root, skipping pre-commit checks"
+    exit 0
+fi
+
+# Quick Rust checks (only on changed files)
+if git diff --cached --name-only | grep -q "\.rs$"; then
+    echo "▶ Checking Rust formatting..."
+    cd contracts/token-factory
+    cargo fmt --check || {
+        echo "❌ Rust formatting check failed. Run 'cargo fmt' to fix."
+        exit 1
+    }
+    cd ../..
+    echo "✓ Rust formatting OK"
+fi
+
+# Quick frontend checks (only on changed files)
+if git diff --cached --name-only | grep -q "frontend/.*\.\(ts\|tsx\|js\|jsx\)$"; then
+    echo "▶ Checking frontend linting..."
+    cd frontend
+    npm run lint || {
+        echo "❌ Frontend linting failed. Run 'npm run lint -- --fix' to fix."
+        exit 1
+    }
+    cd ..
+    echo "✓ Frontend linting OK"
+fi
+
+echo "✓ Pre-commit checks passed!"
+exit 0
