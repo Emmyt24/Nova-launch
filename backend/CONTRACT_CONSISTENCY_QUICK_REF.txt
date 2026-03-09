@@ -1,0 +1,114 @@
+Contract-Backend Consistency Tests - Quick Reference
+====================================================
+
+RUN COMMANDS
+------------
+npm test contract-consistency                    # Run all tests
+npm test contract-consistency -- --coverage      # With coverage
+npm test contract-consistency -- --watch         # Watch mode
+npm test contract-consistency -- --verbose       # Verbose output
+
+TEST CATEGORIES (10)
+--------------------
+1. TokenInfo Field Consistency
+2. BurnRecord Field Consistency
+3. Error Code Consistency
+4. API Endpoint Consistency
+5. Data Transformation Consistency
+6. Validation Rule Consistency
+7. Event Structure Consistency
+8. Numeric Precision Consistency
+9. Timestamp Consistency
+10. Address Format Consistency
+
+FIELD MAPPINGS
+--------------
+Contract              Backend
+--------              -------
+total_supply          totalSupply
+initial_supply        initialSupply
+total_burned          totalBurned
+burn_count            burnCount
+metadata_uri          metadataUri
+created_at            createdAt
+
+ERROR CODES → HTTP STATUS
+-------------------------
+InsufficientFee (1)              → 402
+Unauthorized (2)                 → 403
+InvalidParameters (3)            → 400
+TokenNotFound (4)                → 404
+MetadataAlreadySet (5)           → 409
+AlreadyInitialized (6)           → 409
+InsufficientBalance (7)          → 402
+ArithmeticError (8)              → 500
+BatchTooLarge (9)                → 413
+InvalidAmount (10)               → 400
+ClawbackDisabled (11)            → 403
+InvalidBurnAmount (12)           → 400
+BurnAmountExceedsBalance (13)    → 402
+ContractPaused (14)              → 503
+
+VALIDATION RULES
+----------------
+Token Name:    1-32 characters
+Token Symbol:  1-12 characters
+Decimals:      0-18
+Amount:        > 0
+Batch Size:    1-100
+Address:       G + 55 chars
+
+DATA TYPES
+----------
+Contract    Backend    API
+--------    -------    ---
+i128        BigInt     string
+u32         number     number
+u64         BigInt     string
+String      string     string
+Address     string     string
+Option<T>   T | null   T | null
+bool        boolean    boolean
+
+NUMERIC PRECISION
+-----------------
+Stellar: 7 decimals (stroops)
+1 XLM = 10,000,000 stroops
+Always use BigInt for amounts
+Convert to string for API
+
+TIMESTAMPS
+----------
+Contract: Unix seconds
+Backend:  Date object
+API:      ISO 8601 string
+
+Conversions:
+Contract → Backend: new Date(ts * 1000)
+Backend → Contract: Math.floor(date.getTime() / 1000)
+Backend → API:      date.toISOString()
+
+QUICK WORKFLOW
+--------------
+1. Update contract types
+2. Update backend types
+3. Run: npm test contract-consistency
+4. Fix failures
+5. Update API docs
+6. Commit changes
+
+TROUBLESHOOTING
+---------------
+Field mismatch:     Check snake_case vs camelCase
+Type mismatch:      Verify BigInt usage
+Validation fails:   Sync validation logic
+Error not mapped:   Add to HTTP status mapping
+
+FILES
+-----
+Test:   backend/src/__tests__/contract-consistency.test.ts
+Guide:  backend/CONTRACT_CONSISTENCY_GUIDE.txt
+Schema: backend/prisma/schema.prisma
+Types:  contracts/token-factory/src/types.rs
+
+Version: 1.0.0
