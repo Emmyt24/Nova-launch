@@ -995,7 +995,7 @@ pub fn vote_proposal(
 
     // Check if proposal can be voted on
     if !ProposalStateMachine::can_vote(proposal.state) {
-        return Err(Error::VotingClosed);
+        return Err(Error::VotingEnded);
     }
 
     // Check for duplicate vote
@@ -1134,8 +1134,8 @@ pub fn finalize_proposal(env: &Env, proposal_id: u64) -> Result<(), Error> {
 /// * `Error::ProposalNotFound` - If proposal doesn't exist
 /// * `Error::VotingNotStarted` - If voting hasn't started yet
 /// * `Error::VotingEnded` - If voting is still ongoing
-/// * `Error::QuorumNotMet` - If proposal didn't reach quorum
-/// * `Error::InvalidStateTransition` - If proposal is not in correct state
+/// * `Error::Unauthorized` - If proposal didn't reach quorum
+/// * `Error::InvalidParameters` - If proposal is not in correct state
 ///
 /// # Events
 /// Emits `proposal_queued` event on success
@@ -1161,17 +1161,17 @@ pub fn queue_proposal(env: &Env, proposal_id: u64) -> Result<(), Error> {
 
     // Check if proposal can be queued (must be in Succeeded state)
     if !ProposalStateMachine::can_queue(proposal.state) {
-        return Err(Error::InvalidStateTransition);
+        return Err(Error::InvalidParameters);
     }
 
     // Check if already queued
     if proposal.state == crate::types::ProposalState::Queued {
-        return Err(Error::InvalidStateTransition);
+        return Err(Error::InvalidParameters);
     }
 
     // Check quorum (simple majority: votes_for > votes_against)
     if proposal.votes_for <= proposal.votes_against {
-        return Err(Error::QuorumNotMet);
+        return Err(Error::Unauthorized);
     }
 
     // Transition to Queued state
@@ -1195,17 +1195,17 @@ pub fn execute_proposal(env: &Env, proposal_id: u64) -> Result<(), Error> {
 
     // Check if proposal can be executed (must be in Queued state)
     if !ProposalStateMachine::can_execute(proposal.state) {
-        return Err(Error::ProposalNotQueued);
+        return Err(Error::InvalidParameters);
     }
 
     // Check if already executed
     if proposal.state == crate::types::ProposalState::Executed {
-        return Err(Error::InvalidStateTransition);
+        return Err(Error::InvalidParameters);
     }
 
     // Check if cancelled
     if proposal.state == crate::types::ProposalState::Cancelled {
-        return Err(Error::ProposalCancelled);
+        return Err(Error::InvalidParameters);
     }
 
     let current_time = env.ledger().timestamp();
@@ -1248,7 +1248,7 @@ pub fn execute_proposal(env: &Env, proposal_id: u64) -> Result<(), Error> {
     proposal.executed_at = Some(current_time);
     storage::set_proposal(env, proposal_id, &proposal);
 
-    events::emit_proposal_executed(env, proposal_id, &env.current_contract_address(), true);
+    events::emit_proposal_executed(env, proposal_id);
 
     Ok(())
 }
@@ -1374,7 +1374,7 @@ mod deterministic_governance_event_order_tests {
             .filter(|e| topic0(&env, &e) == symbol_short!("prop_quv1"))
             .count();
         let err = queue(&env, &contract_id, proposal_id).unwrap_err();
-        assert_eq!(err, Error::QuorumNotMet);
+        assert_eq!(err, Error::Unauthorized);
         let queue_event_count_after = env
             .events()
             .all()

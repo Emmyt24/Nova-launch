@@ -1,0 +1,303 @@
+Contract-Backend Consistency Testing Guide
+==========================================
+
+OVERVIEW
+--------
+Comprehensive test suite that ensures the backend data models, API interfaces,
+and business logic remain consistent with the smart contract implementation.
+
+PURPOSE
+-------
+Prevent integration issues by:
+1. Verifying data model field consistency
+2. Ensuring API endpoints match contract functions
+3. Validating error code mappings
+4. Checking data transformation accuracy
+5. Enforcing validation rule consistency
+6. Verifying event structure alignment
+
+TEST CATEGORIES
+---------------
+
+1. TokenInfo Field Consistency
+   - Verifies all contract fields have backend equivalents
+   - Checks field type matching (string, number, bigint, etc.)
+   - Validates nullability constraints
+   - Accounts for naming convention differences (snake_case vs camelCase)
+
+2. BurnRecord Field Consistency
+   - Ensures burn record structures match
+   - Validates field mappings between contract and backend
+   - Checks timestamp and amount handling
+
+3. Error Code Consistency
+   - Verifies all 14 contract error codes are documented
+   - Maps contract errors to appropriate HTTP status codes
+   - Ensures error codes are unique and sequential
+
+4. API Endpoint Consistency
+   - Confirms API endpoints exist for all contract functions
+   - Validates request/response format consistency
+   - Checks parameter naming and types
+
+5. Data Transformation Consistency
+   - Tests contract-to-backend data transformation
+   - Validates backend-to-API response transformation
+   - Ensures no data loss during transformations
+
+6. Validation Rule Consistency
+   - Enforces same validation rules as contract
+   - Token name: 1-32 characters
+   - Token symbol: 1-12 characters
+   - Decimals: 0-18
+   - Amount: > 0
+   - Batch size: 1-100
+
+7. Event Structure Consistency
+   - Verifies event field structures match
+   - Ensures event data can be properly indexed
+   - Validates event emission patterns
+
+8. Numeric Precision Consistency
+   - Tests BigInt handling for large numbers
+   - Validates decimal precision (7 decimals for Stellar)
+   - Ensures no precision loss in conversions
+
+9. Timestamp Consistency
+   - Validates Unix timestamp conversions
+   - Ensures proper Date object handling
+   - Checks ISO 8601 string formatting
+
+10. Address Format Consistency
+    - Validates Stellar address format (G + 55 chars)
+    - Ensures address validation rules match
+
+RUN COMMANDS
+------------
+# Run all consistency tests
+npm test contract-consistency
+
+# Run with coverage
+npm test contract-consistency -- --coverage
+
+# Run in watch mode
+npm test contract-consistency -- --watch
+
+# Run with verbose output
+npm test contract-consistency -- --verbose
+
+TEST FILE LOCATION
+------------------
+backend/src/__tests__/contract-consistency.test.ts
+
+FIELD MAPPINGS
+--------------
+Contract (snake_case)     Backend (camelCase)
+---------------------     -------------------
+address                   address
+creator                   creator
+name                      name
+symbol                    symbol
+decimals                  decimals
+total_supply              totalSupply
+initial_supply            initialSupply
+total_burned              totalBurned
+burn_count                burnCount
+metadata_uri              metadataUri
+created_at                createdAt
+clawback_enabled          (contract-only, not stored)
+
+ERROR CODE MAPPINGS
+-------------------
+Contract Error                  HTTP Status  Description
+--------------                  -----------  -----------
+InsufficientFee (1)             402          Payment Required
+Unauthorized (2)                403          Forbidden
+InvalidParameters (3)           400          Bad Request
+TokenNotFound (4)               404          Not Found
+MetadataAlreadySet (5)          409          Conflict
+AlreadyInitialized (6)          409          Conflict
+InsufficientBalance (7)         402          Payment Required
+ArithmeticError (8)             500          Internal Server Error
+BatchTooLarge (9)               413          Payload Too Large
+InvalidAmount (10)              400          Bad Request
+ClawbackDisabled (11)           403          Forbidden
+InvalidBurnAmount (12)          400          Bad Request
+BurnAmountExceedsBalance (13)   402          Payment Required
+ContractPaused (14)             503          Service Unavailable
+
+API ENDPOINT MAPPINGS
+---------------------
+Contract Function           API Endpoint
+-----------------           ------------
+initialize                  POST /api/factory/initialize
+get_state                   GET /api/factory/state
+get_base_fee                GET /api/factory/fees
+get_metadata_fee            GET /api/factory/fees
+transfer_admin              POST /api/factory/admin/transfer
+pause                       POST /api/factory/admin/pause
+unpause                     POST /api/factory/admin/unpause
+is_paused                   GET /api/factory/status
+update_fees                 PUT /api/factory/admin/fees
+batch_update_admin          PUT /api/factory/admin/batch
+get_token_count             GET /api/tokens
+get_token_info              GET /api/tokens/:index
+get_token_info_by_address   GET /api/tokens/address/:address
+set_clawback                PUT /api/tokens/:address/clawback
+burn                        POST /api/burn
+batch_burn                  POST /api/burn/batch
+get_burn_count              GET /api/tokens/:index/burns
+admin_burn                  POST /api/burn/admin
+set_metadata                PUT /api/metadata/:index
+mint_tokens                 POST /api/tokens/:index/mint
+
+VALIDATION RULES
+----------------
+Field           Rule                        Contract  Backend
+-----           ----                        --------  -------
+Token Name      1-32 characters             ✓         ✓
+Token Symbol    1-12 characters             ✓         ✓
+Decimals        0-18                        ✓         ✓
+Amount          > 0                         ✓         ✓
+Batch Size      1-100                       ✓         ✓
+Address         G + 55 chars (Stellar)      ✓         ✓
+
+DATA TYPE CONVERSIONS
+---------------------
+Contract Type   Backend Type    API Type        Notes
+-------------   ------------    --------        -----
+i128            BigInt          string          Prevent precision loss
+u32             number          number          Safe for JavaScript
+u64             BigInt          string          Timestamps in seconds
+String          string          string          Direct mapping
+Address         string          string          Stellar address format
+Option<T>       T | null        T | null        Nullable fields
+bool            boolean         boolean         Direct mapping
+
+NUMERIC PRECISION
+-----------------
+Stellar uses 7 decimal places (stroops):
+- 1 XLM = 10,000,000 stroops
+- Always use BigInt for amounts
+- Convert to string for API responses
+- Never use JavaScript Number for large amounts
+
+TIMESTAMP HANDLING
+------------------
+Contract: Unix timestamp (seconds since epoch)
+Backend:  JavaScript Date object
+API:      ISO 8601 string (YYYY-MM-DDTHH:mm:ss.sssZ)
+
+Conversion:
+- Contract to Backend: new Date(timestamp * 1000)
+- Backend to Contract: Math.floor(date.getTime() / 1000)
+- Backend to API: date.toISOString()
+
+INTEGRATION WORKFLOW
+--------------------
+1. Contract Change:
+   - Update contract types in types.rs
+   - Run contract tests
+   - Update backend types
+   - Run consistency tests
+   - Fix any failures
+   - Update API documentation
+
+2. Backend Change:
+   - Update Prisma schema
+   - Run migrations
+   - Update TypeScript types
+   - Run consistency tests
+   - Fix any failures
+   - Update API documentation
+
+3. API Change:
+   - Update API routes
+   - Update request/response types
+   - Run consistency tests
+   - Fix any failures
+   - Update API documentation
+
+CONTINUOUS INTEGRATION
+----------------------
+Add to CI/CD pipeline:
+
+```yaml
+- name: Run Contract Consistency Tests
+  run: |
+    cd backend
+    npm test contract-consistency -- --coverage
+    
+- name: Check Coverage Threshold
+  run: |
+    cd backend
+    npm test contract-consistency -- --coverage --coverageThreshold='{"global":{"branches":80,"functions":80,"lines":80,"statements":80}}'
+```
+
+TROUBLESHOOTING
+---------------
+Issue: Test fails after contract update
+Solution: Update backend types to match new contract structure
+
+Issue: Field name mismatch
+Solution: Check naming convention (snake_case vs camelCase)
+
+Issue: Type mismatch
+Solution: Verify BigInt usage for large numbers
+
+Issue: Validation rule mismatch
+Solution: Sync validation logic between contract and backend
+
+Issue: Error code not mapped
+Solution: Add new error code to HTTP status mapping
+
+BEST PRACTICES
+--------------
+1. Run consistency tests before every deployment
+2. Update tests when adding new contract functions
+3. Document all field mappings
+4. Use TypeScript for type safety
+5. Validate all transformations
+6. Test edge cases (null, zero, max values)
+7. Keep error codes synchronized
+8. Maintain API documentation
+9. Use BigInt for all amounts
+10. Convert timestamps correctly
+
+MAINTENANCE
+-----------
+Review and update tests when:
+- Adding new contract functions
+- Modifying data structures
+- Changing validation rules
+- Adding new error codes
+- Updating API endpoints
+- Changing field types
+- Modifying event structures
+
+FILES
+-----
+Test Implementation:
+- backend/src/__tests__/contract-consistency.test.ts
+
+Documentation:
+- backend/CONTRACT_CONSISTENCY_GUIDE.txt (this file)
+- backend/CONTRACT_CONSISTENCY_QUICK_REF.txt
+
+Contract Types:
+- contracts/token-factory/src/types.rs
+
+Backend Schema:
+- backend/prisma/schema.prisma
+
+RELATED DOCUMENTATION
+---------------------
+- Prisma Schema Documentation
+- Contract Types Documentation
+- API Documentation
+- Error Handling Guide
+
+VERSION
+-------
+Version: 1.0.0
+Last Updated: 2026-03-06

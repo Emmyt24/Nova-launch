@@ -33,6 +33,7 @@ pub fn initialize_governance(
     let config = GovernanceConfig {
         quorum_percent: quorum,
         approval_percent: approval,
+        voting_period: 86400, // Default 24 hours
     };
 
     storage::set_governance_config(env, &config);

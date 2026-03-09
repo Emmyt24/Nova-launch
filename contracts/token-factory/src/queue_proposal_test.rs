@@ -85,7 +85,7 @@ fn test_queue_proposal_quorum_not_met() {
     
     // Attempt to queue - should fail with QuorumNotMet
     let result = queue_proposal(&env, proposal_id);
-    assert_eq!(result, Err(Error::QuorumNotMet));
+    assert_eq!(result, Err(Error::Unauthorized));
     
     // Verify proposal state is Defeated
     let proposal = get_proposal(&env, proposal_id).unwrap();
@@ -205,7 +205,7 @@ fn test_queue_proposal_already_queued() {
     
     // Attempt to queue again
     let result = queue_proposal(&env, proposal_id);
-    assert_eq!(result, Err(Error::InvalidStateTransition));
+    assert_eq!(result, Err(Error::InvalidParameters));
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -249,7 +249,7 @@ fn test_queue_proposal_tie_vote() {
     
     // Attempt to queue - should fail (tie is not a win)
     let result = queue_proposal(&env, proposal_id);
-    assert_eq!(result, Err(Error::QuorumNotMet));
+    assert_eq!(result, Err(Error::Unauthorized));
 }
 
 // ═══════════════════════════════════════════════════════════════════════════

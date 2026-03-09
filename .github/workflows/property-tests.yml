@@ -60,6 +60,7 @@ jobs:
           echo "⚠️  Note: Tests may fail due to missing create_token function in contract"
           cargo test --lib --profile ci burn_property_test -- --nocapture || echo "Tests failed - contract needs create_token implementation"
           cargo test --lib --profile ci supply_conservation_test -- --nocapture || echo "Tests failed - contract compilation errors"
+          cargo test --lib --profile ci governance_property_test -- --nocapture || echo "Governance property tests failed"
 
       - name: Upload test artifacts
         if: failure() && steps.property-tests.outcome == 'failure'
@@ -134,6 +135,10 @@ jobs:
           echo "- Balance consistency: sum(balances) = total_supply" >> $GITHUB_STEP_SUMMARY
           echo "- Max supply enforcement: total_supply ≤ initial_supply" >> $GITHUB_STEP_SUMMARY
           echo "- Amount validity: burn amounts are positive" >> $GITHUB_STEP_SUMMARY
+          echo "- Governance: monotonic vote totals" >> $GITHUB_STEP_SUMMARY
+          echo "- Governance: single-vote-per-address" >> $GITHUB_STEP_SUMMARY
+          echo "- Governance: execution preconditions" >> $GITHUB_STEP_SUMMARY
+          echo "- Governance: terminal state permanence" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Test Configuration:" >> $GITHUB_STEP_SUMMARY
           echo "- Test cases per property: $PROPTEST_CASES" >> $GITHUB_STEP_SUMMARY

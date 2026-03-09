@@ -214,7 +214,7 @@ fn test_execute_proposal_not_queued_fails() {
     
     // Try to execute without queueing - should fail
     let result = execute_proposal(&env, proposal_id);
-    assert_eq!(result, Err(Error::ProposalNotQueued));
+    assert_eq!(result, Err(Error::InvalidParameters));
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -246,7 +246,7 @@ fn test_execute_cancelled_proposal_fails() {
     
     // Try to execute cancelled proposal - should fail
     let result = execute_proposal(&env, proposal_id);
-    assert_eq!(result, Err(Error::ProposalCancelled));
+    assert_eq!(result, Err(Error::InvalidParameters));
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -308,7 +308,7 @@ fn test_double_execute_fails() {
     
     // Try to execute again - should fail
     let result = execute_proposal(&env, proposal_id);
-    assert_eq!(result, Err(Error::InvalidStateTransition));
+    assert_eq!(result, Err(Error::InvalidParameters));
 }
 
 // ═══════════════════════════════════════════════════════════════════════════

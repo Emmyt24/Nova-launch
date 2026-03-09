@@ -50,7 +50,7 @@ impl ProposalStateMachine {
     pub fn validate_transition(from: ProposalState, to: ProposalState) -> Result<(), Error> {
         // Cannot transition from terminal states
         if Self::is_terminal_state(from) {
-            return Err(Error::ProposalInTerminalState);
+            return Err(Error::InvalidParameters);
         }
 
         // Cannot transition to the same state
@@ -78,14 +78,14 @@ impl ProposalStateMachine {
             // Any state -> Cancelled (admin override)
             (_, ProposalState::Cancelled) => {
                 if Self::is_terminal_state(from) {
-                    Err(Error::ProposalInTerminalState)
+                    Err(Error::InvalidParameters)
                 } else {
                     Ok(())
                 }
             }
 
             // All other transitions are invalid
-            _ => Err(Error::InvalidStateTransition),
+            _ => Err(Error::InvalidParameters),
         }
     }
 
@@ -275,7 +275,7 @@ mod tests {
                 ProposalState::Created,
                 ProposalState::Succeeded
             ),
-            Err(Error::InvalidStateTransition)
+            Err(Error::InvalidParameters)
         );
 
         assert_eq!(
@@ -283,7 +283,7 @@ mod tests {
                 ProposalState::Created,
                 ProposalState::Executed
             ),
-            Err(Error::InvalidStateTransition)
+            Err(Error::InvalidParameters)
         );
 
         // Cannot go backwards
@@ -292,7 +292,7 @@ mod tests {
                 ProposalState::Active,
                 ProposalState::Created
             ),
-            Err(Error::InvalidStateTransition)
+            Err(Error::InvalidParameters)
         );
 
         assert_eq!(
@@ -300,7 +300,7 @@ mod tests {
                 ProposalState::Queued,
                 ProposalState::Succeeded
             ),
-            Err(Error::InvalidStateTransition)
+            Err(Error::InvalidParameters)
         );
 
         // Cannot transition from Defeated
@@ -309,7 +309,7 @@ mod tests {
                 ProposalState::Defeated,
                 ProposalState::Active
             ),
-            Err(Error::ProposalInTerminalState)
+            Err(Error::InvalidParameters)
         );
     }
 
@@ -321,7 +321,7 @@ mod tests {
                 ProposalState::Executed,
                 ProposalState::Active
             ),
-            Err(Error::ProposalInTerminalState)
+            Err(Error::InvalidParameters)
         );
 
         // Cannot transition from Expired
@@ -330,7 +330,7 @@ mod tests {
                 ProposalState::Expired,
                 ProposalState::Queued
             ),
-            Err(Error::ProposalInTerminalState)
+            Err(Error::InvalidParameters)
         );
 
         // Cannot transition from Cancelled
@@ -339,7 +339,7 @@ mod tests {
                 ProposalState::Cancelled,
                 ProposalState::Active
             ),
-            Err(Error::ProposalInTerminalState)
+            Err(Error::InvalidParameters)
         );
 
         // Cannot cancel already terminal states
@@ -348,7 +348,7 @@ mod tests {
                 ProposalState::Executed,
                 ProposalState::Cancelled
             ),
-            Err(Error::ProposalInTerminalState)
+            Err(Error::InvalidParameters)
         );
     }
 

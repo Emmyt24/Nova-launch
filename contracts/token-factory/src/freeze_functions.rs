@@ -51,12 +51,12 @@ pub fn freeze_address(
 
     // Verify freeze is enabled for this token
     if !token_info.freeze_enabled {
-        return Err(Error::FreezeNotEnabled);
+        return Err(Error::Unauthorized);
     }
 
     // Check if address is already frozen
     if storage::is_address_frozen(env, token_address, address_to_freeze) {
-        return Err(Error::AddressFrozen);
+        return Err(Error::InvalidParameters);
     }
 
     // Freeze the address
@@ -125,12 +125,12 @@ pub fn unfreeze_address(
 
     // Verify freeze is enabled for this token
     if !token_info.freeze_enabled {
-        return Err(Error::FreezeNotEnabled);
+        return Err(Error::Unauthorized);
     }
 
     // Check if address is actually frozen
     if !storage::is_address_frozen(env, token_address, address_to_unfreeze) {
-        return Err(Error::AddressNotFrozen);
+        return Err(Error::InvalidParameters);
     }
 
     // Unfreeze the address

@@ -969,7 +969,10 @@ pub fn get_next_stream_id(env: &Env) -> u64 {
 
 /// Get the total number of vaults created.
 pub fn get_vault_count(env: &Env) -> u64 {
-    env.storage().instance().get(&DataKey::VaultCount).unwrap_or(0_u64)
+    env.storage()
+        .instance()
+        .get(&DataKey::VaultCount)
+        .unwrap_or(0_u64)
 }
 
 /// Increment vault count and return the new vault id.
@@ -988,30 +991,36 @@ pub fn get_vault(env: &Env, vault_id: u64) -> Option<crate::types::Vault> {
 
 /// Persist a vault and maintain owner/creator index mappings.
 pub fn set_vault(env: &Env, vault: &crate::types::Vault) -> Result<(), Error> {
+    let is_new_vault = !env.storage().persistent().has(&DataKey::Vault(vault.id));
+
     env.storage()
         .persistent()
         .set(&DataKey::Vault(vault.id), vault);
 
-    let owner_slot = get_owner_vault_count(env, &vault.owner);
-    env.storage().persistent().set(
-        &DataKey::VaultByOwner(vault.owner.clone(), owner_slot),
-        &vault.id,
-    );
-    let next_owner_slot = owner_slot.checked_add(1).ok_or(Error::ArithmeticError)?;
-    env.storage()
-        .persistent()
-        .set(&DataKey::OwnerVaultCount(vault.owner.clone()), &next_owner_slot);
+    if is_new_vault {
+        let owner_slot = get_owner_vault_count(env, &vault.owner);
+        env.storage().persistent().set(
+            &DataKey::VaultByOwner(vault.owner.clone(), owner_slot),
+            &vault.id,
+        );
+        let next_owner_slot = owner_slot.checked_add(1).ok_or(Error::ArithmeticError)?;
+        env.storage().persistent().set(
+            &DataKey::OwnerVaultCount(vault.owner.clone()),
+            &next_owner_slot,
+        );
 
-    let creator_slot = get_creator_vault_count(env, &vault.creator);
-    env.storage().persistent().set(
-        &DataKey::VaultByCreator(vault.creator.clone(), creator_slot),
-        &vault.id,
-    );
-    let next_creator_slot = creator_slot.checked_add(1).ok_or(Error::ArithmeticError)?;
-    env.storage().persistent().set(
-        &DataKey::CreatorVaultCount(vault.creator.clone()),
-        &next_creator_slot,
-    );
+        let creator_slot = get_creator_vault_count(env, &vault.creator);
+        env.storage().persistent().set(
+            &DataKey::VaultByCreator(vault.creator.clone(), creator_slot),
+            &vault.id,
+        );
+        let next_creator_slot = creator_slot.checked_add(1).ok_or(Error::ArithmeticError)?;
+        env.storage().persistent().set(
+            &DataKey::CreatorVaultCount(vault.creator.clone()),
+            &next_creator_slot,
+        );
+    }
+
     Ok(())
 }
 
@@ -1119,6 +1128,7 @@ pub fn get_governance_config(env: &Env) -> crate::types::GovernanceConfig {
         .unwrap_or(crate::types::GovernanceConfig {
             quorum_percent: 30,
             approval_percent: 51,
+            voting_period: 86400,
         })
 }
 
@@ -1127,4 +1137,26 @@ pub fn set_governance_config(env: &Env, config: &crate::types::GovernanceConfig)
     env.storage()
         .instance()
         .set(&DataKey::GovernanceConfig, config);
+}
+
+// ── Milestone Verification (Stub Testing) ────────────────────────────────────────────────────────────────────
+
+/// Set a valid proof for milestone verification testing
+/// This is used by the MilestoneVerifierStub for testing purposes only
+pub fn set_valid_proof(env: &Env, milestone_hash: &soroban_sdk::BytesN<32>, proof: &soroban_sdk::Bytes) {
+    use soroban_sdk::Symbol;
+    let key = (Symbol::new(env, "valid_proof"), milestone_hash.clone());
+    env.storage()
+        .temporary()
+        .set(&key, proof);
+}
+
+/// Get a valid proof for milestone verification testing
+/// This is used by the MilestoneVerifierStub for testing purposes only
+pub fn get_valid_proof(env: &Env, milestone_hash: &soroban_sdk::BytesN<32>) -> Option<soroban_sdk::Bytes> {
+    use soroban_sdk::Symbol;
+    let key = (Symbol::new(env, "valid_proof"), milestone_hash.clone());
+    env.storage()
+        .temporary()
+        .get(&key)
 }

@@ -19,6 +19,8 @@ pub struct MetadataUpdate {
 /// # Fields
 /// * `streams` - Vector of stream info for this page
 /// * `cursor` - Cursor for next page (None = no more results)
+// Temporarily disabled due to trait bound issues with Option<PaginationCursor>
+/*
 #[contracttype]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct PaginatedStreams {
@@ -26,6 +28,7 @@ pub struct PaginatedStreams {
     pub has_more: bool,
     pub cursor: PaginationCursor,
 }
+*/
 
 /// Validate stream metadata length (max 512 chars)
 ///

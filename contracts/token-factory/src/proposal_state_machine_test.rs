@@ -133,7 +133,7 @@ mod proposal_state_machine_tests {
                 ProposalState::Defeated,
                 ProposalState::Cancelled
             ),
-            Err(Error::ProposalInTerminalState)
+            Err(Error::InvalidParameters)
         );
 
         assert_eq!(
@@ -141,7 +141,7 @@ mod proposal_state_machine_tests {
                 ProposalState::Executed,
                 ProposalState::Cancelled
             ),
-            Err(Error::ProposalInTerminalState)
+            Err(Error::InvalidParameters)
         );
 
         assert_eq!(
@@ -149,7 +149,7 @@ mod proposal_state_machine_tests {
                 ProposalState::Expired,
                 ProposalState::Cancelled
             ),
-            Err(Error::ProposalInTerminalState)
+            Err(Error::InvalidParameters)
         );
 
         assert_eq!(
@@ -157,7 +157,7 @@ mod proposal_state_machine_tests {
                 ProposalState::Cancelled,
                 ProposalState::Cancelled
             ),
-            Err(Error::ProposalInTerminalState)
+            Err(Error::InvalidParameters)
         );
     }
 
@@ -170,7 +170,7 @@ mod proposal_state_machine_tests {
                 ProposalState::Created,
                 ProposalState::Succeeded
             ),
-            Err(Error::InvalidStateTransition)
+            Err(Error::InvalidParameters)
         );
 
         // Cannot skip from Created to Queued
@@ -179,7 +179,7 @@ mod proposal_state_machine_tests {
                 ProposalState::Created,
                 ProposalState::Queued
             ),
-            Err(Error::InvalidStateTransition)
+            Err(Error::InvalidParameters)
         );
 
         // Cannot skip from Created to Executed
@@ -188,7 +188,7 @@ mod proposal_state_machine_tests {
                 ProposalState::Created,
                 ProposalState::Executed
             ),
-            Err(Error::InvalidStateTransition)
+            Err(Error::InvalidParameters)
         );
 
         // Cannot skip from Active to Queued
@@ -197,7 +197,7 @@ mod proposal_state_machine_tests {
                 ProposalState::Active,
                 ProposalState::Queued
             ),
-            Err(Error::InvalidStateTransition)
+            Err(Error::InvalidParameters)
         );
 
         // Cannot skip from Active to Executed
@@ -206,7 +206,7 @@ mod proposal_state_machine_tests {
                 ProposalState::Active,
                 ProposalState::Executed
             ),
-            Err(Error::InvalidStateTransition)
+            Err(Error::InvalidParameters)
         );
 
         // Cannot skip from Succeeded to Executed
@@ -215,7 +215,7 @@ mod proposal_state_machine_tests {
                 ProposalState::Succeeded,
                 ProposalState::Executed
             ),
-            Err(Error::InvalidStateTransition)
+            Err(Error::InvalidParameters)
         );
     }
 
@@ -228,7 +228,7 @@ mod proposal_state_machine_tests {
                 ProposalState::Active,
                 ProposalState::Created
             ),
-            Err(Error::InvalidStateTransition)
+            Err(Error::InvalidParameters)
         );
 
         // Cannot go from Succeeded to Active
@@ -237,7 +237,7 @@ mod proposal_state_machine_tests {
                 ProposalState::Succeeded,
                 ProposalState::Active
             ),
-            Err(Error::InvalidStateTransition)
+            Err(Error::InvalidParameters)
         );
 
         // Cannot go from Queued to Succeeded
@@ -246,7 +246,7 @@ mod proposal_state_machine_tests {
                 ProposalState::Queued,
                 ProposalState::Succeeded
             ),
-            Err(Error::InvalidStateTransition)
+            Err(Error::InvalidParameters)
         );
 
         // Cannot go from Queued to Active
@@ -255,7 +255,7 @@ mod proposal_state_machine_tests {
                 ProposalState::Queued,
                 ProposalState::Active
             ),
-            Err(Error::InvalidStateTransition)
+            Err(Error::InvalidParameters)
         );
     }
 
@@ -267,23 +267,23 @@ mod proposal_state_machine_tests {
         // Cannot transition to any state from Defeated
         assert_eq!(
             ProposalStateMachine::validate_transition(terminal_state, ProposalState::Created),
-            Err(Error::ProposalInTerminalState)
+            Err(Error::InvalidParameters)
         );
         assert_eq!(
             ProposalStateMachine::validate_transition(terminal_state, ProposalState::Active),
-            Err(Error::ProposalInTerminalState)
+            Err(Error::InvalidParameters)
         );
         assert_eq!(
             ProposalStateMachine::validate_transition(terminal_state, ProposalState::Succeeded),
-            Err(Error::ProposalInTerminalState)
+            Err(Error::InvalidParameters)
         );
         assert_eq!(
             ProposalStateMachine::validate_transition(terminal_state, ProposalState::Queued),
-            Err(Error::ProposalInTerminalState)
+            Err(Error::InvalidParameters)
         );
         assert_eq!(
             ProposalStateMachine::validate_transition(terminal_state, ProposalState::Executed),
-            Err(Error::ProposalInTerminalState)
+            Err(Error::InvalidParameters)
         );
     }
 
@@ -295,19 +295,19 @@ mod proposal_state_machine_tests {
         // Cannot transition to any state from Executed
         assert_eq!(
             ProposalStateMachine::validate_transition(terminal_state, ProposalState::Created),
-            Err(Error::ProposalInTerminalState)
+            Err(Error::InvalidParameters)
         );
         assert_eq!(
             ProposalStateMachine::validate_transition(terminal_state, ProposalState::Active),
-            Err(Error::ProposalInTerminalState)
+            Err(Error::InvalidParameters)
         );
         assert_eq!(
             ProposalStateMachine::validate_transition(terminal_state, ProposalState::Queued),
-            Err(Error::ProposalInTerminalState)
+            Err(Error::InvalidParameters)
         );
         assert_eq!(
             ProposalStateMachine::validate_transition(terminal_state, ProposalState::Defeated),
-            Err(Error::ProposalInTerminalState)
+            Err(Error::InvalidParameters)
         );
     }
 
@@ -319,15 +319,15 @@ mod proposal_state_machine_tests {
         // Cannot transition to any state from Expired
         assert_eq!(
             ProposalStateMachine::validate_transition(terminal_state, ProposalState::Active),
-            Err(Error::ProposalInTerminalState)
+            Err(Error::InvalidParameters)
         );
         assert_eq!(
             ProposalStateMachine::validate_transition(terminal_state, ProposalState::Queued),
-            Err(Error::ProposalInTerminalState)
+            Err(Error::InvalidParameters)
         );
         assert_eq!(
             ProposalStateMachine::validate_transition(terminal_state, ProposalState::Executed),
-            Err(Error::ProposalInTerminalState)
+            Err(Error::InvalidParameters)
         );
     }
 
@@ -339,23 +339,23 @@ mod proposal_state_machine_tests {
         // Cannot transition to any state from Cancelled
         assert_eq!(
             ProposalStateMachine::validate_transition(terminal_state, ProposalState::Created),
-            Err(Error::ProposalInTerminalState)
+            Err(Error::InvalidParameters)
         );
         assert_eq!(
             ProposalStateMachine::validate_transition(terminal_state, ProposalState::Active),
-            Err(Error::ProposalInTerminalState)
+            Err(Error::InvalidParameters)
         );
         assert_eq!(
             ProposalStateMachine::validate_transition(terminal_state, ProposalState::Succeeded),
-            Err(Error::ProposalInTerminalState)
+            Err(Error::InvalidParameters)
         );
         assert_eq!(
             ProposalStateMachine::validate_transition(terminal_state, ProposalState::Queued),
-            Err(Error::ProposalInTerminalState)
+            Err(Error::InvalidParameters)
         );
         assert_eq!(
             ProposalStateMachine::validate_transition(terminal_state, ProposalState::Executed),
-            Err(Error::ProposalInTerminalState)
+            Err(Error::InvalidParameters)
         );
     }
 
@@ -400,7 +400,7 @@ mod proposal_state_machine_tests {
                 ProposalState::Succeeded,
                 ProposalState::Defeated
             ),
-            Err(Error::InvalidStateTransition)
+            Err(Error::InvalidParameters)
         );
 
         // Cannot go from Defeated to Succeeded
@@ -409,7 +409,7 @@ mod proposal_state_machine_tests {
                 ProposalState::Defeated,
                 ProposalState::Succeeded
             ),
-            Err(Error::ProposalInTerminalState)
+            Err(Error::InvalidParameters)
         );
 
         // Cannot go from Queued to Defeated
@@ -418,7 +418,7 @@ mod proposal_state_machine_tests {
                 ProposalState::Queued,
                 ProposalState::Defeated
             ),
-            Err(Error::InvalidStateTransition)
+            Err(Error::InvalidParameters)
         );
     }
 
@@ -444,7 +444,7 @@ mod proposal_state_machine_tests {
                 // Invariant 1: Terminal states cannot transition (except to themselves)
                 if ProposalStateMachine::is_terminal_state(*from_state) && from_state != to_state
                 {
-                    assert_eq!(result, Err(Error::ProposalInTerminalState));
+                    assert_eq!(result, Err(Error::InvalidParameters));
                 }
 
                 // Invariant 2: Same state transition is always allowed

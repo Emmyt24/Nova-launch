@@ -1,7 +1,627 @@
 use super::*;
 use proptest::prelude::*;
 use soroban_sdk::testutils::Address as _;
-use soroban_sdk::Address;
+use soroban_sdk::{Address, String as SorobanString};
+
+extern crate std;
+use std::collections::HashMap;
+use std::format;
+use std::println;
+use std::string::String;
+use std::vec;
+use std::vec::Vec;
+
+// ============================================================================
+// STATEFUL FUZZING FRAMEWORK
+// ============================================================================
+
+/// Represents different operations that can be performed on the contract
+#[derive(Debug, Clone)]
+enum FuzzAction {
+    Initialize {
+        admin_seed: u64,
+        treasury_seed: u64,
+        base_fee: i128,
+        metadata_fee: i128,
+    },
+    UpdateFees {
+        caller_seed: u64,
+        base_fee: Option<i128>,
+        metadata_fee: Option<i128>,
+    },
+    GetState,
+    GetTokenCount,
+    GetTokenInfo {
+        index: u32,
+    },
+}
+
+impl std::fmt::Display for FuzzAction {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            FuzzAction::Initialize { admin_seed, treasury_seed, base_fee, metadata_fee } => {
+                write!(f, "Initialize(admin:{}, treasury:{}, base:{}, meta:{})", 
+                       admin_seed, treasury_seed, base_fee, metadata_fee)
+            }
+            FuzzAction::UpdateFees { caller_seed, base_fee, metadata_fee } => {
+                write!(f, "UpdateFees(caller:{}, base:{:?}, meta:{:?})", 
+                       caller_seed, base_fee, metadata_fee)
+            }
+            FuzzAction::GetState => write!(f, "GetState"),
+            FuzzAction::GetTokenCount => write!(f, "GetTokenCount"),
+            FuzzAction::GetTokenInfo { index } => write!(f, "GetTokenInfo({})", index),
+        }
+    }
+}
+
+/// Contract state model for invariant checking
+#[derive(Debug, Clone)]
+struct StateModel {
+    initialized: bool,
+    admin_seed: Option<u64>,
+    treasury_seed: Option<u64>,
+    base_fee: i128,
+    metadata_fee: i128,
+    token_count: u32,
+}
+
+impl StateModel {
+    fn new() -> Self {
+        Self {
+            initialized: false,
+            admin_seed: None,
+            treasury_seed: None,
+            base_fee: 0,
+            metadata_fee: 0,
+            token_count: 0,
+        }
+    }
+
+    fn apply_action(&mut self, action: &FuzzAction) -> Result<(), String> {
+        match action {
+            FuzzAction::Initialize { admin_seed, treasury_seed, base_fee, metadata_fee } => {
+                if self.initialized {
+                    return Err(String::from("Already initialized"));
+                }
+                if *base_fee < 0 || *metadata_fee < 0 {
+                    return Err(String::from("Negative fees"));
+                }
+                self.initialized = true;
+                self.admin_seed = Some(*admin_seed);
+                self.treasury_seed = Some(*treasury_seed);
+                self.base_fee = *base_fee;
+                self.metadata_fee = *metadata_fee;
+                Ok(())
+            }
+            FuzzAction::UpdateFees { caller_seed, base_fee, metadata_fee } => {
+                if !self.initialized {
+                    return Err(String::from("Not initialized"));
+                }
+                if Some(*caller_seed) != self.admin_seed {
+                    return Err(String::from("Unauthorized"));
+                }
+                if let Some(fee) = base_fee {
+                    if *fee < 0 {
+                        return Err(String::from("Negative base fee"));
+                    }
+                    self.base_fee = *fee;
+                }
+                if let Some(fee) = metadata_fee {
+                    if *fee < 0 {
+                        return Err(String::from("Negative metadata fee"));
+                    }
+                    self.metadata_fee = *fee;
+                }
+                Ok(())
+            }
+            FuzzAction::GetState => {
+                if !self.initialized {
+                    return Err(String::from("Not initialized"));
+                }
+                Ok(())
+            }
+            FuzzAction::GetTokenCount => Ok(()),
+            FuzzAction::GetTokenInfo { .. } => {
+                if !self.initialized {
+                    return Err(String::from("Not initialized"));
+                }
+                Err(String::from("Token not found"))
+            }
+        }
+    }
+}
+
+/// Deterministic action generator using a seed
+struct ActionGenerator {
+    seed: u64,
+    rng_state: u64,
+}
+
+impl ActionGenerator {
+    fn new(seed: u64) -> Self {
+        Self {
+            seed,
+            rng_state: seed,
+        }
+    }
+
+    /// Simple LCG for deterministic pseudo-random numbers
+    fn next_u64(&mut self) -> u64 {
+        self.rng_state = self.rng_state.wrapping_mul(6364136223846793005).wrapping_add(1);
+        self.rng_state
+    }
+
+    fn next_range(&mut self, max: u64) -> u64 {
+        if max == 0 {
+            return 0;
+        }
+        self.next_u64() % max
+    }
+
+    fn next_i128(&mut self, min: i128, max: i128) -> i128 {
+        if min >= max {
+            return min;
+        }
+        let range = (max - min) as u64;
+        min + (self.next_range(range) as i128)
+    }
+
+    fn next_bool(&mut self) -> bool {
+        self.next_u64() % 2 == 0
+    }
+
+    /// Generate a sequence of mixed operations
+    fn generate_action_sequence(&mut self, length: usize) -> Vec<FuzzAction> {
+        let mut actions = Vec::new();
+        
+        for _ in 0..length {
+            let action_type = self.next_range(5);
+            
+            let action = match action_type {
+                0 => FuzzAction::Initialize {
+                    admin_seed: self.next_u64(),
+                    treasury_seed: self.next_u64(),
+                    base_fee: self.next_i128(-1000, 1_000_000_000),
+                    metadata_fee: self.next_i128(-1000, 1_000_000_000),
+                },
+                1 => FuzzAction::UpdateFees {
+                    caller_seed: self.next_u64(),
+                    base_fee: if self.next_bool() {
+                        Some(self.next_i128(-1000, 1_000_000_000))
+                    } else {
+                        None
+                    },
+                    metadata_fee: if self.next_bool() {
+                        Some(self.next_i128(-1000, 1_000_000_000))
+                    } else {
+                        None
+                    },
+                },
+                2 => FuzzAction::GetState,
+                3 => FuzzAction::GetTokenCount,
+                4 => FuzzAction::GetTokenInfo {
+                    index: self.next_range(100) as u32,
+                },
+                _ => unreachable!(),
+            };
+            
+            actions.push(action);
+        }
+        
+        actions
+    }
+}
+
+/// Execute actions and verify invariants
+fn execute_stateful_fuzz(seed: u64, actions: &[FuzzAction]) -> Result<(), String> {
+    let env = Env::default();
+    env.mock_all_auths();
+    
+    let contract_id = env.register_contract(None, TokenFactory);
+    let client = TokenFactoryClient::new(&env, &contract_id);
+    
+    let mut model = StateModel::new();
+    let mut address_cache: HashMap<u64, Address> = HashMap::new();
+    
+    let get_or_create_address = |cache: &mut HashMap<u64, Address>, seed: u64, env: &Env| {
+        cache.entry(seed).or_insert_with(|| Address::generate(env)).clone()
+    };
+    
+    for (i, action) in actions.iter().enumerate() {
+        // Apply to model first
+        let model_result = model.apply_action(action);
+        
+        // Execute on contract
+        let contract_result = match action {
+            FuzzAction::Initialize { admin_seed, treasury_seed, base_fee, metadata_fee } => {
+                let admin = get_or_create_address(&mut address_cache, *admin_seed, &env);
+                let treasury = get_or_create_address(&mut address_cache, *treasury_seed, &env);
+                client.try_initialize(&admin, &treasury, base_fee, metadata_fee)
+                    .map(|_| ())
+                    .map_err(|e| format!("{:?}", e))
+            }
+            FuzzAction::UpdateFees { caller_seed, base_fee, metadata_fee } => {
+                let caller = get_or_create_address(&mut address_cache, *caller_seed, &env);
+                client.try_update_fees(&caller, base_fee, metadata_fee)
+                    .map(|_| ())
+                    .map_err(|e| format!("{:?}", e))
+            }
+            FuzzAction::GetState => {
+                client.try_get_state()
+                    .map(|_| ())
+                    .map_err(|e| format!("{:?}", e))
+            }
+            FuzzAction::GetTokenCount => {
+                Ok(client.get_token_count())
+                    .map(|_| ())
+            }
+            FuzzAction::GetTokenInfo { index } => {
+                client.try_get_token_info(index)
+                    .map(|_| ())
+                    .map_err(|e| format!("{:?}", e))
+            }
+        };
+        
+        // Verify model and contract agree
+        match (model_result, contract_result) {
+            (Ok(()), Ok(())) => {
+                // Both succeeded - verify invariants
+                verify_invariants(&client, &model, seed, i, action)?;
+            }
+            (Err(_), Err(_)) => {
+                // Both failed - expected
+            }
+            (Ok(()), Err(e)) => {
+                return Err(format!(
+                    "SEED: {} | Action {}: {} | Model succeeded but contract failed: {}",
+                    seed, i, action, e
+                ));
+            }
+            (Err(e), Ok(())) => {
+                return Err(format!(
+                    "SEED: {} | Action {}: {} | Model failed but contract succeeded: {}",
+                    seed, i, action, e
+                ));
+            }
+        }
+    }
+    
+    Ok(())
+}
+
+/// Verify contract invariants
+fn verify_invariants(
+    client: &TokenFactoryClient,
+    model: &StateModel,
+    seed: u64,
+    action_index: usize,
+    action: &FuzzAction,
+) -> Result<(), String> {
+    if !model.initialized {
+        return Ok(());
+    }
+    
+    // Invariant 1: State consistency
+    let state = client.get_state();
+    if state.base_fee != model.base_fee {
+        return Err(format!(
+            "SEED: {} | Action {}: {} | Base fee mismatch: contract={}, model={}",
+            seed, action_index, action, state.base_fee, model.base_fee
+        ));
+    }
+    if state.metadata_fee != model.metadata_fee {
+        return Err(format!(
+            "SEED: {} | Action {}: {} | Metadata fee mismatch: contract={}, model={}",
+            seed, action_index, action, state.metadata_fee, model.metadata_fee
+        ));
+    }
+    
+    // Invariant 2: Fees are non-negative
+    if state.base_fee < 0 {
+        return Err(format!(
+            "SEED: {} | Action {}: {} | Negative base fee: {}",
+            seed, action_index, action, state.base_fee
+        ));
+    }
+    if state.metadata_fee < 0 {
+        return Err(format!(
+            "SEED: {} | Action {}: {} | Negative metadata fee: {}",
+            seed, action_index, action, state.metadata_fee
+        ));
+    }
+    
+    // Invariant 3: Token count consistency
+    let token_count = client.get_token_count();
+    if token_count != model.token_count {
+        return Err(format!(
+            "SEED: {} | Action {}: {} | Token count mismatch: contract={}, model={}",
+            seed, action_index, action, token_count, model.token_count
+        ));
+    }
+    
+    // Invariant 4: Fee sum doesn't overflow
+    if state.base_fee.checked_add(state.metadata_fee).is_none() {
+        return Err(format!(
+            "SEED: {} | Action {}: {} | Fee sum overflow: base={}, metadata={}",
+            seed, action_index, action, state.base_fee, state.metadata_fee
+        ));
+    }
+    
+    Ok(())
+}
+
+// ============================================================================
+// STATEFUL FUZZ TESTS
+// ============================================================================
+
+#[cfg(test)]
+mod stateful_tests {
+    use super::*;
+
+    #[test]
+    fn test_stateful_fuzz_short_sequence() {
+        let seed = 12345u64;
+        let mut gen = ActionGenerator::new(seed);
+        let actions = gen.generate_action_sequence(10);
+        
+        match execute_stateful_fuzz(seed, &actions) {
+            Ok(()) => println!("✓ Seed {} passed", seed),
+            Err(e) => {
+                println!("✗ FAILURE - Replay with seed: {}", seed);
+                println!("Error: {}", e);
+                println!("\nReplay command:");
+                println!("cargo test test_replay_seed_{} -- --nocapture", seed);
+                panic!("Stateful fuzz test failed");
+            }
+        }
+    }
+
+    #[test]
+    fn test_stateful_fuzz_medium_sequence() {
+        let seed = 67890u64;
+        let mut gen = ActionGenerator::new(seed);
+        let actions = gen.generate_action_sequence(50);
+        
+        match execute_stateful_fuzz(seed, &actions) {
+            Ok(()) => println!("✓ Seed {} passed", seed),
+            Err(e) => {
+                println!("✗ FAILURE - Replay with seed: {}", seed);
+                println!("Error: {}", e);
+                println!("\nReplay command:");
+                println!("cargo test test_replay_seed_{} -- --nocapture", seed);
+                panic!("Stateful fuzz test failed");
+            }
+        }
+    }
+
+    #[test]
+    fn test_stateful_fuzz_long_sequence() {
+        let seed = 99999u64;
+        let mut gen = ActionGenerator::new(seed);
+        let actions = gen.generate_action_sequence(100);
+        
+        match execute_stateful_fuzz(seed, &actions) {
+            Ok(()) => println!("✓ Seed {} passed", seed),
+            Err(e) => {
+                println!("✗ FAILURE - Replay with seed: {}", seed);
+                println!("Error: {}", e);
+                println!("\nReplay command:");
+                println!("cargo test test_replay_seed_{} -- --nocapture", seed);
+                panic!("Stateful fuzz test failed");
+            }
+        }
+    }
+
+    #[test]
+    fn test_stateful_fuzz_multiple_seeds() {
+        let seeds = [1u64, 42, 123, 456, 789, 1000, 9999, 12345, 54321, 99999];
+        
+        for seed in seeds.iter() {
+            let mut gen = ActionGenerator::new(*seed);
+            let actions = gen.generate_action_sequence(30);
+            
+            match execute_stateful_fuzz(*seed, &actions) {
+                Ok(()) => println!("✓ Seed {} passed", seed),
+                Err(e) => {
+                    println!("✗ FAILURE - Replay with seed: {}", seed);
+                    println!("Error: {}", e);
+                    println!("\nReplay command:");
+                    println!("cargo test test_replay_seed_{} -- --nocapture", seed);
+                    panic!("Stateful fuzz test failed for seed {}", seed);
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn test_initialization_focused_sequence() {
+        let seed = 11111u64;
+        let actions = vec![
+            FuzzAction::Initialize {
+                admin_seed: 1,
+                treasury_seed: 2,
+                base_fee: 100_000_000,
+                metadata_fee: 50_000_000,
+            },
+            FuzzAction::GetState,
+            FuzzAction::GetTokenCount,
+            FuzzAction::Initialize {
+                admin_seed: 3,
+                treasury_seed: 4,
+                base_fee: 200_000_000,
+                metadata_fee: 100_000_000,
+            },
+        ];
+        
+        match execute_stateful_fuzz(seed, &actions) {
+            Ok(()) => println!("✓ Initialization sequence passed"),
+            Err(e) => {
+                println!("✗ FAILURE");
+                println!("Error: {}", e);
+                panic!("Initialization sequence failed");
+            }
+        }
+    }
+
+    #[test]
+    fn test_fee_update_focused_sequence() {
+        let seed = 22222u64;
+        let actions = vec![
+            FuzzAction::Initialize {
+                admin_seed: 100,
+                treasury_seed: 200,
+                base_fee: 100_000_000,
+                metadata_fee: 50_000_000,
+            },
+            FuzzAction::UpdateFees {
+                caller_seed: 100, // Same as admin
+                base_fee: Some(150_000_000),
+                metadata_fee: None,
+            },
+            FuzzAction::GetState,
+            FuzzAction::UpdateFees {
+                caller_seed: 999, // Different from admin
+                base_fee: Some(200_000_000),
+                metadata_fee: None,
+            },
+            FuzzAction::GetState,
+        ];
+        
+        match execute_stateful_fuzz(seed, &actions) {
+            Ok(()) => println!("✓ Fee update sequence passed"),
+            Err(e) => {
+                println!("✗ FAILURE");
+                println!("Error: {}", e);
+                panic!("Fee update sequence failed");
+            }
+        }
+    }
+
+    #[test]
+    fn test_unauthorized_operations_sequence() {
+        let seed = 33333u64;
+        let actions = vec![
+            FuzzAction::UpdateFees {
+                caller_seed: 1,
+                base_fee: Some(100_000_000),
+                metadata_fee: None,
+            },
+            FuzzAction::GetState,
+            FuzzAction::Initialize {
+                admin_seed: 100,
+                treasury_seed: 200,
+                base_fee: 100_000_000,
+                metadata_fee: 50_000_000,
+            },
+            FuzzAction::UpdateFees {
+                caller_seed: 999,
+                base_fee: Some(200_000_000),
+                metadata_fee: None,
+            },
+        ];
+        
+        match execute_stateful_fuzz(seed, &actions) {
+            Ok(()) => println!("✓ Unauthorized operations sequence passed"),
+            Err(e) => {
+                println!("✗ FAILURE");
+                println!("Error: {}", e);
+                panic!("Unauthorized operations sequence failed");
+            }
+        }
+    }
+
+    #[test]
+    fn test_negative_fee_sequence() {
+        let seed = 44444u64;
+        let actions = vec![
+            FuzzAction::Initialize {
+                admin_seed: 1,
+                treasury_seed: 2,
+                base_fee: -100,
+                metadata_fee: 50_000_000,
+            },
+            FuzzAction::Initialize {
+                admin_seed: 1,
+                treasury_seed: 2,
+                base_fee: 100_000_000,
+                metadata_fee: -50,
+            },
+            FuzzAction::Initialize {
+                admin_seed: 1,
+                treasury_seed: 2,
+                base_fee: 100_000_000,
+                metadata_fee: 50_000_000,
+            },
+            FuzzAction::UpdateFees {
+                caller_seed: 1,
+                base_fee: Some(-100),
+                metadata_fee: None,
+            },
+            FuzzAction::GetState,
+        ];
+        
+        match execute_stateful_fuzz(seed, &actions) {
+            Ok(()) => println!("✓ Negative fee sequence passed"),
+            Err(e) => {
+                println!("✗ FAILURE");
+                println!("Error: {}", e);
+                panic!("Negative fee sequence failed");
+            }
+        }
+    }
+
+    #[test]
+    fn test_interleaved_operations() {
+        let seed = 55555u64;
+        let mut gen = ActionGenerator::new(seed);
+        let actions = gen.generate_action_sequence(100);
+        
+        match execute_stateful_fuzz(seed, &actions) {
+            Ok(()) => println!("✓ Seed {} passed with {} actions", seed, actions.len()),
+            Err(e) => {
+                println!("✗ FAILURE - Replay with seed: {}", seed);
+                println!("Error: {}", e);
+                println!("\nReplay command:");
+                println!("cargo test test_replay_seed_{} -- --nocapture", seed);
+                panic!("Interleaved operations test failed");
+            }
+        }
+    }
+}
+
+// Replay test generator - add specific tests for failed seeds
+#[cfg(test)]
+mod replay_tests {
+    use super::*;
+
+    // Example replay test - copy and modify for specific failing seeds
+    #[test]
+    #[ignore] // Remove ignore to run specific replay
+    fn test_replay_seed_12345() {
+        let seed = 12345u64;
+        let mut gen = ActionGenerator::new(seed);
+        let actions = gen.generate_action_sequence(10);
+        
+        println!("Replaying seed: {}", seed);
+        println!("Actions:");
+        for (i, action) in actions.iter().enumerate() {
+            println!("  {}: {}", i, action);
+        }
+        
+        match execute_stateful_fuzz(seed, &actions) {
+            Ok(()) => println!("✓ Replay passed"),
+            Err(e) => {
+                println!("✗ Replay failed");
+                println!("Error: {}", e);
+                panic!("Replay failed");
+            }
+        }
+    }
+}
+
+// ============================================================================
+// PROPERTY-BASED TESTS (Original)
+// ============================================================================
 
 // Configuration for running more iterations
 const PROPERTY_TEST_ITERATIONS: u32 = 500;

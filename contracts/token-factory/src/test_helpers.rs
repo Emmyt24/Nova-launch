@@ -24,10 +24,12 @@ impl TestEnv {
         let admin = Address::generate(&env);
         let treasury = Address::generate(&env);
 
-        storage::set_admin(&env, &admin);
-        storage::set_treasury(&env, &treasury);
-        storage::set_base_fee(&env, 1_000_000);
-        storage::set_metadata_fee(&env, 500_000);
+        env.as_contract(&env.register_contract(None, crate::TokenFactory), || {
+            storage::set_admin(&env, &admin);
+            storage::set_treasury(&env, &treasury);
+            storage::set_base_fee(&env, 1_000_000);
+            storage::set_metadata_fee(&env, 500_000);
+        });
 
         Self {
             env,
@@ -38,8 +40,10 @@ impl TestEnv {
 
     pub fn with_timelock(delay_seconds: u64) -> Self {
         let test_env = Self::new();
-        timelock::initialize_timelock(&test_env.env, Some(delay_seconds)).unwrap();
-        crate::governance::initialize_governance(&test_env.env, Some(30), Some(51)).unwrap();
+        test_env.env.as_contract(&test_env.env.current_contract_address(), || {
+            timelock::initialize_timelock(&test_env.env, Some(delay_seconds)).unwrap();
+            crate::governance::initialize_governance(&test_env.env, Some(30), Some(51)).unwrap();
+        });
         test_env
     }
 }
