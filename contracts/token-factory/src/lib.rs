@@ -15,6 +15,7 @@ mod stream_types;
 #[cfg(test)]
 mod test_helpers;
 mod timelock;
+mod token_creation;
 mod treasury;
 mod types;
 mod token_creation;
