@@ -18,13 +18,8 @@ mod timelock;
 mod treasury;
 mod types;
 mod token_creation;
-mod stream_types;
 mod vesting;
-mod timelock;
 mod validation;
-mod pagination;
-mod mint;
-mod treasury;
 
 // #[cfg(test)]
 // mod stream_metadata_update_test;
@@ -35,7 +30,7 @@ mod treasury;
 use soroban_sdk::{contract, contractimpl, symbol_short, Address, BytesN, Env, String, Vec};
 use types::{
     ContractMetadata, Error, FactoryState, PaginationCursor, StreamInfo, StreamPage, StreamParams,
-    TokenInfo, TokenStats, Vault, VaultStatus,
+    TokenCreationParams, TokenInfo, TokenStats, Vault, VaultStatus,
 };
 
 #[contract]
