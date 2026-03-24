@@ -5,6 +5,7 @@ import rateLimit from "express-rate-limit";
 import dotenv from "dotenv";
 import { corsOptions } from "./config/cors";
 import { validateEnv } from "./config/env";
+import { runStartupValidation } from "./config/startupValidation";
 import adminRoutes from "./routes/admin";
 import leaderboardRoutes from "./routes/leaderboard";
 import tokenRoutes from "./routes/tokens";
@@ -102,9 +103,13 @@ app.use((req, res) => {
   );
 });
 
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
+  // Run dependency reachability checks after the port is bound.
+  // In production this will throw and crash the process if critical deps are down.
+  await runStartupValidation(env);
+
   console.log(`🚀 Admin API server running on port ${PORT}`);
-  console.log(`📊 Environment: ${process.env.NODE_ENV || "development"}`);
+  console.log(`📊 Environment: ${env.NODE_ENV}`);
 });
 
 export default app;

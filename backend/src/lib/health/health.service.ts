@@ -2,12 +2,14 @@ import { prisma } from "../prisma";
 import NodeCache from "node-cache";
 import {
   HealthStatus,
-  ServiceStatus,
   ServiceHealth,
   HealthCheckResult,
   DetailedHealthCheckResult,
   HealthCheckOptions,
 } from "./health.types";
+import { validateEnv } from "../../config/env";
+
+const _env = validateEnv();
 
 /**
  * Health check service for monitoring application and dependency status
@@ -168,8 +170,7 @@ export class HealthService {
    */
   private async checkStellarHorizon(timeout: number): Promise<ServiceHealth> {
     const start = Date.now();
-    const horizonUrl =
-      process.env.STELLAR_HORIZON_URL || "https://horizon-testnet.stellar.org";
+    const horizonUrl = _env.STELLAR_HORIZON_URL;
 
     try {
       const response = await Promise.race([
@@ -203,9 +204,7 @@ export class HealthService {
    */
   private async checkStellarSoroban(timeout: number): Promise<ServiceHealth> {
     const start = Date.now();
-    const sorobanUrl =
-      process.env.STELLAR_SOROBAN_RPC_URL ||
-      "https://soroban-testnet.stellar.org";
+    const sorobanUrl = _env.STELLAR_SOROBAN_RPC_URL;
 
     try {
       const response = await Promise.race([
