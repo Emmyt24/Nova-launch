@@ -1,42 +1,28 @@
 import React, { useEffect, useState } from 'react';
 import { ExecuteStepButton } from './ExecuteStepButton';
+import { StellarService } from '../../services/stellar.service';
+import { mapBuybackCampaign } from '../../services/mappers/buybackCampaignMapper';
+import type { BuybackCampaignModel, BuybackStepModel } from '../../types/campaign';
 
-interface BuybackStep {
-  id: number;
-  stepNumber: number;
-  amount: string;
-  status: 'PENDING' | 'COMPLETED' | 'FAILED';
-  executedAt?: string;
-  txHash?: string;
-}
-
-interface BuybackCampaign {
-  id: number;
-  tokenAddress: string;
-  totalAmount: string;
-  executedAmount: string;
-  currentStep: number;
-  totalSteps: number;
-  status: 'ACTIVE' | 'COMPLETED' | 'CANCELLED';
-  createdAt: string;
-  steps: BuybackStep[];
-}
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL ?? '';
 
 interface CampaignDashboardProps {
   campaignId: number;
+  network?: 'testnet' | 'mainnet';
 }
 
 export const CampaignDashboard: React.FC<CampaignDashboardProps> = ({
   campaignId,
+  network = 'testnet',
 }) => {
-  const [campaign, setCampaign] = useState<BuybackCampaign | null>(null);
+  const [campaign, setCampaign] = useState<BuybackCampaignModel | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const fetchCampaign = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`/api/buyback/campaigns/${campaignId}`);
+      const response = await fetch(`/api/campaigns/${campaignId}`);
       
       if (!response.ok) {
         throw new Error('Failed to fetch campaign');
@@ -55,18 +41,24 @@ export const CampaignDashboard: React.FC<CampaignDashboardProps> = ({
     fetchCampaign();
   }, [campaignId]);
 
-  const handleStepSuccess = async (txHash: string) => {
+  const handleStepSuccess = async (_txHash: string) => {
     await fetchCampaign();
   };
 
-  const handleStepError = (error: Error) => {
-    console.error('Step execution failed:', error);
+  const handleStepError = (err: Error) => {
+    console.error('Step execution failed:', err);
+    // Refresh to reconcile state from chain source of truth
+    fetchCampaign();
   };
 
   if (loading) {
     return (
       <div className="flex items-center justify-center p-8">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
+        <div
+          role="status"
+          aria-label="Loading"
+          className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"
+        />
       </div>
     );
   }
@@ -78,8 +70,6 @@ export const CampaignDashboard: React.FC<CampaignDashboardProps> = ({
       </div>
     );
   }
-
-  const progress = (campaign.currentStep / campaign.totalSteps) * 100;
 
   return (
     <div className="max-w-4xl mx-auto p-6 space-y-6">
@@ -126,24 +116,24 @@ export const CampaignDashboard: React.FC<CampaignDashboardProps> = ({
           <div className="flex items-center justify-between mb-2">
             <span className="text-sm font-medium text-gray-700">Progress</span>
             <span className="text-sm font-medium text-gray-700">
-              {progress.toFixed(0)}%
+              {campaign.progressPercent.toFixed(0)}%
             </span>
           </div>
           <div className="w-full bg-gray-200 rounded-full h-3">
             <div
               className="bg-purple-600 h-3 rounded-full transition-all duration-500"
-              style={{ width: `${progress}%` }}
+              style={{ width: `${campaign.progressPercent}%` }}
             />
           </div>
         </div>
 
-        {campaign.status === 'ACTIVE' && (
+        {campaign.isActive && (
           <div className="mb-6">
             <h3 className="text-lg font-semibold mb-4">Current Step</h3>
             <ExecuteStepButton
               campaignId={campaign.id}
               currentStep={campaign.currentStep}
-              stepAmount={campaign.steps[campaign.currentStep]?.amount || '0'}
+              stepAmount={campaign.steps[campaign.currentStep]?.amount ?? '0'}
               status={campaign.status}
               onSuccess={handleStepSuccess}
               onError={handleStepError}

@@ -60,13 +60,12 @@ export class CampaignEventParser {
       throw new Error(`Campaign ${event.campaignId} not found`);
     }
 
-    // Check if execution already exists
+    // Idempotency: skip if already processed
     const existingExecution = await prisma.campaignExecution.findUnique({
       where: { txHash: event.txHash },
     });
 
     if (existingExecution) {
-      // Already processed, skip
       return;
     }
 
@@ -101,15 +100,18 @@ export class CampaignEventParser {
       throw new Error(`Campaign ${event.campaignId} not found`);
     }
 
-    const updateData: any = {
+    const now = new Date();
+    const updateData: Record<string, unknown> = {
       status: event.status,
-      updatedAt: new Date(),
+      updatedAt: now,
     };
 
     if (event.status === "COMPLETED") {
-      updateData.completedAt = new Date();
+      updateData.completedAt = now;
     } else if (event.status === "CANCELLED") {
-      updateData.cancelledAt = new Date();
+      updateData.cancelledAt = now;
+    } else if (event.status === "PAUSED") {
+      updateData.pausedAt = now;
     }
 
     await prisma.campaign.update({

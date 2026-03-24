@@ -64,3 +64,57 @@ export interface CampaignTransactionState {
   timestamp: number;
   error?: string;
 }
+
+// ── On-chain / contract types ────────────────────────────────────────────────
+
+export type OnChainStepStatus = 'PENDING' | 'COMPLETED' | 'FAILED';
+export type OnChainCampaignStatus = 'ACTIVE' | 'COMPLETED' | 'CANCELLED';
+
+/** Raw step shape returned by the Soroban contract */
+export interface OnChainBuybackStep {
+  id: number;
+  step_number: number;
+  amount: string;
+  status: OnChainStepStatus;
+  executed_at?: string;
+  tx_hash?: string;
+}
+
+/** Raw campaign shape returned by `get_buyback_campaign` */
+export interface OnChainBuybackCampaign {
+  id: number;
+  token_address: string;
+  total_amount: string;
+  executed_amount: string;
+  current_step: number;
+  total_steps: number;
+  status: OnChainCampaignStatus;
+  created_at: string;
+  steps: OnChainBuybackStep[];
+}
+
+// ── UI / dashboard models ────────────────────────────────────────────────────
+
+export interface BuybackStepModel {
+  id: number;
+  stepNumber: number;
+  amount: string;
+  status: OnChainStepStatus;
+  executedAt?: string;
+  txHash?: string;
+}
+
+export interface BuybackCampaignModel {
+  id: number;
+  tokenAddress: string;
+  totalAmount: string;
+  executedAmount: string;
+  currentStep: number;
+  totalSteps: number;
+  status: OnChainCampaignStatus;
+  createdAt: string;
+  steps: BuybackStepModel[];
+  /** 0–100 */
+  progressPercent: number;
+  isActive: boolean;
+}

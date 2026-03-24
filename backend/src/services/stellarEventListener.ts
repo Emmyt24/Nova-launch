@@ -4,7 +4,8 @@ import webhookDeliveryService from "./webhookDeliveryService";
 import { PrismaClient } from "@prisma/client";
 import { GovernanceEventParser } from "./governanceEventParser";
 import governanceEventMapper from "./governanceEventMapper";
-import { validateEnv } from "../config/env";
+import { TokenEventParser, RawTokenEvent } from "./tokenEventParser";
+import { EventCursorStore } from "./eventCursorStore";
 
 const _env = validateEnv();
 const HORIZON_URL = _env.STELLAR_HORIZON_URL;
@@ -29,10 +30,14 @@ export class StellarEventListener {
   private lastCursor: string | null = null;
   private prisma: PrismaClient;
   private governanceParser: GovernanceEventParser;
+  private tokenEventParser: TokenEventParser;
+  private cursorStore: EventCursorStore;
 
   constructor() {
     this.prisma = new PrismaClient();
     this.governanceParser = new GovernanceEventParser(this.prisma);
+    this.tokenEventParser = new TokenEventParser(this.prisma);
+    this.cursorStore = new EventCursorStore(this.prisma);
   }
 
   /**
@@ -43,6 +48,10 @@ export class StellarEventListener {
       console.warn("Event listener is already running");
       return;
     }
+
+    // Load durable cursor before starting — resumes from last processed event
+    this.lastCursor = await this.cursorStore.load();
+    console.log(`Resuming from cursor: ${this.lastCursor ?? "origin"}`);
 
     this.isRunning = true;
     console.log("Starting Stellar event listener...");
@@ -102,6 +111,7 @@ export class StellarEventListener {
       for (const event of events) {
         await this.processEvent(event);
         this.lastCursor = event.paging_token;
+        await this.cursorStore.save(this.lastCursor);
       }
     } catch (error) {
       console.error("Error fetching events:", error);
@@ -123,6 +133,12 @@ export class StellarEventListener {
         return;
       }
 
+      // Route buyback campaign events
+      if (this.isBuybackEvent(event)) {
+        await this.processBuybackEvent(event);
+        return;
+      }
+
       // Parse event topic to determine event type
       const eventType = this.parseEventType(event);
 
@@ -131,6 +147,12 @@ export class StellarEventListener {
 
       if (!eventData) {
         return;
+      }
+
+      // Persist token projection (idempotent)
+      const rawTokenEvent = this.toRawTokenEvent(event);
+      if (rawTokenEvent) {
+        await this.tokenEventParser.parseEvent(rawTokenEvent);
       }
 
       // Trigger webhooks only if we have a webhook event type
@@ -234,6 +256,60 @@ export class StellarEventListener {
 
       default:
         return baseData;
+    }
+  }
+
+  /**
+   * Map a StellarEvent to a RawTokenEvent for projection, or null if not a token event.
+   */
+  private toRawTokenEvent(event: StellarEvent): RawTokenEvent | null {
+    const topic0 = event.topic[0];
+    const tokenAddress = event.topic[1] || "";
+
+    switch (topic0) {
+      case "tok_reg":
+        return {
+          type: "tok_reg",
+          tokenAddress,
+          transactionHash: event.transaction_hash,
+          ledger: event.ledger,
+          creator: event.value?.creator || "",
+          name: event.value?.name || "",
+          symbol: event.value?.symbol || "",
+          decimals: event.value?.decimals ?? 7,
+          initialSupply: event.value?.initial_supply?.toString() || "0",
+        };
+      case "tok_burn":
+        return {
+          type: "tok_burn",
+          tokenAddress,
+          transactionHash: event.transaction_hash,
+          ledger: event.ledger,
+          from: event.value?.from || "",
+          amount: event.value?.amount?.toString() || "0",
+          burner: event.value?.burner || event.value?.from || "",
+        };
+      case "adm_burn":
+        return {
+          type: "adm_burn",
+          tokenAddress,
+          transactionHash: event.transaction_hash,
+          ledger: event.ledger,
+          from: event.value?.from || "",
+          amount: event.value?.amount?.toString() || "0",
+          admin: event.value?.admin || "",
+        };
+      case "tok_meta":
+        return {
+          type: "tok_meta",
+          tokenAddress,
+          transactionHash: event.transaction_hash,
+          ledger: event.ledger,
+          metadataUri: event.value?.metadata_uri || "",
+          updatedBy: event.value?.updated_by || "",
+        };
+      default:
+        return null;
     }
   }
 

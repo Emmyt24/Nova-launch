@@ -47,6 +47,11 @@ run_check "Frontend linting" "npm run lint" "frontend"
 run_check "Frontend tests" "npm test -- --run" "frontend"
 run_check "Frontend build" "npm run build" "frontend"
 
+# Backend migration compatibility checks
+echo "=== Backend Migration Compatibility Checks ==="
+run_check "Backend dependencies" "npm ci" "backend"
+run_check "Backend migration compatibility tests" "npm run test:migration-compatibility" "backend"
+
 # Spec validation
 echo "=== Spec Validation ==="
 if [ -d ".nova/specs" ]; then

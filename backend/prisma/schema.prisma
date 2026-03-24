@@ -16,8 +16,10 @@ model Token {
   decimals      Int      @default(18)
   totalSupply   BigInt
   initialSupply BigInt
+  /// Defaults preserve replay/upgrade compatibility for legacy tokens that predate burn tracking.
   totalBurned   BigInt   @default(0)
   burnCount     Int      @default(0)
+  /// Remains nullable so migrated historical rows do not require synthetic metadata backfills.
   metadataUri   String?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
@@ -41,6 +43,7 @@ model BurnRecord {
   from       String
   amount     BigInt
   burnedBy   String
+  /// Legacy burn rows default to user-initiated semantics unless explicitly marked as admin burns.
   isAdminBurn Boolean @default(false)
   txHash     String   @unique
   timestamp  DateTime @default(now())
@@ -124,6 +127,7 @@ model Stream {
   creator     String
   recipient   String
   amount      BigInt
+  /// Optional metadata and terminal timestamps keep old projection rows readable after upgrades.
   metadata    String?
   status      StreamStatus @default(CREATED)
   txHash      String   @unique
@@ -149,6 +153,7 @@ model Proposal {
   tokenId     String
   proposer    String
   title       String
+  /// Governance projections are upgraded in place, so these fields stay nullable for legacy rows.
   description String?
   proposalType ProposalType
   status      ProposalStatus @default(ACTIVE)
@@ -234,6 +239,7 @@ model Campaign {
   type          CampaignType
   status        CampaignStatus @default(ACTIVE)
   targetAmount  BigInt
+  /// Incrementing projections must remain safe for pre-existing campaigns restored from replay.
   currentAmount BigInt         @default(0)
   executionCount Int           @default(0)
   startTime     DateTime
@@ -244,6 +250,7 @@ model Campaign {
   updatedAt     DateTime       @updatedAt
   completedAt   DateTime?
   cancelledAt   DateTime?
+  pausedAt      DateTime?
 
   executions CampaignExecution[]
 
@@ -282,4 +289,13 @@ enum CampaignStatus {
   PAUSED
   COMPLETED
   CANCELLED
+}
+
+/// Stores durable state for long-running backend services.
+/// Used by StellarEventListener to persist the last processed event cursor
+/// so it can resume correctly after restarts without missing or replaying events.
+model IntegrationState {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
 }

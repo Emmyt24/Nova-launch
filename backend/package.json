@@ -8,6 +8,7 @@
     "build": "tsc",
     "start": "node dist/index.js",
     "test": "vitest",
+    "test:migration-compatibility": "vitest run src/__tests__/migrationUpgrade.test.ts src/__tests__/projectionMigration.compatibility.test.ts",
     "test:security": "vitest run src/__tests__/security",
     "test:security:auth": "vitest run src/__tests__/security.auth",
     "test:security:arithmetic": "vitest run src/__tests__/security.arithmetic.test.ts",

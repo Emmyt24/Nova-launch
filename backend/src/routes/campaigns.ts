@@ -3,23 +3,19 @@ import { campaignProjectionService } from "../services/campaignProjectionService
 
 const router = Router();
 
-router.get("/campaigns/:campaignId", async (req, res) => {
+// Public route contract: all paths are relative to the /api/campaigns mount point.
+
+router.get("/stats/:tokenId?", async (req, res) => {
   try {
-    const campaignId = parseInt(req.params.campaignId);
-    const campaign =
-      await campaignProjectionService.getCampaignById(campaignId);
-
-    if (!campaign) {
-      return res.status(404).json({ error: "Campaign not found" });
-    }
-
-    res.json(campaign);
+    const { tokenId } = req.params;
+    const stats = await campaignProjectionService.getCampaignStats(tokenId);
+    res.json(stats);
   } catch (error) {
-    res.status(500).json({ error: "Failed to fetch campaign" });
+    res.status(500).json({ error: "Failed to fetch campaign stats" });
   }
 });
 
-router.get("/campaigns/token/:tokenId", async (req, res) => {
+router.get("/token/:tokenId", async (req, res) => {
   try {
     const { tokenId } = req.params;
     const campaigns =
@@ -30,7 +26,7 @@ router.get("/campaigns/token/:tokenId", async (req, res) => {
   }
 });
 
-router.get("/campaigns/creator/:creator", async (req, res) => {
+router.get("/creator/:creator", async (req, res) => {
   try {
     const { creator } = req.params;
     const campaigns =
@@ -41,7 +37,7 @@ router.get("/campaigns/creator/:creator", async (req, res) => {
   }
 });
 
-router.get("/campaigns/:campaignId/executions", async (req, res) => {
+router.get("/:campaignId/executions", async (req, res) => {
   try {
     const campaignId = parseInt(req.params.campaignId);
     const limit = parseInt(req.query.limit as string) || 50;
@@ -59,13 +55,19 @@ router.get("/campaigns/:campaignId/executions", async (req, res) => {
   }
 });
 
-router.get("/campaigns/stats/:tokenId?", async (req, res) => {
+router.get("/:campaignId", async (req, res) => {
   try {
-    const { tokenId } = req.params;
-    const stats = await campaignProjectionService.getCampaignStats(tokenId);
-    res.json(stats);
+    const campaignId = parseInt(req.params.campaignId);
+    const campaign =
+      await campaignProjectionService.getCampaignById(campaignId);
+
+    if (!campaign) {
+      return res.status(404).json({ error: "Campaign not found" });
+    }
+
+    res.json(campaign);
   } catch (error) {
-    res.status(500).json({ error: "Failed to fetch campaign stats" });
+    res.status(500).json({ error: "Failed to fetch campaign" });
   }
 });
 

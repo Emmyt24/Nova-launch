@@ -2,6 +2,15 @@ import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
+export interface StepDetail {
+  id: number;
+  stepNumber: number;
+  amount: string;
+  status: "PENDING" | "COMPLETED" | "FAILED";
+  executedAt?: Date;
+  txHash?: string;
+}
+
 export interface CampaignProjection {
   id: string;
   campaignId: number;
@@ -20,6 +29,7 @@ export interface CampaignProjection {
   updatedAt: Date;
   completedAt?: Date;
   cancelledAt?: Date;
+  pausedAt?: Date;
 }
 
 export interface CampaignStats {
@@ -65,6 +75,48 @@ export class CampaignProjectionService {
     });
 
     return campaigns.map((c) => this.buildProjection(c));
+  }
+
+  async getActiveCampaigns(): Promise<CampaignProjection[]> {
+    const campaigns = await prisma.campaign.findMany({
+      where: { status: "ACTIVE" },
+      orderBy: { createdAt: "desc" },
+    });
+    return campaigns.map((c) => this.buildProjection(c));
+  }
+
+  async getCampaignSteps(
+    campaignId: number,
+    limit = 50,
+    offset = 0
+  ): Promise<{ steps: StepDetail[]; total: number }> {
+    const campaign = await prisma.buybackCampaign.findUnique({
+      where: { id: campaignId },
+      include: {
+        steps: {
+          orderBy: { stepNumber: "asc" },
+          take: limit,
+          skip: offset,
+        },
+      },
+    });
+
+    if (!campaign) throw new Error(`Campaign ${campaignId} not found`);
+
+    const total = await prisma.buybackStep.count({
+      where: { campaignId },
+    });
+
+    const steps: StepDetail[] = campaign.steps.map((s) => ({
+      id: s.id,
+      stepNumber: s.stepNumber,
+      amount: s.amount,
+      status: s.status as StepDetail["status"],
+      executedAt: s.executedAt ?? undefined,
+      txHash: s.txHash ?? undefined,
+    }));
+
+    return { steps, total };
   }
 
   async getCampaignStats(tokenId?: string): Promise<CampaignStats> {
@@ -141,6 +193,7 @@ export class CampaignProjectionService {
       updatedAt: campaign.updatedAt,
       completedAt: campaign.completedAt,
       cancelledAt: campaign.cancelledAt,
+      pausedAt: campaign.pausedAt,
     };
   }
 }

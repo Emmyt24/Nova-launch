@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { param, body, query } from 'express-validator';
 import { validate } from '../middleware/validation';
+import { campaignProjectionService } from '../services/campaignProjectionService';
 
 const router = Router();
 const prisma = new PrismaClient();
@@ -89,6 +90,34 @@ router.get(
     } catch (error) {
       console.error('Error fetching campaigns:', error);
       res.status(500).json({ error: 'Failed to fetch campaigns' });
+    }
+  }
+);
+
+router.get(
+  '/campaigns/:id/steps',
+  [
+    param('id').isInt().toInt(),
+    query('limit').optional().isInt({ min: 1, max: 100 }).toInt(),
+    query('offset').optional().isInt({ min: 0 }).toInt(),
+    validate,
+  ],
+  async (req: Request, res: Response) => {
+    try {
+      const id = Number(req.params.id);
+      const limit = Number(req.query.limit ?? 50);
+      const offset = Number(req.query.offset ?? 0);
+
+      const result = await campaignProjectionService.getCampaignSteps(id, limit, offset);
+      res.json({
+        steps: result.steps,
+        pagination: { total: result.total, limit, offset },
+      });
+    } catch (error: any) {
+      if (error?.message?.includes('not found')) {
+        return res.status(404).json({ error: 'Campaign not found' });
+      }
+      res.status(500).json({ error: 'Failed to fetch campaign steps' });
     }
   }
 );
