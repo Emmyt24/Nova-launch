@@ -1,10 +1,23 @@
 {
-  "extends": "./tsconfig.app.json",
   "compilerOptions": {
     "composite": true,
-    "noEmit": false,
-    "outDir": "./node_modules/.tmp/test-out",
-    "types": ["vitest/globals", "@testing-library/jest-dom", "node"]
+    "target": "ES2022",
+    "useDefineForClassFields": true,
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "verbatimModuleSyntax": true,
+    "moduleDetection": "force",
+    "jsx": "react-jsx",
+    "strict": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+    "noFallthroughCasesInSwitch": true,
+    "types": ["vitest/globals", "@testing-library/jest-dom", "node"],
+    "outDir": "./node_modules/.tmp/test-out"
   },
   "include": [
     "src/**/*.test.ts",
@@ -13,6 +26,5 @@
     "src/**/*.spec.tsx",
     "src/test/**/*.ts",
     "src/test/**/*.tsx"
-  ],
-  "exclude": []
+  ]
 }
