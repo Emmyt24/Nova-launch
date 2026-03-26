@@ -12,7 +12,15 @@
  * 5. Event structure consistency
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { PrismaClient } from '@prisma/client';
+import {
+  OnChainProjectionVerifier,
+  OnChainDataFetcher,
+  type OnChainTokenState,
+  type OnChainCampaignState,
+  type ConsistencyCheckResult,
+} from '../services/consistency/onchainProjectionVerifier';
 
 // ============================================================================
 // Contract Type Definitions (from contracts/token-factory/src/types.rs)
@@ -713,6 +721,498 @@ describe('Contract-Backend Consistency Tests', () => {
       expect(validateStellarAddress('INVALID')).toBe(false);
       expect(validateStellarAddress('CABC123...')).toBe(false); // Wrong prefix
       expect(validateStellarAddress('G123')).toBe(false); // Too short
+    });
+  });
+});
+
+// ============================================================================
+// Production Projection Consistency Tests
+// ============================================================================
+
+describe('Production Projection Consistency Tests', () => {
+  let mockPrisma: any;
+  let verifier: OnChainProjectionVerifier;
+
+  beforeEach(() => {
+    mockPrisma = {
+      token: {
+        count: vi.fn(),
+        findMany: vi.fn(),
+        findUnique: vi.fn(),
+      },
+      burnRecord: {
+        findMany: vi.fn(),
+        count: vi.fn(),
+      },
+      campaign: {
+        findMany: vi.fn(),
+        findUnique: vi.fn(),
+      },
+      campaignExecution: {
+        count: vi.fn(),
+        aggregate: vi.fn(),
+      },
+      $disconnect: vi.fn(),
+    };
+
+    verifier = new OnChainProjectionVerifier(mockPrisma as unknown as PrismaClient, {
+      factoryContractId: 'CFACTORY123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ123456789ABC',
+      horizonUrl: 'https://horizon-testnet.stellar.org',
+    });
+  });
+
+  describe('Token Count Consistency', () => {
+    it('should detect mismatched token counts', async () => {
+      mockPrisma.token.count.mockResolvedValue(10);
+
+      const result = await verifier.checkTokenCounts();
+
+      expect(mockPrisma.token.count).toHaveBeenCalled();
+      expect(result.checked).toBe(10);
+    });
+
+    it('should report token count drift as inconsistency', async () => {
+      mockPrisma.token.count.mockResolvedValue(100);
+
+      const mockOnChainState: OnChainTokenState = {
+        address: 'GTOKEN123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ123456789ABCDEF',
+        creator: 'GCREATOR123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ123456789ABC',
+        name: 'Test Token',
+        symbol: 'TST',
+        decimals: 7,
+        totalSupply: BigInt('1000000000000'),
+        initialSupply: BigInt('1000000000000'),
+        totalBurned: BigInt('0'),
+        burnCount: 0,
+      };
+
+      const diffs = await verifier.checkTokenBurnConsistency(
+        mockOnChainState.address,
+        mockOnChainState
+      );
+
+      expect(diffs.length).toBeGreaterThan(0);
+      expect(diffs[0].entity).toBe('token');
+      expect(diffs[0].field).toBe('existence');
+    });
+  });
+
+  describe('Burn Totals Consistency', () => {
+    it('should detect mismatched burn totals', async () => {
+      const mockToken = {
+        address: 'GTOKEN123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ123456789ABCDEF',
+        totalBurned: BigInt('1000000'),
+        burnCount: 5,
+      };
+
+      mockPrisma.token.findMany.mockResolvedValue([mockToken]);
+
+      const result = await verifier.checkBurnTotals();
+
+      expect(mockPrisma.token.findMany).toHaveBeenCalledWith({
+        where: { burnCount: { gt: 0 } },
+        select: {
+          address: true,
+          totalBurned: true,
+          burnCount: true,
+        },
+      });
+    });
+
+    it('should flag burn count mismatch with on-chain state', async () => {
+      mockPrisma.token.findUnique.mockResolvedValue({
+        address: 'GTOKEN123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ123456789ABCDEF',
+        totalBurned: BigInt('500000'),
+        burnCount: 3,
+        totalSupply: BigInt('999500000'),
+      });
+
+      const onChainState: OnChainTokenState = {
+        address: 'GTOKEN123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ123456789ABCDEF',
+        creator: 'GCREATOR123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ123456789ABC',
+        name: 'Test Token',
+        symbol: 'TST',
+        decimals: 7,
+        totalSupply: BigInt('999500000'),
+        initialSupply: BigInt('1000000000'),
+        totalBurned: BigInt('1000000'),
+        burnCount: 5,
+      };
+
+      const diffs = await verifier.checkTokenBurnConsistency(
+        onChainState.address,
+        onChainState
+      );
+
+      expect(diffs.some(d => d.field === 'totalBurned')).toBe(true);
+      expect(diffs.some(d => d.field === 'burnCount')).toBe(true);
+    });
+
+    it('should pass when burn totals match', async () => {
+      const burnAmount = BigInt('500000');
+      const burnCount = 3;
+
+      mockPrisma.token.findUnique.mockResolvedValue({
+        address: 'GTOKEN123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ123456789ABCDEF',
+        totalBurned: burnAmount,
+        burnCount: burnCount,
+        totalSupply: BigInt('999500000'),
+      });
+
+      const onChainState: OnChainTokenState = {
+        address: 'GTOKEN123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ123456789ABCDEF',
+        creator: 'GCREATOR123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ123456789ABC',
+        name: 'Test Token',
+        symbol: 'TST',
+        decimals: 7,
+        totalSupply: BigInt('999500000'),
+        initialSupply: BigInt('1000000000'),
+        totalBurned: burnAmount,
+        burnCount: burnCount,
+      };
+
+      const diffs = await verifier.checkTokenBurnConsistency(
+        onChainState.address,
+        onChainState
+      );
+
+      expect(diffs.length).toBe(0);
+    });
+  });
+
+  describe('Campaign Projection Drift', () => {
+    it('should detect campaign status drift', async () => {
+      mockPrisma.campaign.findUnique.mockResolvedValue({
+        campaignId: 1,
+        status: 'ACTIVE',
+        currentAmount: BigInt('500000'),
+        executionCount: 3,
+        targetAmount: BigInt('1000000'),
+      });
+
+      const onChainState: OnChainCampaignState = {
+        campaignId: 1,
+        tokenId: 'token-uuid',
+        creator: 'GCREATOR123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ123456789ABC',
+        status: 'COMPLETED',
+        targetAmount: BigInt('1000000'),
+        currentAmount: BigInt('1000000'),
+        executionCount: 5,
+      };
+
+      const diffs = await verifier.checkSingleCampaign(1, onChainState);
+
+      expect(diffs.some(d => d.field === 'status')).toBe(true);
+      expect(diffs.find(d => d.field === 'status')?.backendValue).toBe('ACTIVE');
+      expect(diffs.find(d => d.field === 'status')?.onChainValue).toBe('COMPLETED');
+    });
+
+    it('should detect campaign amount drift', async () => {
+      mockPrisma.campaign.findUnique.mockResolvedValue({
+        campaignId: 1,
+        status: 'ACTIVE',
+        currentAmount: BigInt('300000'),
+        executionCount: 2,
+        targetAmount: BigInt('1000000'),
+      });
+
+      const onChainState: OnChainCampaignState = {
+        campaignId: 1,
+        tokenId: 'token-uuid',
+        creator: 'GCREATOR123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ123456789ABC',
+        status: 'ACTIVE',
+        targetAmount: BigInt('1000000'),
+        currentAmount: BigInt('500000'),
+        executionCount: 3,
+      };
+
+      const diffs = await verifier.checkSingleCampaign(1, onChainState);
+
+      expect(diffs.some(d => d.field === 'currentAmount')).toBe(true);
+      expect(diffs.some(d => d.field === 'executionCount')).toBe(true);
+    });
+
+    it('should detect missing campaign in backend', async () => {
+      mockPrisma.campaign.findUnique.mockResolvedValue(null);
+
+      const onChainState: OnChainCampaignState = {
+        campaignId: 999,
+        tokenId: 'token-uuid',
+        creator: 'GCREATOR123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ123456789ABC',
+        status: 'ACTIVE',
+        targetAmount: BigInt('1000000'),
+        currentAmount: BigInt('0'),
+        executionCount: 0,
+      };
+
+      const diffs = await verifier.checkSingleCampaign(999, onChainState);
+
+      expect(diffs.length).toBe(1);
+      expect(diffs[0].field).toBe('existence');
+      expect(diffs[0].backendValue).toBeNull();
+      expect(diffs[0].onChainValue).toBe('exists');
+    });
+
+    it('should pass when campaign projections match', async () => {
+      mockPrisma.campaign.findUnique.mockResolvedValue({
+        campaignId: 1,
+        status: 'ACTIVE',
+        currentAmount: BigInt('500000'),
+        executionCount: 3,
+        targetAmount: BigInt('1000000'),
+      });
+
+      const onChainState: OnChainCampaignState = {
+        campaignId: 1,
+        tokenId: 'token-uuid',
+        creator: 'GCREATOR123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ123456789ABC',
+        status: 'ACTIVE',
+        targetAmount: BigInt('1000000'),
+        currentAmount: BigInt('500000'),
+        executionCount: 3,
+      };
+
+      const diffs = await verifier.checkSingleCampaign(1, onChainState);
+
+      expect(diffs.length).toBe(0);
+    });
+  });
+
+  describe('Batch Campaign Checks', () => {
+    it('should check multiple campaigns and aggregate results', async () => {
+      mockPrisma.campaign.findUnique
+        .mockResolvedValueOnce({
+          campaignId: 1,
+          status: 'ACTIVE',
+          currentAmount: BigInt('500000'),
+          executionCount: 3,
+          targetAmount: BigInt('1000000'),
+        })
+        .mockResolvedValueOnce({
+          campaignId: 2,
+          status: 'COMPLETED',
+          currentAmount: BigInt('2000000'),
+          executionCount: 10,
+          targetAmount: BigInt('2000000'),
+        })
+        .mockResolvedValueOnce(null);
+
+      const onChainStates: OnChainCampaignState[] = [
+        {
+          campaignId: 1,
+          tokenId: 'token-1',
+          creator: 'GCREATOR1',
+          status: 'ACTIVE',
+          targetAmount: BigInt('1000000'),
+          currentAmount: BigInt('500000'),
+          executionCount: 3,
+        },
+        {
+          campaignId: 2,
+          tokenId: 'token-2',
+          creator: 'GCREATOR2',
+          status: 'COMPLETED',
+          targetAmount: BigInt('2000000'),
+          currentAmount: BigInt('2000000'),
+          executionCount: 10,
+        },
+        {
+          campaignId: 3,
+          tokenId: 'token-3',
+          creator: 'GCREATOR3',
+          status: 'ACTIVE',
+          targetAmount: BigInt('500000'),
+          currentAmount: BigInt('0'),
+          executionCount: 0,
+        },
+      ];
+
+      const result = await verifier.checkMultipleCampaigns(onChainStates);
+
+      expect(result.campaignsChecked).toBe(3);
+      expect(result.consistent).toBe(false);
+      expect(result.diffs.some(d => d.identifier === '3' && d.field === 'existence')).toBe(true);
+    });
+
+    it('should return consistent=true when all campaigns match', async () => {
+      mockPrisma.campaign.findUnique
+        .mockResolvedValueOnce({
+          campaignId: 1,
+          status: 'ACTIVE',
+          currentAmount: BigInt('500000'),
+          executionCount: 3,
+          targetAmount: BigInt('1000000'),
+        })
+        .mockResolvedValueOnce({
+          campaignId: 2,
+          status: 'COMPLETED',
+          currentAmount: BigInt('2000000'),
+          executionCount: 10,
+          targetAmount: BigInt('2000000'),
+        });
+
+      const onChainStates: OnChainCampaignState[] = [
+        {
+          campaignId: 1,
+          tokenId: 'token-1',
+          creator: 'GCREATOR1',
+          status: 'ACTIVE',
+          targetAmount: BigInt('1000000'),
+          currentAmount: BigInt('500000'),
+          executionCount: 3,
+        },
+        {
+          campaignId: 2,
+          tokenId: 'token-2',
+          creator: 'GCREATOR2',
+          status: 'COMPLETED',
+          targetAmount: BigInt('2000000'),
+          currentAmount: BigInt('2000000'),
+          executionCount: 10,
+        },
+      ];
+
+      const result = await verifier.checkMultipleCampaigns(onChainStates);
+
+      expect(result.consistent).toBe(true);
+      expect(result.diffs.length).toBe(0);
+    });
+  });
+
+  describe('Result Formatting', () => {
+    it('should format results for human-readable output', () => {
+      const result: ConsistencyCheckResult = {
+        consistent: false,
+        timestamp: new Date('2024-01-15T10:00:00Z'),
+        totalChecked: 15,
+        tokensChecked: 10,
+        burnsChecked: 3,
+        campaignsChecked: 2,
+        diffs: [
+          {
+            entity: 'token',
+            identifier: 'GTOKEN123',
+            field: 'totalBurned',
+            backendValue: '500000',
+            onChainValue: '1000000',
+            severity: 'error',
+          },
+          {
+            entity: 'campaign',
+            identifier: '1',
+            field: 'status',
+            backendValue: 'ACTIVE',
+            onChainValue: 'COMPLETED',
+            severity: 'error',
+          },
+        ],
+        errors: [],
+        duration: 1500,
+      };
+
+      const formatted = verifier.formatResults(result);
+
+      expect(formatted).toContain('Consistent: ❌ NO');
+      expect(formatted).toContain('Tokens checked:    10');
+      expect(formatted).toContain('Burns checked:     3');
+      expect(formatted).toContain('Campaigns checked: 2');
+      expect(formatted).toContain('GTOKEN123');
+      expect(formatted).toContain('totalBurned');
+    });
+
+    it('should format successful results correctly', () => {
+      const result: ConsistencyCheckResult = {
+        consistent: true,
+        timestamp: new Date('2024-01-15T10:00:00Z'),
+        totalChecked: 15,
+        tokensChecked: 10,
+        burnsChecked: 3,
+        campaignsChecked: 2,
+        diffs: [],
+        errors: [],
+        duration: 500,
+      };
+
+      const formatted = verifier.formatResults(result);
+
+      expect(formatted).toContain('Consistent: ✅ YES');
+      expect(formatted).toContain('No inconsistencies found');
+    });
+
+    it('should generate JSON report for CI systems', () => {
+      const result: ConsistencyCheckResult = {
+        consistent: false,
+        timestamp: new Date('2024-01-15T10:00:00Z'),
+        totalChecked: 5,
+        tokensChecked: 3,
+        burnsChecked: 1,
+        campaignsChecked: 1,
+        diffs: [
+          {
+            entity: 'burn',
+            identifier: 'GTOKEN123',
+            field: 'burnCount',
+            backendValue: 3,
+            onChainValue: 5,
+            severity: 'error',
+          },
+        ],
+        errors: ['Network timeout on fetch'],
+        duration: 2000,
+      };
+
+      const report = verifier.generateReport(result) as any;
+
+      expect(report.success).toBe(false);
+      expect(report.summary.inconsistencies).toBe(1);
+      expect(report.summary.errors).toBe(1);
+      expect(report.diffs[0].entity).toBe('burn');
+      expect(report.errors).toContain('Network timeout on fetch');
+    });
+  });
+
+  describe('Internal Campaign Projection Consistency', () => {
+    it('should verify execution count matches CampaignExecution records', async () => {
+      mockPrisma.campaign.findMany.mockResolvedValue([
+        {
+          campaignId: 1,
+          status: 'ACTIVE',
+          currentAmount: BigInt('500000'),
+          executionCount: 5,
+          targetAmount: BigInt('1000000'),
+        },
+      ]);
+
+      mockPrisma.campaignExecution.count.mockResolvedValue(3);
+      mockPrisma.campaignExecution.aggregate.mockResolvedValue({
+        _sum: { amount: BigInt('300000') },
+      });
+
+      const result = await verifier.checkCampaignProjections();
+
+      expect(result.diffs.some(d => d.field === 'executionCount')).toBe(true);
+      expect(result.diffs.some(d => d.field === 'currentAmount')).toBe(true);
+    });
+
+    it('should pass when internal projections are consistent', async () => {
+      mockPrisma.campaign.findMany.mockResolvedValue([
+        {
+          campaignId: 1,
+          status: 'ACTIVE',
+          currentAmount: BigInt('500000'),
+          executionCount: 5,
+          targetAmount: BigInt('1000000'),
+        },
+      ]);
+
+      mockPrisma.campaignExecution.count.mockResolvedValue(5);
+      mockPrisma.campaignExecution.aggregate.mockResolvedValue({
+        _sum: { amount: BigInt('500000') },
+      });
+
+      const result = await verifier.checkCampaignProjections();
+
+      expect(result.diffs.length).toBe(0);
     });
   });
 });
