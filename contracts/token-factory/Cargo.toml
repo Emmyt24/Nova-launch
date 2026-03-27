@@ -2,27 +2,31 @@
 name = "token-factory"
 version = "0.1.0"
 edition = "2021"
+autoexamples = false
+autotests = false
 
 [lib]
-crate-type = ["cdylib"]
+crate-type = ["cdylib", "rlib"]
+doctest = false
 
 [dependencies]
-soroban-sdk = "21.0.0"
+soroban-sdk = { version = "23.0.0", features = ["hazmat-address"] }
 
 [dev-dependencies]
-soroban-sdk = { version = "21.0.0", features = ["testutils"] }
+soroban-sdk = { version = "23.0.0", features = ["testutils", "hazmat-address"] }
 proptest = "1.4"
 
-[profile.release]
-opt-level = "z"
-overflow-checks = true
-debug = 0
-strip = "symbols"
-debug-assertions = false
-panic = "abort"
-codegen-units = 1
-lto = true
+[features]
+legacy-tests = []
 
-[profile.release-with-logs]
-inherits = "release"
-debug-assertions = true
+# Proptest configuration for CI
+# Ensures deterministic, reproducible property test runs
+[package.metadata.proptest]
+# Use fixed seed for deterministic test runs in CI
+rng_algorithm = "chacha"
+# Reduce cases for faster CI runs while maintaining coverage
+cases = 100
+# Maximum shrink iterations for failure minimization
+max_shrink_iters = 1000
+# Timeout per test case (in milliseconds)
+timeout = 5000

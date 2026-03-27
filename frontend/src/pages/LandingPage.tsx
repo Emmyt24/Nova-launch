@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef } from "react";
-import { Hero, HowItWorks, Features, FAQ } from "../components/landing";
+import { Hero, HowItWorks, Features, FAQ, ScrollProgress } from "../components/landing";
 import { LANDING_SECTION_IDS } from "../components/landing/sectionIds";
 import { WalletInfo } from "../components/WalletConnect";
 import { Button } from "../components/UI";
@@ -155,6 +155,7 @@ export default function LandingPage({
 
   return (
     <main className="landing-page dark bg-background-dark text-left text-text-primary" role="main">
+      <ScrollProgress />
       <header className="sticky top-0 z-20 border-b border-white/5 bg-transparent backdrop-blur-md" role="banner">
         <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8">
           <a href={`#${LANDING_SECTION_IDS.hero}`} data-scroll-link="true" className="text-2xl font-semibold tracking-tight text-text-primary" aria-label="NovaLaunch Home">

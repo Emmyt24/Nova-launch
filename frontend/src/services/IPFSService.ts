@@ -9,6 +9,9 @@ const GATEWAYS = [
 
 const metadataCache = new Map<string, TokenMetadata>();
 
+/** Exposed for testing only */
+export function _clearMetadataCache() { metadataCache.clear(); }
+
 export class IPFSService {
     private apiKey: string;
     private apiSecret: string;
@@ -102,6 +105,11 @@ export class IPFSService {
 }
 
 export const ipfsService = new IPFSService();
+
+/** Validate that a string is a well-formed ipfs:// URI with a non-empty hash */
+export function isValidIpfsUri(uri: string): boolean {
+    return /^ipfs:\/\/[a-zA-Z0-9]{10,}/.test(uri);
+}
 
 export interface IPFSUploadResult {
     success: boolean;

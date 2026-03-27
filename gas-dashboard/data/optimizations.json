@@ -1,0 +1,64 @@
+[
+  {
+    "date": "2024-01-15",
+    "name": "Function Inlining",
+    "function": "withdraw",
+    "gasBefore": 100000,
+    "gasAfter": 85000,
+    "savings": 15,
+    "status": "deployed",
+    "deployedDate": "2024-01-15",
+    "impactedUsers": 1250,
+    "priority": "high",
+    "description": "Added #[inline(always)] to math helper functions"
+  },
+  {
+    "date": "2024-01-20",
+    "name": "Storage Access Optimization",
+    "function": "create_stream",
+    "gasBefore": 120000,
+    "gasAfter": 105000,
+    "savings": 12.5,
+    "status": "deployed",
+    "deployedDate": "2024-01-20",
+    "impactedUsers": 800,
+    "priority": "high",
+    "description": "Minimized redundant storage reads"
+  },
+  {
+    "date": "2024-02-01",
+    "name": "Early Return Optimization",
+    "function": "cancel_stream",
+    "gasBefore": 110000,
+    "gasAfter": 95000,
+    "savings": 13.6,
+    "status": "deployed",
+    "deployedDate": "2024-02-01",
+    "impactedUsers": 450,
+    "priority": "medium",
+    "description": "Added fail-fast validation"
+  },
+  {
+    "date": "2024-02-10",
+    "name": "Batch Operation Optimization",
+    "function": "create_batch_streams",
+    "gasBefore": 1200000,
+    "gasAfter": 1000000,
+    "savings": 16.7,
+    "status": "planned",
+    "expectedSavings": 17,
+    "priority": "high",
+    "description": "Optimize loop unrolling for batch operations"
+  },
+  {
+    "date": "2024-02-15",
+    "name": "Custom Serialization",
+    "function": "all",
+    "gasBefore": 0,
+    "gasAfter": 0,
+    "expectedSavings": 8,
+    "status": "planned",
+    "priority": "medium",
+    "description": "Implement custom serialization for Stream struct"
+  }
+]

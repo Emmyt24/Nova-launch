@@ -1,0 +1,198 @@
+/* Burn Statistics Component Styles */
+
+.burn-statistics {
+  width: 100%;
+}
+
+/* Stat Card Styles */
+.stat-card {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}
+
+/* Burn Chart Styles */
+.burn-chart {
+  min-height: 300px;
+}
+
+.burn-chart svg {
+  overflow: visible;
+}
+
+/* Burn History Table Styles */
+.burn-history-table {
+  overflow-x: auto;
+}
+
+.burn-history-table table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.burn-history-table th {
+  text-align: left;
+  padding: 0.75rem 1rem;
+  font-weight: 500;
+  color: #6b7280;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.burn-history-table td {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.burn-history-table tr:hover {
+  background-color: #f9fafb;
+}
+
+/* Progress Bar Animation */
+@keyframes burn-progress {
+  from {
+    width: 0%;
+  }
+  to {
+    width: var(--burn-progress, 0%);
+  }
+}
+
+.burn-progress-bar {
+  animation: burn-progress 1s ease-out forwards;
+}
+
+/* Responsive Adjustments */
+@media (max-width: 640px) {
+  .burn-statistics h2 {
+    font-size: 1.5rem;
+  }
+
+  .stat-card {
+    padding: 1rem;
+  }
+
+  .stat-card .text-2xl {
+    font-size: 1.25rem;
+  }
+
+  .burn-history-table {
+    font-size: 0.875rem;
+  }
+
+  .burn-history-table th,
+  .burn-history-table td {
+    padding: 0.5rem 0.75rem;
+  }
+
+  /* Make table scrollable on mobile */
+  .burn-history-table table {
+    min-width: 600px;
+  }
+}
+
+@media (max-width: 768px) {
+  .burn-chart {
+    min-height: 250px;
+  }
+}
+
+/* Dark mode support (if needed) */
+@media (prefers-color-scheme: dark) {
+  .burn-statistics {
+    color: #f9fafb;
+  }
+
+  .stat-card {
+    background-color: #1f2937;
+    border-color: #374151;
+  }
+
+  .stat-card .text-gray-500 {
+    color: #9ca3af;
+  }
+
+  .stat-card .text-gray-900 {
+    color: #f9fafb;
+  }
+
+  .burn-history-table {
+    background-color: #1f2937;
+    border-color: #374151;
+  }
+
+  .burn-history-table th {
+    color: #9ca3af;
+    border-bottom-color: #374151;
+  }
+
+  .burn-history-table td {
+    border-bottom-color: #374151;
+  }
+
+  .burn-history-table tr:hover {
+    background-color: #374151;
+  }
+}
+
+/* Loading skeleton animation */
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.skeleton-shimmer {
+  background: linear-gradient(90deg, #f3f4f6 25%, #e5e7eb 50%, #f3f4f6 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+/* Fire icon animation */
+@keyframes fire-flicker {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+}
+
+.fire-icon-animated {
+  animation: fire-flicker 0.5s ease-in-out infinite;
+}
+
+/* Chart tooltip styles */
+.chart-tooltip {
+  position: absolute;
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.75rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  pointer-events: none;
+  z-index: 10;
+}
+
+/* Filter button active state */
+.filter-button-active {
+  background-color: #fed7aa;
+  color: #9a3412;
+}
+
+/* Badge styles for burn type */
+.burn-badge-admin {
+  background-color: #f3e8ff;
+  color: #7c3aed;
+}
+
+.burn-badge-self {
+  background-color: #dcfce7;
+  color: #16a34a;
+}

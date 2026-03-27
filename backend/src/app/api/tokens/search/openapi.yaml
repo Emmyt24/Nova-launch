@@ -1,0 +1,373 @@
+openapi: 3.0.0
+info:
+  title: Token Search and Discovery API
+  version: 1.0.0
+  description: |
+    Comprehensive search and filtering API for discovering tokens with full-text search,
+    multiple filters, sorting options, and pagination support.
+    
+    Features:
+    - Full-text search by name and symbol
+    - Filter by creator, date range, supply range, and burn status
+    - Sort by creation date, burn amount, supply, or name
+    - Pagination with configurable page size
+    - Response caching for improved performance
+
+servers:
+  - url: http://localhost:3000
+    description: Development server
+  - url: https://api.example.com
+    description: Production server
+
+paths:
+  /api/tokens/search:
+    get:
+      summary: Search and discover tokens
+      description: Search for tokens with various filters and sorting options
+      operationId: searchTokens
+      tags:
+        - Tokens
+      parameters:
+        - name: q
+          in: query
+          description: Full-text search query for token name or symbol (case-insensitive)
+          required: false
+          schema:
+            type: string
+            example: stellar
+        
+        - name: creator
+          in: query
+          description: Filter by creator address (case-insensitive)
+          required: false
+          schema:
+            type: string
+            example: GCREATOR123ABC
+        
+        - name: startDate
+          in: query
+          description: Filter tokens created after this date (ISO 8601 format)
+          required: false
+          schema:
+            type: string
+            format: date-time
+            example: "2024-01-01T00:00:00.000Z"
+        
+        - name: endDate
+          in: query
+          description: Filter tokens created before this date (ISO 8601 format)
+          required: false
+          schema:
+            type: string
+            format: date-time
+            example: "2024-12-31T23:59:59.999Z"
+        
+        - name: minSupply
+          in: query
+          description: Minimum total supply
+          required: false
+          schema:
+            type: string
+            pattern: '^\d+$'
+            example: "1000000"
+        
+        - name: maxSupply
+          in: query
+          description: Maximum total supply
+          required: false
+          schema:
+            type: string
+            pattern: '^\d+$'
+            example: "10000000"
+        
+        - name: hasBurns
+          in: query
+          description: Filter by burn status
+          required: false
+          schema:
+            type: string
+            enum: [true, false]
+            example: "true"
+        
+        - name: sortBy
+          in: query
+          description: Field to sort by
+          required: false
+          schema:
+            type: string
+            enum: [created, burned, supply, name]
+            default: created
+        
+        - name: sortOrder
+          in: query
+          description: Sort order
+          required: false
+          schema:
+            type: string
+            enum: [asc, desc]
+            default: desc
+        
+        - name: page
+          in: query
+          description: Page number (1-indexed)
+          required: false
+          schema:
+            type: string
+            pattern: '^\d+$'
+            default: "1"
+            example: "1"
+        
+        - name: limit
+          in: query
+          description: Results per page (maximum 50)
+          required: false
+          schema:
+            type: string
+            pattern: '^\d+$'
+            default: "20"
+            example: "20"
+      
+      responses:
+        '200':
+          description: Successful search response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenSearchResponse'
+              examples:
+                basicSearch:
+                  summary: Basic search result
+                  value:
+                    success: true
+                    data:
+                      - id: "550e8400-e29b-41d4-a716-446655440000"
+                        address: "GABC123DEF456"
+                        creator: "GCREATOR123ABC"
+                        name: "Stellar Token"
+                        symbol: "STR"
+                        decimals: 18
+                        totalSupply: "1000000"
+                        initialSupply: "1000000"
+                        totalBurned: "50000"
+                        burnCount: 5
+                        metadataUri: "ipfs://QmHash123"
+                        createdAt: "2024-01-15T10:30:00.000Z"
+                        updatedAt: "2024-01-20T15:45:00.000Z"
+                    pagination:
+                      page: 1
+                      limit: 20
+                      total: 1
+                      totalPages: 1
+                      hasNext: false
+                      hasPrev: false
+                    filters:
+                      q: "stellar"
+                      creator: null
+                      startDate: null
+                      endDate: null
+                      minSupply: null
+                      maxSupply: null
+                      hasBurns: null
+                      sortBy: "created"
+                      sortOrder: "desc"
+        
+        '400':
+          description: Invalid query parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error: "Invalid query parameters"
+                details:
+                  - code: "invalid_type"
+                    expected: "string"
+                    received: "number"
+                    path: ["limit"]
+                    message: "Expected string, received number"
+        
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error: "Internal server error"
+                message: "Database connection failed"
+
+components:
+  schemas:
+    TokenSearchResponse:
+      type: object
+      required:
+        - success
+        - data
+        - pagination
+        - filters
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Token'
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+        filters:
+          $ref: '#/components/schemas/AppliedFilters'
+    
+    Token:
+      type: object
+      required:
+        - id
+        - address
+        - creator
+        - name
+        - symbol
+        - decimals
+        - totalSupply
+        - initialSupply
+        - totalBurned
+        - burnCount
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique token identifier
+        address:
+          type: string
+          description: Token address on Stellar network
+        creator:
+          type: string
+          description: Creator's Stellar address
+        name:
+          type: string
+          description: Token name
+        symbol:
+          type: string
+          description: Token symbol
+        decimals:
+          type: integer
+          description: Number of decimal places
+        totalSupply:
+          type: string
+          description: Total supply (as string to handle large numbers)
+        initialSupply:
+          type: string
+          description: Initial supply (as string to handle large numbers)
+        totalBurned:
+          type: string
+          description: Total amount burned (as string to handle large numbers)
+        burnCount:
+          type: integer
+          description: Number of burn transactions
+        metadataUri:
+          type: string
+          nullable: true
+          description: URI to token metadata (e.g., IPFS)
+        createdAt:
+          type: string
+          format: date-time
+          description: Token creation timestamp
+        updatedAt:
+          type: string
+          format: date-time
+          description: Last update timestamp
+    
+    Pagination:
+      type: object
+      required:
+        - page
+        - limit
+        - total
+        - totalPages
+        - hasNext
+        - hasPrev
+      properties:
+        page:
+          type: integer
+          description: Current page number
+          example: 1
+        limit:
+          type: integer
+          description: Results per page
+          example: 20
+        total:
+          type: integer
+          description: Total number of matching tokens
+          example: 100
+        totalPages:
+          type: integer
+          description: Total number of pages
+          example: 5
+        hasNext:
+          type: boolean
+          description: Whether there is a next page
+          example: true
+        hasPrev:
+          type: boolean
+          description: Whether there is a previous page
+          example: false
+    
+    AppliedFilters:
+      type: object
+      properties:
+        q:
+          type: string
+          nullable: true
+        creator:
+          type: string
+          nullable: true
+        startDate:
+          type: string
+          nullable: true
+        endDate:
+          type: string
+          nullable: true
+        minSupply:
+          type: string
+          nullable: true
+        maxSupply:
+          type: string
+          nullable: true
+        hasBurns:
+          type: string
+          nullable: true
+          enum: [true, false]
+        sortBy:
+          type: string
+          enum: [created, burned, supply, name]
+        sortOrder:
+          type: string
+          enum: [asc, desc]
+    
+    ErrorResponse:
+      type: object
+      required:
+        - success
+        - error
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: string
+          description: Error message
+        message:
+          type: string
+          description: Detailed error message
+        details:
+          type: array
+          description: Validation error details
+          items:
+            type: object
+
+tags:
+  - name: Tokens
+    description: Token search and discovery operations

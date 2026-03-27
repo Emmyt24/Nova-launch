@@ -134,4 +134,39 @@ export class StellarService {
   private createError(code: string, message: string, details?: string): AppError {
     return { code, message, details };
   }
+
+  /**
+   * Burn tokens via factory contract
+   * 
+   * Issue: #615 - Integrate Burn UI with Real Factory Burn Calls
+   * 
+   * @param params - Burn parameters
+   * @returns Transaction hash and burn details
+   */
+  async burnTokens(params: {
+    tokenAddress: string;
+    amount: string;
+    from: string;
+  }): Promise<{ txHash: string; isAdminBurn: boolean }> {
+    // Validate inputs
+    if (!params.tokenAddress || !params.from) {
+      throw this.createError(ErrorCode.INVALID_INPUT, 'Invalid burn parameters');
+    }
+    
+    if (!params.amount || parseInt(params.amount) <= 0) {
+      throw this.createError(ErrorCode.INVALID_INPUT, 'Invalid burn amount');
+    }
+
+    // TODO: Implement actual burn transaction submission
+    // This requires:
+    // 1. Building the transaction with factory contract method
+    // 2. Signing with user's wallet (via freighter or other wallet)
+    // 3. Submitting to Soroban network
+    // 4. Waiting for confirmation and returning tx hash
+    
+    throw this.createError(
+      ErrorCode.NOT_IMPLEMENTED,
+      'Burn transaction requires wallet integration'
+    );
+  }
 }

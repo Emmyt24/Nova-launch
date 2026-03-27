@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
-import { IPFSService } from '../../services/ipfs.service';
+import { IPFSService } from '../../services/IPFSService';
 
 describe('IPFS Integration Tests', () => {
   let ipfsService: IPFSService;

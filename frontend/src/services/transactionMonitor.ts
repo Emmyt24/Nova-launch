@@ -25,11 +25,14 @@ export interface MonitoringSession {
     endTime?: number;
     lastChecked?: number;
     attempts: number;
+    ledger?: number;
     error?: string;
 }
 
 export type StatusCallback = (update: TransactionStatusUpdate) => void;
 export type ErrorCallback = (error: Error) => void;
+/** Called once when a transaction reaches a terminal on-chain state (success or failed). */
+export type PostConfirmationHook = (update: TransactionStatusUpdate) => void;
 
 /**
  * Default monitoring configuration
@@ -49,6 +52,7 @@ export class TransactionMonitor {
     private sessions: Map<string, MonitoringSession> = new Map();
     private statusCallbacks: Map<string, Set<StatusCallback>> = new Map();
     private errorCallbacks: Map<string, Set<ErrorCallback>> = new Map();
+    private postConfirmationHooks: Map<string, Set<PostConfirmationHook>> = new Map();
     private pollTimers: Map<string, NodeJS.Timeout> = new Map();
     private config: MonitoringConfig;
 
@@ -135,10 +139,41 @@ export class TransactionMonitor {
     }
 
     /**
+     * Register a post-confirmation hook that fires once when the transaction
+     * reaches a terminal on-chain state (success or failed).
+     * This is the signal for projection polling to begin.
+     */
+    onConfirmed(transactionHash: string, hook: PostConfirmationHook): void {
+        if (!this.postConfirmationHooks.has(transactionHash)) {
+            this.postConfirmationHooks.set(transactionHash, new Set());
+        }
+        this.postConfirmationHooks.get(transactionHash)!.add(hook);
+    }
+
+    /**
      * Get monitoring session details
      */
     getSession(transactionHash: string): MonitoringSession | undefined {
         return this.sessions.get(transactionHash);
+    }
+
+    /**
+     * Resume monitoring a transaction that was persisted before a page refresh.
+     * Unlike startMonitoring, this is a no-op if the hash is already being tracked,
+     * making it safe to call on every app boot for all persisted pending txs.
+     */
+    resumeMonitoring(
+        transactionHash: string,
+        onStatus?: StatusCallback,
+        onError?: ErrorCallback
+    ): void {
+        if (this.sessions.has(transactionHash)) {
+            // Already active — just attach new callbacks if provided
+            if (onStatus) this.onStatus(transactionHash, onStatus);
+            if (onError) this.onError(transactionHash, onError);
+            return;
+        }
+        this.startMonitoring(transactionHash, onStatus, onError);
     }
 
     /**
@@ -173,6 +208,7 @@ export class TransactionMonitor {
             if (status === 'success' || status === 'failed') {
                 this.updateSession(transactionHash, status);
                 this.emitStatus(transactionHash, status);
+                this.emitPostConfirmation(transactionHash, status);
             } else {
                 // Still pending, schedule next poll
                 const delay = this.calculateDelay(session.attempts);
@@ -202,14 +238,88 @@ export class TransactionMonitor {
     }
 
     /**
-     * Check transaction status on Stellar network
-     * This should be implemented to call actual Stellar API
+     * Check transaction status on Stellar network using Soroban RPC
      */
     protected async checkTransactionStatus(
         transactionHash: string
     ): Promise<'pending' | 'success' | 'failed'> {
-        // This is a placeholder - should be implemented by subclass or injected
-        return 'pending';
+        try {
+            const response = await this.fetchTransactionFromRPC(transactionHash);
+            return this.mapRPCStatusToMonitorStatus(response);
+        } catch (error) {
+            // If transaction not found, it's still pending
+            if (error instanceof Error && error.message.includes('not found')) {
+                return 'pending';
+            }
+            throw error;
+        }
+    }
+
+    /**
+     * Fetch transaction from Soroban RPC
+     */
+    private async fetchTransactionFromRPC(hash: string): Promise<any> {
+        const rpcUrl = this.getRPCUrl();
+        
+        const response = await fetch(rpcUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                jsonrpc: '2.0',
+                id: 1,
+                method: 'getTransaction',
+                params: [hash],
+            }),
+        });
+
+        if (!response.ok) {
+            throw new Error(`RPC request failed: ${response.statusText}`);
+        }
+
+        const data = await response.json();
+        
+        if (data.error) {
+            throw new Error(data.error.message || 'RPC error');
+        }
+
+        return data.result;
+    }
+
+    /**
+     * Map Soroban RPC status to monitor status
+     */
+    private mapRPCStatusToMonitorStatus(rpcResponse: any): 'pending' | 'success' | 'failed' {
+        if (!rpcResponse) {
+            return 'pending';
+        }
+
+        const status = rpcResponse.status;
+
+        switch (status) {
+            case 'SUCCESS':
+                return 'success';
+            case 'FAILED':
+                return 'failed';
+            case 'NOT_FOUND':
+                return 'pending';
+            default:
+                return 'pending';
+        }
+    }
+
+    /**
+     * Get RPC URL based on environment
+     */
+    private getRPCUrl(): string {
+        const network = import.meta.env.VITE_NETWORK || 'testnet';
+        
+        if (network === 'mainnet') {
+            return 'https://soroban-rpc.mainnet.stellar.gateway.fm';
+        }
+        
+        return 'https://soroban-testnet.stellar.org';
     }
 
     /**
@@ -254,6 +364,29 @@ export class TransactionMonitor {
                 this.pollTimers.delete(transactionHash);
             }
         }
+    }
+
+    /**
+     * Emit post-confirmation hooks (fires once on terminal state)
+     */
+    private emitPostConfirmation(
+        transactionHash: string,
+        status: 'success' | 'failed'
+    ): void {
+        const hooks = this.postConfirmationHooks.get(transactionHash);
+        if (!hooks) return;
+        const update: TransactionStatusUpdate = {
+            hash: transactionHash,
+            status,
+            timestamp: Date.now(),
+        };
+        hooks.forEach((hook) => {
+            try { hook(update); } catch (err) {
+                console.error('Error in post-confirmation hook:', err);
+            }
+        });
+        // Fire once — clean up
+        this.postConfirmationHooks.delete(transactionHash);
     }
 
     /**
@@ -313,5 +446,6 @@ export class TransactionMonitor {
         this.sessions.clear();
         this.statusCallbacks.clear();
         this.errorCallbacks.clear();
+        this.postConfirmationHooks.clear();
     }
 }

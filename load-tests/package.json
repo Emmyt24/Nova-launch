@@ -1,0 +1,18 @@
+{
+  "name": "nova-launch-load-tests",
+  "version": "1.0.0",
+  "description": "Load and stress tests for Nova Launch",
+  "scripts": {
+    "test:normal": "k6 run scenarios/normal-load.js",
+    "test:peak": "k6 run scenarios/peak-load.js",
+    "test:stress": "k6 run scenarios/stress-test.js",
+    "test:spike": "k6 run scenarios/spike-test.js",
+    "test:api": "k6 run scenarios/api-load.js",
+    "test:search": "k6 run scenarios/search-load.js",
+    "test:all": "npm run test:normal && npm run test:peak && npm run test:stress",
+    "report": "node scripts/generate-report.js"
+  },
+  "devDependencies": {
+    "k6": "^0.0.0"
+  }
+}

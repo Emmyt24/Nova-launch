@@ -75,7 +75,7 @@ export function Hero({ wallet, connect, disconnect, isConnecting }: HeroProps) {
               size="lg" 
               onClick={connect}
               loading={isConnecting}
-              className="inline-flex h-14 items-center justify-center rounded-xl bg-primary px-8 text-base font-semibold text-white transition hover:bg-[#E63428] hover:shadow-glow-red"
+              className="inline-flex h-14 items-center justify-center rounded-xl bg-primary px-8 text-base font-semibold text-white transition-all duration-300 hover:bg-[#E63428] hover:shadow-glow-red animate-glow-pulse btn-press-feedback"
               aria-label="Connect wallet to start deploying tokens on Stellar"
             >
               Connect Wallet
@@ -84,7 +84,7 @@ export function Hero({ wallet, connect, disconnect, isConnecting }: HeroProps) {
           <a
             href={`#${LANDING_SECTION_IDS.howItWorks}`}
             data-scroll-link="true"
-            className="inline-flex h-14 items-center justify-center rounded-xl border-2 border-white/20 bg-white/5 px-8 text-base font-semibold text-white backdrop-blur-sm transition hover:border-white/30 hover:bg-white/10"
+            className="inline-flex h-14 items-center justify-center rounded-xl border-2 border-white/20 bg-white/5 px-8 text-base font-semibold text-white backdrop-blur-sm transition-all duration-300 hover:border-white/30 hover:bg-white/10 btn-press-feedback"
             aria-label="Learn more about how NovaLaunch works"
           >
             Learn More

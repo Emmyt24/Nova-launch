@@ -1,0 +1,9 @@
+node_modules/
+dist/
+.env
+data/measurements/*.json
+data/alerts/*.json
+data/reports/*.json
+data/reports/*.md
+*.log
+.DS_Store

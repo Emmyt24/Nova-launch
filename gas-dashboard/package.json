@@ -1,0 +1,27 @@
+{
+  "name": "stellarstream-gas-dashboard",
+  "version": "1.0.0",
+  "description": "Gas optimization tracking dashboard for StellarStream",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "measure": "node scripts/measure.js",
+    "check:gas-thresholds": "node scripts/check-thresholds.js",
+    "alert": "node scripts/alert.js",
+    "report": "node scripts/report.js",
+    "schedule": "node scripts/scheduler.js"
+  },
+  "dependencies": {
+    "@stellar/stellar-sdk": "^12.0.0",
+    "chart.js": "^4.4.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-chartjs-2": "^5.2.0",
+    "date-fns": "^3.0.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.2.0",
+    "vite": "^5.0.0",
+    "node-cron": "^3.0.3"
+  }
+}

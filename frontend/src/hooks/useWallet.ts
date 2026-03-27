@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { WalletService } from '../services/wallet';
+import { analytics, AnalyticsEvent } from '../services/analytics';
 import type { WalletState } from '../types';
 
 const WALLET_CONNECTED_KEY = 'nova_wallet_connected';
@@ -34,6 +35,10 @@ export const useWallet = (options: UseWalletOptions = {}) => {
             cleanupRef.current();
             cleanupRef.current = null;
         }
+
+        try {
+            analytics.track(AnalyticsEvent.WALLET_DISCONNECTED);
+        } catch {}
     }, []);
 
     useEffect(() => {
@@ -64,6 +69,12 @@ export const useWallet = (options: UseWalletOptions = {}) => {
                 network,
             });
             localStorage.setItem(WALLET_CONNECTED_KEY, 'true');
+
+            // Privacy: do NOT send addresses or any PII. Only send non-identifying metadata.
+            try {
+                analytics.track(AnalyticsEvent.WALLET_CONNECTED, { network });
+            } catch {}
+
             return true;
         } catch (err) {
             console.error('Failed to update wallet state:', err);
@@ -84,6 +95,10 @@ export const useWallet = (options: UseWalletOptions = {}) => {
                     network: net as 'testnet' | 'mainnet',
                 });
                 localStorage.setItem(WALLET_CONNECTED_KEY, 'true');
+
+                try {
+                    analytics.track(AnalyticsEvent.NETWORK_SWITCHED, { to_network: net });
+                } catch {}
             } else {
                 disconnect();
             }
@@ -104,6 +119,10 @@ export const useWallet = (options: UseWalletOptions = {}) => {
             if (!success) {
                 throw new Error('User rejected connection or account not found');
             }
+
+            try {
+                analytics.track('wallet_connect_initiated', { method: 'freighter' });
+            } catch {}
 
             setupListeners();
         } catch (err: any) {

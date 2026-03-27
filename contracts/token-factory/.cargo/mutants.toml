@@ -1,0 +1,35 @@
+# Mutation Testing Configuration for Token Factory Contract
+
+# Exclude test files from mutation
+exclude_files = [
+    "**/*_test.rs",
+    "**/test.rs",
+    "**/tests/**",
+]
+
+# Exclude specific functions that don't need mutation testing
+exclude_functions = [
+    # Simple getters - low mutation value
+    "get_state",
+    "get_base_fee",
+    "get_metadata_fee",
+    "is_paused",
+    "get_token_count",
+    "get_burn_count",
+    "get_balance",
+]
+
+# Set timeout for each mutant test (60 seconds)
+timeout = 60
+
+# Minimum test time to consider (0.1 seconds)
+minimum_test_time = 0.1
+
+# Focus on high-priority files
+[files]
+# Prioritize authentication and burn logic
+priority = [
+    "src/burn.rs",
+    "src/lib.rs",
+    "src/storage.rs",
+]

@@ -1,0 +1,85 @@
+.card {
+  background: var(--card-bg, #0f172a);
+  color: var(--text, #e6eef8);
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: 0 6px 18px rgba(2,6,23,0.6);
+  display: flex;
+  flex-direction: column;
+}
+.grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+@media (max-width: 640px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+}
+.stat {
+  background: rgba(255,255,255,0.03);
+  padding: 12px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  transition: transform 180ms ease, box-shadow 180ms ease;
+}
+.stat:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 8px 20px rgba(2,6,23,0.6);
+}
+.iconWrap {
+  width: 44px;
+  height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  flex: 0 0 44px;
+}
+.label {
+  font-size: 12px;
+  color: rgba(230,238,248,0.8);
+}
+.value {
+  font-size: 16px;
+  font-weight: 600;
+}
+.muted {
+  color: rgba(230,238,248,0.6);
+}
+.progressWrap {
+  margin-top: 14px;
+}
+.progressBar {
+  height: 12px;
+  background: rgba(255,255,255,0.06);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.progressFill {
+  height: 100%;
+  background: linear-gradient(90deg, #ff7a18 0%, #ff2d55 100%);
+  width: 0%;
+  transition: width 900ms cubic-bezier(.2,.9,.2,1);
+}
+.skeleton {
+  background: linear-gradient(90deg, rgba(255,255,255,0.03), rgba(255,255,255,0.06), rgba(255,255,255,0.03));
+  border-radius: 6px;
+  animation: shimmer 1.4s linear infinite;
+  background-size: 800px 100%;
+}
+@keyframes shimmer {
+  0% { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+}
+.statContent {
+  display: flex;
+  flex-direction: column;
+}
+.suffix {
+  font-size: 12px;
+  color: rgba(230,238,248,0.7);
+}

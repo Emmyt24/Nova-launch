@@ -1,5 +1,5 @@
 import { StellarService, TestAccount } from '../../services/stellar.service';
-import { IPFSService } from '../../services/ipfs.service';
+import { IPFSService } from '../../services/IPFSService';
 
 /**
  * Helper utilities for integration and e2e tests

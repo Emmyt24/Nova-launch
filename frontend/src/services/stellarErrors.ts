@@ -9,23 +9,78 @@ export interface StellarErrorDetails {
     retrySuggestion?: string;
 }
 
+export interface TransactionFailureDetails {
+    resultCode?: string;
+    operationResults?: string[];
+    diagnosticEvents?: any[];
+    rawError?: string;
+}
+
 export class StellarError extends Error implements AppError {
     code: ErrorCode;
     details?: string;
     retryable: boolean;
     retrySuggestion?: string;
+    transactionFailure?: TransactionFailureDetails;
 
-    constructor(errorDetails: StellarErrorDetails) {
+    constructor(errorDetails: StellarErrorDetails, transactionFailure?: TransactionFailureDetails) {
         super(errorDetails.message);
         this.name = 'StellarError';
         this.code = errorDetails.code;
         this.details = errorDetails.details;
         this.retryable = errorDetails.retryable;
         this.retrySuggestion = errorDetails.retrySuggestion;
+        this.transactionFailure = transactionFailure;
     }
 }
 
-export function parseStellarError(error: unknown): StellarError {
+/**
+ * Parse failed transaction details from Soroban RPC response
+ */
+export function parseTransactionFailure(rpcResponse: any): TransactionFailureDetails {
+    const failure: TransactionFailureDetails = {};
+
+    if (rpcResponse.resultXdr) {
+        try {
+            // Extract result code from XDR
+            failure.resultCode = extractResultCode(rpcResponse.resultXdr);
+        } catch (err) {
+            console.error('Failed to parse result XDR:', err);
+        }
+    }
+
+    if (rpcResponse.diagnosticEventsXdr) {
+        failure.diagnosticEvents = rpcResponse.diagnosticEventsXdr;
+    }
+
+    if (rpcResponse.error) {
+        failure.rawError = typeof rpcResponse.error === 'string' 
+            ? rpcResponse.error 
+            : JSON.stringify(rpcResponse.error);
+    }
+
+    return failure;
+}
+
+/**
+ * Extract human-readable result code from XDR
+ */
+function extractResultCode(resultXdr: string): string {
+    // This is a simplified version - in production, you'd use stellar-sdk to parse XDR
+    // For now, return the XDR as-is
+    return resultXdr;
+}
+
+/**
+ * Parse Stellar error from various sources
+ */
+export function parseStellarError(error: unknown, transactionResponse?: any): StellarError {
+    // Parse transaction failure details if available
+    let transactionFailure: TransactionFailureDetails | undefined;
+    if (transactionResponse && transactionResponse.status === 'FAILED') {
+        transactionFailure = parseTransactionFailure(transactionResponse);
+    }
+
     // Wallet not connected
     if (error instanceof Error && error.message.includes('Freighter')) {
         return new StellarError({
@@ -34,7 +89,7 @@ export function parseStellarError(error: unknown): StellarError {
             details: 'Please install and connect Freighter wallet',
             retryable: true,
             retrySuggestion: 'Install Freighter extension and connect your wallet',
-        });
+        }, transactionFailure);
     }
 
     // User rejected transaction
@@ -45,7 +100,7 @@ export function parseStellarError(error: unknown): StellarError {
             details: 'You cancelled the transaction in your wallet',
             retryable: true,
             retrySuggestion: 'Try again and approve the transaction in your wallet',
-        });
+        }, transactionFailure);
     }
 
     // Account not found
@@ -56,7 +111,7 @@ export function parseStellarError(error: unknown): StellarError {
             details: 'The wallet address does not exist on the network',
             retryable: false,
             retrySuggestion: 'Ensure your wallet is funded with XLM',
-        });
+        }, transactionFailure);
     }
 
     // Insufficient balance
@@ -67,7 +122,7 @@ export function parseStellarError(error: unknown): StellarError {
             details: 'Not enough XLM to cover transaction fees',
             retryable: true,
             retrySuggestion: 'Add more XLM to your wallet and try again',
-        });
+        }, transactionFailure);
     }
 
     // Simulation failed
@@ -79,7 +134,7 @@ export function parseStellarError(error: unknown): StellarError {
             details,
             retryable: true,
             retrySuggestion: 'Check your parameters and try again',
-        });
+        }, transactionFailure);
     }
 
     // Contract error
@@ -90,7 +145,7 @@ export function parseStellarError(error: unknown): StellarError {
             details: error.message,
             retryable: true,
             retrySuggestion: 'Verify contract parameters and try again',
-        });
+        }, transactionFailure);
     }
 
     // Timeout
@@ -101,18 +156,20 @@ export function parseStellarError(error: unknown): StellarError {
             details: 'Transaction took too long to confirm',
             retryable: true,
             retrySuggestion: 'The network may be congested. Try again in a few moments',
-        });
+        }, transactionFailure);
     }
 
     // Network error
-    if (error instanceof Error && (error.message.includes('network') || error.message.includes('fetch'))) {
+    const lowerMessage = error instanceof Error ? error.message.toLowerCase() : String(error).toLowerCase();
+    
+    if (lowerMessage.includes('network') || lowerMessage.includes('fetch')) {
         return new StellarError({
             code: ErrorCode.NETWORK_ERROR,
             message: 'Network error',
             details: 'Failed to connect to Stellar network',
             retryable: true,
             retrySuggestion: 'Check your internet connection and try again',
-        });
+        }, transactionFailure);
     }
 
     // Generic transaction failed
@@ -123,7 +180,7 @@ export function parseStellarError(error: unknown): StellarError {
             details: error.message,
             retryable: true,
             retrySuggestion: 'Review transaction details and try again',
-        });
+        }, transactionFailure);
     }
 
     // Unknown error
@@ -133,7 +190,7 @@ export function parseStellarError(error: unknown): StellarError {
         details: error instanceof Error ? error.message : String(error),
         retryable: true,
         retrySuggestion: 'Please try again',
-    });
+    }, transactionFailure);
 }
 
 function extractSimulationError(message: string): string {
@@ -149,6 +206,7 @@ export function logStellarError(error: StellarError, context?: Record<string, un
         details: error.details,
         retryable: error.retryable,
         retrySuggestion: error.retrySuggestion,
+        transactionFailure: error.transactionFailure,
         context,
     };
 

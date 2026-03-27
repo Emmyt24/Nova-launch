@@ -1,0 +1,42 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-03-07",
+  "notes": "Historical baseline snapshot for 2026-03-07.",
+  "operations": {
+    "create": {
+      "cpu": 162139,
+      "memory": 21456,
+      "thresholdPercent": 10
+    },
+    "mint": {
+      "cpu": 128440,
+      "memory": 19812,
+      "thresholdPercent": 10
+    },
+    "burn": {
+      "cpu": 137220,
+      "memory": 20690,
+      "thresholdPercent": 10
+    },
+    "claim": {
+      "cpu": 124600,
+      "memory": 18970,
+      "thresholdPercent": 10
+    },
+    "propose": {
+      "cpu": 149380,
+      "memory": 21710,
+      "thresholdPercent": 10
+    },
+    "vote": {
+      "cpu": 121950,
+      "memory": 18440,
+      "thresholdPercent": 10
+    },
+    "execute": {
+      "cpu": 133870,
+      "memory": 20120,
+      "thresholdPercent": 10
+    }
+  }
+}

@@ -336,7 +336,7 @@ describe("TransactionHistoryStorage", () => {
       // The test validates that we handle errors gracefully
       try {
         freshStorage.addToken("GWALLET", createMockToken());
-      } catch (e) {
+      } catch {
         // Should re-throw the original error
         expect(e).not.toBeInstanceOf(StorageQuotaExceededError);
       }

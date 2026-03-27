@@ -2,6 +2,10 @@
 
 <div align="center">
 
+![CI](https://github.com/Emmyt24/Nova-launch/workflows/CI/badge.svg)
+![Security](https://github.com/Emmyt24/Nova-launch/workflows/Security%20Scan/badge.svg)
+![Coverage](https://codecov.io/gh/Emmyt24/Nova-launch/branch/main/graph/badge.svg)
+
 ![Stellar](https://img.shields.io/badge/Stellar-Soroban-7D00FF?style=for-the-badge&logo=stellar)
 ![React](https://img.shields.io/badge/React-19-61DAFB?style=for-the-badge&logo=react)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.9-3178C6?style=for-the-badge&logo=typescript)
@@ -11,7 +15,7 @@
 
 **A user-friendly dApp for quick token deployment on Stellar, targeting creators in Nigeria and emerging markets.**
 
-[Features](#-features) • [Quick Start](#-quick-start) • [Documentation](#-documentation) • [Contributing](#-contributing) • [Roadmap](#-roadmap)
+[Features](#-features) • [Quick Start](#-quick-start) • [User Guides](docs/user-guides/README.md) • [Documentation](#-documentation) • [Contributing](#-contributing) • [Roadmap](#-roadmap)
 
 </div>
 
@@ -31,6 +35,7 @@
 - [Smart Contracts](#-smart-contracts)
 - [Frontend Application](#-frontend-application)
 - [Testing](#-testing)
+- [CI/CD](#-cicd)
 - [Deployment](#-deployment)
 - [Configuration](#-configuration)
 - [API Reference](#-api-reference)
@@ -54,6 +59,7 @@
 - **🌍 Emerging Markets Focus**: Optimized for users in Nigeria and other developing regions
 - **🔒 Secure**: Non-custodial, wallet-based authentication
 - **📱 Mobile-First**: Responsive design for all devices
+- **📲 PWA Support**: Install as an app on any device with offline capabilities
 
 ### Core Value Proposition
 
@@ -82,6 +88,8 @@ Pay minimal XLM fees to deploy and mint tokens directly to your wallet. Optional
 - ✅ Transaction history tracking
 - ✅ Responsive, mobile-first design
 - ✅ Accessibility compliant (WCAG 2.1)
+- ✅ PWA support with offline mode
+- ✅ Installable on mobile and desktop
 
 #### 🖼️ Metadata Support
 - ✅ Optional IPFS metadata upload
@@ -422,6 +430,61 @@ pub fn mint_tokens(
 ) -> Result<(), Error>
 ```
 
+##### `burn`
+Allows token holders to burn their own tokens, permanently removing them from circulation.
+
+```rust
+pub fn burn(
+    env: Env,
+    token_address: Address,
+    from: Address,
+    amount: i128,
+) -> Result<(), Error>
+```
+
+**Parameters:**
+- `token_address`: Address of the token contract
+- `from`: Address of the token holder burning tokens
+- `amount`: Amount of tokens to burn (in smallest unit)
+
+**Example:**
+```rust
+// Burn 1000 tokens (with 7 decimals)
+factory.burn(
+    &token_address,
+    &user_address,
+    &1000_0000000
+);
+```
+
+##### `admin_burn`
+Allows token admin to burn tokens from any address (clawback).
+
+```rust
+pub fn admin_burn(
+    env: Env,
+    token_address: Address,
+    admin: Address,
+    from: Address,
+    amount: i128,
+) -> Result<(), Error>
+```
+
+**Security Note:** Only the token creator can perform admin burns.
+
+##### `burn_batch`
+Burn tokens from multiple addresses in a single transaction.
+
+```rust
+pub fn burn_batch(
+    env: Env,
+    token_address: Address,
+    burns: Vec<(Address, i128)>,
+) -> Result<(), Error>
+```
+
+**Gas Optimization:** More efficient than multiple individual burns.
+
 ##### `update_fees`
 Update fee structure (admin only).
 
@@ -440,6 +503,24 @@ Get current factory state.
 ```rust
 pub fn get_state(env: Env) -> FactoryState
 ```
+
+##### `get_base_fee`
+Get the current base fee for token deployment.
+
+```rust
+pub fn get_base_fee(env: Env) -> i128
+```
+
+Returns the base fee amount in stroops that must be paid for any token deployment, regardless of metadata inclusion.
+
+##### `get_metadata_fee`
+Get the current metadata fee for token deployment.
+
+```rust
+pub fn get_metadata_fee(env: Env) -> i128
+```
+
+Returns the additional fee amount in stroops that must be paid when deploying a token with metadata (IPFS URI).
 
 ##### `get_token_info`
 Get information about a deployed token.
@@ -461,6 +542,35 @@ pub fn get_token_info(
 | 4 | `TokenNotFound` | Token not found in registry |
 | 5 | `MetadataAlreadySet` | Metadata already set for token |
 | 6 | `AlreadyInitialized` | Factory already initialized |
+| 7 | `BurnAmountExceedsBalance` | Burn amount exceeds token balance |
+| 8 | `BurnNotEnabled` | Burn functionality not enabled |
+| 9 | `InvalidBurnAmount` | Burn amount is zero or negative |
+
+##### Vault Error Codes
+
+These codes are reserved for vault lifecycle failures and are guaranteed to remain stable for downstream clients.
+
+| Code | Error | Description |
+|------|-------|-------------|
+| 60 | `VaultNotFound` | Referenced vault does not exist |
+| 61 | `VaultLocked` | Unlock time or milestone has not been met |
+| 62 | `VaultAlreadyClaimed` | Vault funds have already been claimed |
+| 63 | `VaultCancelled` | Vault was cancelled and is immutable |
+| 64 | `InvalidVaultConfig` | Vault parameters failed validation |
+| 65 | `NothingToClaim` | No claimable balance remains (vaults/streams) |
+
+#### Events
+
+##### `TokenBurned`
+Emitted when tokens are burned.
+
+**Data:**
+- `token_address`: Address
+- `from`: Address
+- `amount`: i128
+- `burned_by`: Address
+- `timestamp`: u64
+- `is_admin_burn`: bool
 
 ---
 
@@ -607,7 +717,24 @@ xlmToStroops(xlm: number | string): number
 
 ## 🧪 Testing
 
-### Running Tests
+### Quick Start
+
+Use the unified test runner for all test categories:
+
+```bash
+# Fast mode (2-5 min) - Local development
+./scripts/run-tests.sh -m fast
+
+# Full mode (10-15 min) - PR validation
+./scripts/run-tests.sh -m full
+
+# Nightly mode (30-60 min) - Comprehensive
+./scripts/run-tests.sh -m nightly
+```
+
+See [Test Runner Documentation](docs/TEST_RUNNER.md) for detailed usage.
+
+### Running Tests Manually
 
 ```bash
 # Frontend tests
@@ -622,30 +749,55 @@ cargo test              # Run all tests
 cargo test -- --nocapture  # Run with output
 ```
 
-### Test Structure
+### Test Categories
 
 #### Unit Tests
+Tests individual functions and modules in isolation.
 
-Located in `__tests__` directories:
-- Validation utilities
-- Formatting utilities
-- Component rendering
-- Hook behavior
-
-#### Property-Based Tests
-
-Using `fast-check` for frontend and `proptest` for contracts:
-- Fee calculation consistency
-- Token creation atomicity
-- Supply conservation
-- Admin-only operations
+```bash
+cargo test --lib --tests
+```
 
 #### Integration Tests
+Tests interactions between components.
 
-- Full deployment flow
-- Wallet connection
-- IPFS upload
-- Transaction monitoring
+```bash
+cargo test --test '*'
+```
+
+#### Property-Based Tests
+Randomized testing for governance invariants:
+- Monotonic vote totals
+- Single-vote-per-address
+- Execution preconditions
+- Terminal state permanence
+- Vote distribution consistency
+
+```bash
+cargo test --lib --profile ci
+```
+
+#### Benchmarks
+Performance testing (nightly mode only).
+
+```bash
+cargo bench --no-run
+```
+
+### Test Modes
+
+| Mode | Duration | Tests | Use Case |
+|------|----------|-------|----------|
+| **Fast** | 2-5 min | Unit + Integration | Local dev, pre-commit |
+| **Full** | 10-15 min | + Property tests | PR validation, CI |
+| **Nightly** | 30-60 min | + Benchmarks + WASM | Release validation |
+
+### CI Integration
+
+Tests run automatically on:
+- **Push**: Fast mode
+- **Pull Request**: Full mode
+- **Schedule**: Nightly mode (2 AM UTC)
 
 ### Test Coverage
 
@@ -659,6 +811,41 @@ npm run test:coverage
 # View report
 open coverage/index.html
 ```
+
+---
+
+## 🔄 CI/CD
+
+### Continuous Integration
+
+The project uses GitHub Actions for automated testing and validation. All checks must pass before code can be merged.
+
+#### CI Pipeline
+
+- **Rust Contract Tests**: Formatting, linting, tests, and WASM build
+- **Frontend Tests**: Linting, tests, and production build
+- **Security Audit**: Dependency vulnerability scanning
+- **Spec Validation**: Ensures all spec files are complete
+
+#### Running Checks Locally
+
+Before pushing code, run the local CI validation:
+
+```bash
+./scripts/ci-check.sh
+```
+
+This runs all CI checks locally to catch issues early.
+
+#### Setting Up Git Hooks
+
+Enable pre-commit hooks to catch issues before committing:
+
+```bash
+git config core.hooksPath .githooks
+```
+
+For more details, see [CI/CD Guide](CI_CD_GUIDE.md).
 
 ---
 
@@ -926,6 +1113,3 @@ A: Base deployment is 7 XLM, with an additional 3 XLM for metadata.
 **Q: Which networks are supported?**  
 A: Both Stellar testnet (for testing) and mainnet (for production).
 
-### Technical
-
-**Q: Whi

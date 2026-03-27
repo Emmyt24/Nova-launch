@@ -1,20 +1,45 @@
 import type { TokenInfo } from "../types";
 
 const STORAGE_KEY = "transaction_history";
+const PENDING_TX_KEY = "pending_transactions";
 const CURRENT_VERSION = "v1";
+
+export type PendingTxType = "deploy" | "burn" | "campaign" | "governance";
+
+/**
+ * Minimal record persisted for an in-flight transaction so monitoring can
+ * be resumed after a page refresh.
+ */
+export interface PersistedPendingTx {
+  txHash: string;
+  type: PendingTxType;
+  walletAddress: string;
+  /** ISO timestamp of when the tx was submitted */
+  submittedAt: string;
+  /** Optional: token/campaign/proposal address associated with the tx */
+  entityAddress?: string;
+}
+
+/**
+ * Extended TokenInfo with reconciliation metadata
+ */
+export interface StoredTokenInfo extends TokenInfo {
+  syncedWithBackend?: boolean;
+  lastSyncedAt?: number;
+}
 
 /**
  * Storage structure:
  * {
  *   "v1": {
- *     "GXXX...": [TokenInfo, TokenInfo, ...],
- *     "GYYY...": [TokenInfo, ...]
+ *     "GXXX...": [StoredTokenInfo, StoredTokenInfo, ...],
+ *     "GYYY...": [StoredTokenInfo, ...]
  *   }
  * }
  */
 interface StorageData {
   [version: string]: {
-    [walletAddress: string]: TokenInfo[];
+    [walletAddress: string]: StoredTokenInfo[];
   };
 }
 
@@ -169,13 +194,17 @@ export class TransactionHistoryStorage {
       return [];
     }
 
-    return versionedData[walletAddress] || [];
+    return (versionedData[walletAddress] || []).map(token => {
+      // Strip reconciliation metadata when returning
+      const { syncedWithBackend, lastSyncedAt, ...tokenInfo } = token as StoredTokenInfo;
+      return tokenInfo;
+    });
   }
 
   /**
-   * Add a new token to the history
+   * Add a new token to the history with optional sync metadata
    */
-  addToken(walletAddress: string, token: TokenInfo): void {
+  addToken(walletAddress: string, token: TokenInfo, syncedWithBackend = false): void {
     const data = this.loadData();
 
     if (!data[CURRENT_VERSION]) {
@@ -184,20 +213,74 @@ export class TransactionHistoryStorage {
 
     const walletTokens = data[CURRENT_VERSION][walletAddress] || [];
 
+    const storedToken: StoredTokenInfo = {
+      ...token,
+      syncedWithBackend,
+      lastSyncedAt: syncedWithBackend ? Date.now() : undefined,
+    };
+
     // Check if token already exists (by address)
     const existingIndex = walletTokens.findIndex(
       (t) => t.address === token.address,
     );
     if (existingIndex !== -1) {
-      // Update existing token
-      walletTokens[existingIndex] = token;
+      // Update existing token, preserving sync status if already synced
+      const existing = walletTokens[existingIndex];
+      walletTokens[existingIndex] = {
+        ...storedToken,
+        syncedWithBackend: syncedWithBackend || existing.syncedWithBackend,
+        lastSyncedAt: syncedWithBackend ? Date.now() : existing.lastSyncedAt,
+      };
     } else {
       // Add new token at the beginning (most recent first)
-      walletTokens.unshift(token);
+      walletTokens.unshift(storedToken);
     }
 
     data[CURRENT_VERSION][walletAddress] = walletTokens;
     this.saveData(data);
+  }
+
+  /**
+   * Mark a token as synced with backend
+   */
+  markTokenSynced(walletAddress: string, tokenAddress: string): void {
+    const data = this.loadData();
+
+    if (!data[CURRENT_VERSION] || !data[CURRENT_VERSION][walletAddress]) {
+      return;
+    }
+
+    const walletTokens = data[CURRENT_VERSION][walletAddress];
+    const tokenIndex = walletTokens.findIndex(t => t.address === tokenAddress);
+
+    if (tokenIndex !== -1) {
+      walletTokens[tokenIndex] = {
+        ...walletTokens[tokenIndex],
+        syncedWithBackend: true,
+        lastSyncedAt: Date.now(),
+      };
+      data[CURRENT_VERSION][walletAddress] = walletTokens;
+      this.saveData(data);
+    }
+  }
+
+  /**
+   * Get unsynced tokens (optimistic entries not yet confirmed by backend)
+   */
+  getUnsyncedTokens(walletAddress: string): TokenInfo[] {
+    const data = this.loadData();
+    const versionedData = data[CURRENT_VERSION];
+
+    if (!versionedData || !versionedData[walletAddress]) {
+      return [];
+    }
+
+    return versionedData[walletAddress]
+      .filter(token => !token.syncedWithBackend)
+      .map(token => {
+        const { syncedWithBackend, lastSyncedAt, ...tokenInfo } = token;
+        return tokenInfo;
+      });
   }
 
   /**
@@ -267,6 +350,58 @@ export class TransactionHistoryStorage {
   hasWalletData(walletAddress: string): boolean {
     const tokens = this.getTokens(walletAddress);
     return tokens.length > 0;
+  }
+
+  // ── Pending transaction persistence ────────────────────────────────────────
+
+  /**
+   * Persist a pending (in-flight) transaction so it can be resumed after refresh.
+   */
+  savePendingTx(tx: PersistedPendingTx): void {
+    const all = this.loadPendingTxs();
+    // Deduplicate by hash
+    const filtered = all.filter((t) => t.txHash !== tx.txHash);
+    filtered.push(tx);
+    try {
+      localStorage.setItem(PENDING_TX_KEY, JSON.stringify(filtered));
+    } catch {
+      // Non-critical — silently ignore quota errors for pending tx store
+    }
+  }
+
+  /**
+   * Remove a pending transaction (call once it reaches a terminal state).
+   */
+  removePendingTx(txHash: string): void {
+    const all = this.loadPendingTxs();
+    const filtered = all.filter((t) => t.txHash !== txHash);
+    localStorage.setItem(PENDING_TX_KEY, JSON.stringify(filtered));
+  }
+
+  /**
+   * Return all persisted pending transactions.
+   */
+  getPendingTxs(): PersistedPendingTx[] {
+    return this.loadPendingTxs();
+  }
+
+  /**
+   * Return pending transactions for a specific wallet.
+   */
+  getPendingTxsForWallet(walletAddress: string): PersistedPendingTx[] {
+    return this.loadPendingTxs().filter(
+      (t) => t.walletAddress === walletAddress,
+    );
+  }
+
+  private loadPendingTxs(): PersistedPendingTx[] {
+    try {
+      const raw = localStorage.getItem(PENDING_TX_KEY);
+      if (!raw) return [];
+      return JSON.parse(raw) as PersistedPendingTx[];
+    } catch {
+      return [];
+    }
   }
 }
 

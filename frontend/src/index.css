@@ -26,6 +26,10 @@
   --font-heading: 'Asimovian', Georgia, 'Times New Roman', serif;
 }
 
+html {
+  scroll-behavior: smooth;
+}
+
 body {
   margin: 0;
   min-width: 320px;
@@ -72,6 +76,25 @@ body {
   will-change: opacity;
 }
 
+.animate-fadeIn {
+  animation: fade-in 0.2s ease-out forwards;
+}
+
+@keyframes slideUp {
+  from {
+    transform: translate3d(0, 20px, 0);
+    opacity: 0;
+  }
+  to {
+    transform: translate3d(0, 0, 0);
+    opacity: 1;
+  }
+}
+
+.animate-slideUp {
+  animation: slideUp 0.3s ease-out forwards;
+}
+
 @keyframes fade-in-up {
   from {
     opacity: 0;
@@ -85,7 +108,7 @@ body {
 }
 
 .animate-fade-in-up {
-  animation: fade-in-up 0.4s ease-out forwards;
+  animation: fade-in-up 0.6s cubic-bezier(0.4, 0, 0.2, 1) forwards;
   transform: translateZ(0);
   will-change: transform, opacity;
   backface-visibility: hidden;
@@ -170,29 +193,115 @@ body {
   animation: draw-check 0.6s ease-out forwards 0.3s;
 }
 
+/* Glow pulse animation for CTA buttons */
+@keyframes glow-pulse {
+  0%, 100% {
+    box-shadow: 0 0 20px rgba(255, 59, 46, 0.4),
+                0 0 40px rgba(255, 59, 46, 0.2),
+                0 0 60px rgba(255, 59, 46, 0.1);
+  }
+  50% {
+    box-shadow: 0 0 30px rgba(255, 59, 46, 0.6),
+                0 0 60px rgba(255, 59, 46, 0.3),
+                0 0 90px rgba(255, 59, 46, 0.15);
+  }
+}
+
+.animate-glow-pulse {
+  animation: glow-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Accordion expand/collapse animation */
+@keyframes accordion-expand {
+  from {
+    opacity: 0;
+    max-height: 0;
+    transform: translate3d(0, -10px, 0);
+  }
+  to {
+    opacity: 1;
+    max-height: 500px;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+.animate-accordion-expand {
+  animation: accordion-expand 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  transform: translateZ(0);
+  will-change: transform, opacity, max-height;
+}
+
+@keyframes accordion-collapse {
+  from {
+    opacity: 1;
+    max-height: 500px;
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    opacity: 0;
+    max-height: 0;
+    transform: translate3d(0, -10px, 0);
+  }
+}
+
+.animate-accordion-collapse {
+  animation: accordion-collapse 0.2s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  transform: translateZ(0);
+  will-change: transform, opacity, max-height;
+}
+
+/* Rotate animation for accordion icons */
+@keyframes rotate-45 {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(45deg);
+  }
+}
+
+.animate-rotate-45 {
+  animation: rotate-45 0.2s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+@keyframes rotate-0 {
+  from {
+    transform: rotate(45deg);
+  }
+  to {
+    transform: rotate(0deg);
+  }
+}
+
+.animate-rotate-0 {
+  animation: rotate-0 0.2s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+/* Button press feedback */
+.btn-press-feedback {
+  transition: transform 0.1s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.btn-press-feedback:active {
+  transform: scale(0.97);
+}
+
+/* Parallax hover effect for cards */
+.card-parallax {
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transform-style: preserve-3d;
+}
+
+.card-parallax:hover {
+  transform: translateY(-4px) scale(1.02);
+}
+
 /* ─── Accessibility ───────────────────────────────────────────────────────── */
 
 /* Focus visible styles */
 *:focus-visible {
   outline: 2px solid #3b82f6;
   outline-offset: 2px;
-}
-
-/* Skip to main content link for screen readers */
-.skip-to-main {
-  position: absolute;
-  left: -9999px;
-  z-index: 999;
-  padding: 1rem;
-  background-color: #3b82f6;
-  color: white;
-  text-decoration: none;
-}
-
-.skip-to-main:focus {
-  left: 50%;
-  transform: translateX(-50%);
-  top: 1rem;
 }
 
 /* ─── Responsive utilities ────────────────────────────────────────────────── */
@@ -221,6 +330,22 @@ body {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  /* Disable glow pulse for reduced motion */
+  .animate-glow-pulse {
+    animation: none !important;
+  }
+
+  /* Disable parallax effects */
+  .card-parallax:hover {
+    transform: none !important;
+  }
+
+  /* Keep basic hover states but remove transforms */
+  .btn-press-feedback:active {
+    transform: none !important;
   }
 }
 

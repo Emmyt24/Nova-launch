@@ -1,0 +1,32 @@
+[
+  {
+    "name": "Competitor A",
+    "contract": "streaming_protocol",
+    "function": "create_stream",
+    "avgGas": 160000,
+    "source": "Public Documentation",
+    "lastUpdated": "2024-01-01"
+  },
+  {
+    "name": "Competitor B",
+    "contract": "payment_streams",
+    "function": "create_stream",
+    "avgGas": 145000,
+    "source": "On-chain Analysis",
+    "lastUpdated": "2024-01-15"
+  },
+  {
+    "name": "Competitor C",
+    "contract": "token_vesting",
+    "function": "create_vesting",
+    "avgGas": 130000,
+    "source": "Public API",
+    "lastUpdated": "2024-02-01"
+  },
+  {
+    "name": "Industry Average",
+    "avgGas": 150000,
+    "source": "Market Research",
+    "lastUpdated": "2024-02-01"
+  }
+]

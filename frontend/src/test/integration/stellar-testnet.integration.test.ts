@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { StellarService, TestAccount } from '../../services/stellar.service';
-import { IPFSService } from '../../services/ipfs.service';
+import { IPFSService } from '../../services/IPFSService';
 
 describe('Stellar Testnet Integration Tests', () => {
   let stellarService: StellarService;

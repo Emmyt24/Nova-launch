@@ -7,8 +7,16 @@ import {
     isValidImageFile,
     validateTokenParams,
 } from '../utils/validation';
+import { IPFSService, isValidIpfsUri } from '../services/IPFSService';
+import { StellarService } from '../services/stellar.service';
+import { TransactionHistoryStorage } from '../services/TransactionHistoryStorage';
 import { IPFSService } from '../services/IPFSService';
-import { StellarService, getDeploymentFeeBreakdown } from '../services/StellarService';
+import { StellarService } from '../services/stellar.service';
+import { TransactionHistoryStorage } from '../services/TransactionHistoryStorage';
+import { getDeploymentFeeBreakdown } from '../utils/feeCalculation';
+import { analytics, AnalyticsEvent } from '../services/analytics';
+import { useAnalytics } from './useAnalytics';
+import { transactionHistoryStorage } from '../services/TransactionHistoryStorage';
 
 const STATUS_MESSAGES: Record<DeploymentStatus, string> = {
     idle: '',
@@ -18,16 +26,47 @@ const STATUS_MESSAGES: Record<DeploymentStatus, string> = {
     error: 'Deployment failed.',
 };
 
-export function useTokenDeploy(network: 'testnet' | 'mainnet') {
+interface UseTokenDeployOptions {
+    maxRetries?: number;
+    retryDelay?: number;
+    baseFee?: number;
+    metadataFee?: number;
+}
+
+export function useTokenDeploy(network: 'testnet' | 'mainnet', options: UseTokenDeployOptions = {}) {
+    const { maxRetries = 3, retryDelay = 2000, baseFee, metadataFee } = options;
     const [status, setStatus] = useState<DeploymentStatus>('idle');
     const [error, setError] = useState<AppError | null>(null);
+    const [retryCount, setRetryCount] = useState(0);
+    const [lastParams, setLastParams] = useState<TokenDeployParams | null>(null);
 
     const stellarService = useMemo(() => new StellarService(network), [network]);
     const ipfsService = useMemo(() => new IPFSService(), []);
+    const { trackTokenDeployed, trackTokenDeployFailed } = useAnalytics();
 
     const deploy = async (params: TokenDeployParams): Promise<DeploymentResult> => {
         setError(null);
         setStatus('idle');
+        setLastParams(params);
+        setRetryCount(0);
+
+        if (!params.adminWallet) {
+            const appError = createError(ErrorCode.WALLET_NOT_CONNECTED, 'Connect your wallet before deploying.');
+            setError(appError);
+            setStatus('error');
+            throw appError;
+        }
+
+        // Track initiation (no PII). Do NOT include wallet or addresses.
+        try {
+            analytics.track('token_deploy_initiated', {
+                network,
+                name_length: params.name ? params.name.length : 0,
+                symbol: params.symbol || '',
+                decimals: params.decimals || 0,
+                has_metadata: Boolean(params.metadata || params.metadataUri),
+            });
+        } catch {}
 
         const validation = validateTokenParams(params);
         if (!validation.valid) {
@@ -35,6 +74,12 @@ export function useTokenDeploy(network: 'testnet' | 'mainnet') {
             const appError = createError(ErrorCode.INVALID_INPUT, details);
             setError(appError);
             setStatus('error');
+            try {
+                analytics.track(AnalyticsEvent.TOKEN_DEPLOY_FAILED, {
+                    network,
+                    errorCode: appError.code,
+                });
+            } catch {}
             throw appError;
         }
 
@@ -68,6 +113,9 @@ export function useTokenDeploy(network: 'testnet' | 'mainnet') {
                     params.metadata.description,
                     params.name
                 );
+                if (!isValidIpfsUri(metadataUri)) {
+                    throw new Error('IPFS upload returned an invalid URI');
+                }
             } catch (uploadError) {
                 ErrorHandler.handle(uploadError instanceof Error ? uploadError : new Error(getErrorMessage(uploadError)), {
                     action: 'upload-metadata',
@@ -76,18 +124,74 @@ export function useTokenDeploy(network: 'testnet' | 'mainnet') {
                 const appError = createError(ErrorCode.IPFS_UPLOAD_FAILED, getErrorMessage(uploadError));
                 setError(appError);
                 setStatus('error');
+                try {
+                    analytics.track(AnalyticsEvent.TOKEN_DEPLOY_FAILED, {
+                        network,
+                        errorCode: appError.code,
+                    });
+                } catch {}
                 throw appError;
             }
         }
 
         setStatus('deploying');
+        
+        // Check if factory is paused before attempting deployment
         try {
-            const result = await stellarService.deployToken({
+            const isPaused = await stellarService.isPaused();
+            if (isPaused) {
+                const appError = createError(
+                    ErrorCode.CONTRACT_ERROR,
+                    'Protocol is currently paused for maintenance',
+                    `The factory contract on ${network} is paused. Please try again later or contact support.`
+                );
+                setError(appError);
+                setStatus('error');
+                try {
+                    analytics.track(AnalyticsEvent.TOKEN_DEPLOY_FAILED, {
+                        network,
+                        errorCode: appError.code,
+                        reason: 'protocol_paused',
+                    });
+                } catch {}
+                throw appError;
+            }
+        } catch (pauseCheckError) {
+            // If pause check fails, log but continue (fail open to avoid blocking users)
+            console.warn('Failed to check pause state, continuing with deployment:', pauseCheckError);
+        }
+
+        try {
+            const feeBreakdown = getDeploymentFeeBreakdown(Boolean(metadataUri));
+            const feePayment = BigInt(Math.round(feeBreakdown.totalFee * 10_000_000));
+            const serviceResult = await stellarService.deployToken({
                 ...params,
                 metadataUri,
+                creatorAddress: params.adminWallet,
+                feePayment,
             });
+            const result: DeploymentResult = {
+                tokenAddress: serviceResult.tokenAddress,
+                transactionHash: serviceResult.transactionHash,
+                totalFee: String(feeBreakdown.totalFee),
+                timestamp: Date.now(),
+                metadataUrl: metadataUri,
+            };
+            try {
+                analytics.track(AnalyticsEvent.TOKEN_DEPLOYED, {
+                    network,
+                    name_length: params.name ? params.name.length : 0,
+                    symbol: params.symbol || '',
+                    decimals: params.decimals || 0,
+                });
+            } catch {}
+            
+            // Save optimistic record to local storage
+            // Backend sync will happen via useTransactionHistory
             saveDeploymentRecord(params, result, metadataUri);
+            
             setStatus('success');
+            trackTokenDeployed(params.symbol, network);
             return result;
         } catch (deployError) {
             ErrorHandler.handle(deployError instanceof Error ? deployError : new Error(getErrorMessage(deployError)), {
@@ -100,8 +204,15 @@ export function useTokenDeploy(network: 'testnet' | 'mainnet') {
                 },
             });
             const appError = mapDeploymentError(deployError);
+            try {
+                analytics.track(AnalyticsEvent.TOKEN_DEPLOY_FAILED, {
+                    network,
+                    errorCode: appError.code,
+                });
+            } catch {}
             setError(appError);
             setStatus('error');
+            trackTokenDeployFailed(appError.message, network);
             throw appError;
         }
     };
@@ -109,19 +220,53 @@ export function useTokenDeploy(network: 'testnet' | 'mainnet') {
     const reset = () => {
         setStatus('idle');
         setError(null);
+        setRetryCount(0);
+        setLastParams(null);
+    };
+
+    const retry = async (): Promise<DeploymentResult | null> => {
+        if (!lastParams) {
+            const appError = createError(ErrorCode.INVALID_INPUT, 'No previous deployment to retry');
+            setError(appError);
+            return null;
+        }
+
+        if (retryCount >= maxRetries) {
+            const appError = createError(
+                ErrorCode.TRANSACTION_FAILED,
+                `Maximum retry attempts (${maxRetries}) reached`
+            );
+            setError(appError);
+            return null;
+        }
+
+        setRetryCount(prev => prev + 1);
+        
+        // Add delay before retry
+        if (retryDelay > 0) {
+            await new Promise(resolve => setTimeout(resolve, retryDelay));
+        }
+        
+        return deploy(lastParams);
     };
 
     return {
         deploy,
+        retry,
         reset,
         status,
         statusMessage: STATUS_MESSAGES[status],
         isDeploying: status === 'uploading' || status === 'deploying',
         error,
-        getFeeBreakdown: getDeploymentFeeBreakdown,
+        retryCount,
+        canRetry: retryCount < maxRetries && lastParams !== null && status === 'error',
     };
 }
 
+/**
+ * Save deployment record to local storage (optimistic update)
+ * Backend sync will reconcile this later
+ */
 function saveDeploymentRecord(
     params: TokenDeployParams,
     result: DeploymentResult,
@@ -139,10 +284,13 @@ function saveDeploymentRecord(
         transactionHash: result.transactionHash,
     };
 
-    const storageKey = `tokens_${params.adminWallet}`;
-    const existingRaw = localStorage.getItem(storageKey);
-    const existing = existingRaw ? (JSON.parse(existingRaw) as TokenInfo[]) : [];
-    localStorage.setItem(storageKey, JSON.stringify([token, ...existing]));
+    try {
+        TransactionHistoryStorage.getInstance().addToken(params.adminWallet, token);
+    } catch {
+        // Storage quota exceeded — non-fatal, deployment already succeeded
+    }
+    // Use the new TransactionHistoryStorage service
+    transactionHistoryStorage.addToken(params.adminWallet, token);
 }
 
 function mapDeploymentError(error: unknown): AppError {
