@@ -43,6 +43,8 @@ mod governance_property_test;
 #[cfg(test)]
 mod governance_quorum_property_test;
 #[cfg(test)]
+mod governance_config_auth_property_test;
+#[cfg(test)]
 mod payload_validation_fuzz_test;
 
 #[cfg(test)]
