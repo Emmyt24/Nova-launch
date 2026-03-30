@@ -53,6 +53,16 @@ mod buyback_integration_test;
 #[cfg(all(test, feature = "legacy-tests"))]
 mod stream_claim_differential_test;
 
+// Property tests (annotated with Property numbers)
+#[cfg(test)]
+mod stream_metadata_immutability_property_test; // Property 74
+#[cfg(test)]
+mod vault_funding_overflow_property_test; // Property 73
+
+// Chaos tests
+#[cfg(test)]
+mod vault_concurrent_claims_chaos_test;
+
 // Temporarily disabled due to pre-existing compilation errors
 // #[cfg(test)]
 // mod two_step_admin_security_test;
