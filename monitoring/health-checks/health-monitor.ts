@@ -154,6 +154,27 @@ export class HealthMonitor extends EventEmitter {
   }
 
   /**
+   * Fetch and log expanded dependency health from the backend /health/ready endpoint.
+   * Returns null if the endpoint is unreachable.
+   */
+  async fetchBackendHealth(backendUrl: string): Promise<Record<string, unknown> | null> {
+    try {
+      const response = await axios.get(`${backendUrl}/health/ready`, { timeout: 5000 });
+      const data = response.data?.data ?? response.data;
+      structuredLogger.info('Backend dependency health', {
+        status: data?.status,
+        services: data?.services,
+      });
+      return data as Record<string, unknown>;
+    } catch (err) {
+      structuredLogger.warn('Failed to fetch backend health', {
+        error: err instanceof Error ? err.message : String(err),
+      });
+      return null;
+    }
+  }
+
+  /**
    * Stop all health checks
    */
   stopAll(): void {
