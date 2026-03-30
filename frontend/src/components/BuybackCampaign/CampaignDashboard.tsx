@@ -16,7 +16,7 @@ interface CampaignDashboardProps {
 
 export const CampaignDashboard: React.FC<CampaignDashboardProps> = ({
   campaignId,
-  network = 'testnet',
+  network = (import.meta.env.VITE_NETWORK as 'testnet' | 'mainnet') ?? 'testnet',
 }) => {
   const [campaign, setCampaign] = useState<BuybackCampaignModel | null>(null);
   const [loading, setLoading] = useState(true);

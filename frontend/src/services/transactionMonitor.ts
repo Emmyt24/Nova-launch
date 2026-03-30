@@ -331,7 +331,7 @@ export class TransactionMonitor {
         const network = import.meta.env.VITE_NETWORK || 'testnet';
         
         if (network === 'mainnet') {
-            return 'https://soroban-rpc.mainnet.stellar.gateway.fm';
+            return 'https://soroban-mainnet.stellar.org';
         }
         
         return 'https://soroban-testnet.stellar.org';

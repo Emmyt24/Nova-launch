@@ -391,6 +391,9 @@ export class StellarService {
   }
 
   async fundTestAccount(publicKey: string): Promise<void> {
+    if (this.network !== 'testnet') {
+      throw new Error('fundTestAccount is only available on testnet');
+    }
     try {
       const response = await fetch(`https://friendbot.stellar.org/?addr=${publicKey}`);
       if (!response.ok) {
