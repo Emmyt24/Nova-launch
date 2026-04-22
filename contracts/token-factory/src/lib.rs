@@ -2250,6 +2250,9 @@ mod accounting_property_test;
 mod stream_status_transition_property_test;
 
 #[cfg(test)]
+mod stream_lifecycle_integration_test;
+
+#[cfg(test)]
 mod vault_claim_property_test;
 
 #[cfg(test)]
