@@ -247,6 +247,144 @@ describe("Property 64 — Token Burn Invariants", () => {
   });
 });
 
+  /**
+   * Property 4: Burn order does not affect final state.
+   *
+   * Invariant: Final state is independent of burn order
+   * Mathematical form: ∀ token, ∀ permutations of valid burn sequence S,
+   *   applyBurns(token.initialSupply, S) ≡ applyBurns(token.initialSupply, permute(S))
+   *   (final step has same totalBurned and currentSupply)
+   *
+   * Validates: Requirements 8.1, 8.2
+   */
+  it("Property 4: burn order does not affect final state", () => {
+    fc.assert(
+      fc.property(
+        fc
+          .record({ token: tokenArb })
+          .chain(({ token }) =>
+            fc.record({
+              token: fc.constant(token),
+              amounts: burnSequenceArb(token.initialSupply),
+            })
+          ),
+        ({ token, amounts }) => {
+          const steps1 = applyBurns(token.initialSupply, amounts);
+          const shuffled = fc.sample(fc.shuffledSubarray(amounts), 1)[0];
+          const steps2 = applyBurns(token.initialSupply, shuffled);
+
+          const final1 = steps1[steps1.length - 1];
+          const final2 = steps2[steps2.length - 1];
+
+          expect(final1.totalBurned).toBe(final2.totalBurned);
+          expect(final1.currentSupply).toBe(final2.currentSupply);
+        }
+      ),
+      { numRuns: 100 }
+    );
+  });
+
+  /**
+   * Property 5: Monotonic increase of total burned.
+   *
+   * Invariant: totalBurned is non-decreasing across steps
+   * Mathematical form: ∀ i < j: steps[i].totalBurned <= steps[j].totalBurned
+   *
+   * Validates: Requirements 8.3, 8.4
+   */
+  it("Property 5: total_burned is monotonically non-decreasing", () => {
+    fc.assert(
+      fc.property(
+        fc
+          .record({ token: tokenArb })
+          .chain(({ token }) =>
+            fc.record({
+              token: fc.constant(token),
+              amounts: burnSequenceArb(token.initialSupply),
+            })
+          ),
+        ({ token, amounts }) => {
+          const steps = applyBurns(token.initialSupply, amounts);
+          for (let i = 1; i < steps.length; i++) {
+            expect(steps[i].totalBurned >= steps[i - 1].totalBurned).toBe(true);
+          }
+        }
+      ),
+      { numRuns: 100 }
+    );
+  });
+
+  /**
+   * Property 6: Monotonic decrease of current supply.
+   *
+   * Invariant: currentSupply is non-increasing across steps
+   * Mathematical form: ∀ i < j: steps[i].currentSupply >= steps[j].currentSupply
+   *
+   * Validates: Requirements 8.5, 8.6
+   */
+  it("Property 6: current_supply is monotonically non-increasing", () => {
+    fc.assert(
+      fc.property(
+        fc
+          .record({ token: tokenArb })
+          .chain(({ token }) =>
+            fc.record({
+              token: fc.constant(token),
+              amounts: burnSequenceArb(token.initialSupply),
+            })
+          ),
+        ({ token, amounts }) => {
+          const steps = applyBurns(token.initialSupply, amounts);
+          for (let i = 1; i < steps.length; i++) {
+            expect(steps[i].currentSupply <= steps[i - 1].currentSupply).toBe(true);
+          }
+        }
+      ),
+      { numRuns: 100 }
+    );
+  });
+
+  /**
+   * Property 7: Burn amount equals supply decrease.
+   *
+   * Invariant: Each burn amount equals the decrease in current supply
+   * Mathematical form: ∀ i: amounts[i] = steps[i-1].currentSupply - steps[i].currentSupply
+   *
+   * Validates: Requirements 9.1, 9.2
+   */
+  it("Property 7: each burn amount equals supply decrease", () => {
+    fc.assert(
+      fc.property(
+        fc
+          .record({ token: tokenArb })
+          .chain(({ token }) =>
+            fc.record({
+              token: fc.constant(token),
+              amounts: burnSequenceArb(token.initialSupply),
+            })
+          ),
+        ({ token, amounts }) => {
+          const steps = applyBurns(token.initialSupply, amounts);
+          let prevSupply = token.initialSupply;
+
+          for (let i = 0; i < amounts.length; i++) {
+            const burnAmount = amounts[i];
+            const currentStep = steps[i];
+
+            if (burnAmount === 0n) {
+              expect(currentStep.currentSupply).toBe(prevSupply);
+            } else {
+              expect(prevSupply - currentStep.currentSupply).toBe(burnAmount);
+              prevSupply = currentStep.currentSupply;
+            }
+          }
+        }
+      ),
+      { numRuns: 100 }
+    );
+  });
+});
+
 // ---------------------------------------------------------------------------
 // Edge-case unit tests
 // ---------------------------------------------------------------------------
@@ -289,5 +427,59 @@ describe("Edge cases", () => {
     // Both invariants must hold at exact depletion
     expect(steps[0].totalBurned <= initialSupply).toBe(true);
     expect(steps[0].currentSupply >= 0n).toBe(true);
+  });
+
+  /**
+   * Task 4.3 — Multiple zero-amount burns
+   *
+   * Multiple zero-amount burns should leave state unchanged.
+   *
+   * Validates: Requirements 6.3
+   */
+  it("4.3: multiple zero-amount burns leave state unchanged", () => {
+    const initialSupply = 1000n;
+    const steps = applyBurns(initialSupply, [0n, 0n, 0n]);
+
+    expect(steps).toHaveLength(3);
+    for (const step of steps) {
+      expect(step.totalBurned).toBe(0n);
+      expect(step.currentSupply).toBe(1000n);
+    }
+  });
+
+  /**
+   * Task 4.4 — Mixed zero and non-zero burns
+   *
+   * Zero-amount burns should not affect the state progression.
+   *
+   * Validates: Requirements 6.4
+   */
+  it("4.4: mixed zero and non-zero burns skip zeros", () => {
+    const initialSupply = 1000n;
+    const steps = applyBurns(initialSupply, [100n, 0n, 200n, 0n, 300n]);
+
+    expect(steps).toHaveLength(5);
+    expect(steps[0].totalBurned).toBe(100n);
+    expect(steps[1].totalBurned).toBe(100n); // Zero burn, no change
+    expect(steps[2].totalBurned).toBe(300n);
+    expect(steps[3].totalBurned).toBe(300n); // Zero burn, no change
+    expect(steps[4].totalBurned).toBe(600n);
+  });
+
+  /**
+   * Task 4.5 — Large supply handling
+   *
+   * Verify that large supplies (near 10^18) are handled correctly.
+   *
+   * Validates: Requirements 10.1
+   */
+  it("4.5: large supply (10^18) is handled correctly", () => {
+    const initialSupply = 10n ** 18n;
+    const burnAmount = 10n ** 17n;
+    const steps = applyBurns(initialSupply, [burnAmount]);
+
+    expect(steps[0].totalBurned).toBe(burnAmount);
+    expect(steps[0].currentSupply).toBe(initialSupply - burnAmount);
+    expect(steps[0].totalBurned + steps[0].currentSupply).toBe(initialSupply);
   });
 });
