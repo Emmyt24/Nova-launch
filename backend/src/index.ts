@@ -15,11 +15,12 @@ import campaignRoutes from "./routes/campaigns";
 import streamRoutes from "./routes/streams";
 import vaultRoutes from "./routes/vaults";
 import versionRoutes from "./routes/version";
-import healthRoutes from "./routes/health";
+import graphqlRouter from "./graphql";
 import { Database } from "./config/database";
 import { successResponse, errorResponse } from "./utils/response";
 import { requestLoggingMiddleware } from "./middleware/request-logging.middleware";
 import stellarEventListener from "./services/stellarEventListener";
+import websocketService from "./services/websocket";
 
 dotenv.config();
 
@@ -70,7 +71,28 @@ app.use("/api/campaigns", campaignRoutes);
 app.use("/api/streams", streamRoutes);
 app.use("/api/vaults", vaultRoutes);
 app.use("/api/version", versionRoutes);
-app.use("/health", healthRoutes);
+app.use("/api/graphql", graphqlRouter);
+
+import { healthService } from "./lib/health/health.service";
+
+// Health check — liveness (is the process alive?)
+app.get("/health/live", (_req, res) => {
+  res.json(successResponse({ status: "ok", uptime: process.uptime() }));
+});
+
+// Health check — readiness (are all dependencies reachable?)
+app.get("/health/ready", async (_req, res) => {
+  const result = await healthService.checkHealth();
+  const httpStatus = result.status === "healthy" ? 200 : result.status === "degraded" ? 207 : 503;
+  res.status(httpStatus).json(successResponse(result));
+});
+
+// Legacy /health — kept for backwards compatibility, maps to readiness
+app.get("/health", async (_req, res) => {
+  const result = await healthService.checkHealth();
+  const httpStatus = result.status === "healthy" ? 200 : result.status === "degraded" ? 207 : 503;
+  res.status(httpStatus).json(successResponse(result));
+});
 
 // Error handling middleware
 app.use(
@@ -104,9 +126,12 @@ app.use((req, res) => {
   );
 });
 
-app.listen(PORT, async () => {
+const server = app.listen(PORT, async () => {
   console.log(`🚀 Admin API server running on port ${PORT}`);
   console.log(`📊 Environment: ${process.env.NODE_ENV || "development"}`);
+
+  // Attach WebSocket server for live event streaming
+  websocketService.attach(server);
 
   // Start event listener only after server (and DB) are ready
   if (process.env.ENABLE_EVENT_LISTENER === "true") {

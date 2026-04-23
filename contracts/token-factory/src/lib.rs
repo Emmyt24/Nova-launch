@@ -2210,13 +2210,13 @@ mod gas_regression_test;
 mod gas_compute_thresholds;
 
 #[cfg(test)]
-// mod timelock_test;
+mod bench_test;
 
 #[cfg(test)]
 // mod pagination_integration_test;
 
 #[cfg(test)]
-// mod treasury_integration_test;
+mod treasury_integration_test;
 // #[cfg(test)]
 // mod token_pause_test;
 // #[cfg(test)]
@@ -2227,8 +2227,6 @@ mod gas_compute_thresholds;
 // mod gas_benchmark_comprehensive;
 // #[cfg(test)]
 // mod pagination_integration_test;
-// #[cfg(test)]
-// mod treasury_integration_test;
 // #[cfg(test)]
 // mod auth_fuzz_test;
 // #[cfg(test)]
@@ -2248,6 +2246,9 @@ mod accounting_property_test;
 
 #[cfg(test)]
 mod stream_status_transition_property_test;
+
+#[cfg(test)]
+mod stream_lifecycle_integration_test;
 
 #[cfg(test)]
 mod vault_claim_property_test;

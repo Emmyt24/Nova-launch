@@ -449,6 +449,168 @@ mod stream_lifecycle_integration_tests {
         assert!(stream.claimed_amount <= stream.total_amount);
     }
 
+    #[test]
+    fn test_lifecycle_with_milestone_verification() {
+        // Test: stream lifecycle with milestone verification
+        let (env, _admin, creator, recipient) = setup();
+
+        // CREATE STREAM WITH CLIFF (milestone)
+        let stream_id = create_test_stream(&env, &creator, &recipient, 1000, 100, 300, 200);
+
+        // BEFORE CLIFF - NO VESTING
+        env.ledger().with_mut(|li| {
+            li.timestamp = 150;
+        });
+        let claimable_before_cliff = streaming::get_claimable_amount(&env, stream_id).unwrap();
+        assert_eq!(claimable_before_cliff, 0, "No tokens should be claimable before cliff");
+
+        // AT CLIFF - 50% VESTING (milestone reached)
+        env.ledger().with_mut(|li| {
+            li.timestamp = 200;
+        });
+        let claimable_at_cliff = streaming::get_claimable_amount(&env, stream_id).unwrap();
+        assert_eq!(claimable_at_cliff, 500, "50% should be claimable at cliff milestone");
+
+        // CLAIM AT CLIFF
+        let claimed = streaming::claim_stream(&env, &recipient, stream_id).unwrap();
+        assert_eq!(claimed, 500);
+
+        // AFTER CLIFF - LINEAR VESTING
+        env.ledger().with_mut(|li| {
+            li.timestamp = 250;
+        });
+        let claimable_after_cliff = streaming::get_claimable_amount(&env, stream_id).unwrap();
+        assert_eq!(claimable_after_cliff, 250, "Additional 25% should be claimable");
+
+        // FINAL CLAIM
+        let final_claimed = streaming::claim_stream(&env, &recipient, stream_id).unwrap();
+        assert_eq!(final_claimed, 250);
+
+        // VERIFY FINAL STATE
+        let stream = storage::get_stream(&env, stream_id).unwrap();
+        assert_eq!(stream.claimed_amount, 750);
+        assert_eq!(stream.total_amount, 1000);
+        assert!(stream.claimed_amount <= stream.total_amount);
+    }
+
+    #[test]
+    fn test_lifecycle_milestone_boundary_conditions() {
+        // Test: milestone boundary conditions
+        let (env, _admin, creator, recipient) = setup();
+
+        // CREATE STREAM
+        let stream_id = create_test_stream(&env, &creator, &recipient, 1000, 100, 200, 150);
+
+        // TEST 1: Exactly at cliff time
+        env.ledger().with_mut(|li| {
+            li.timestamp = 150;
+        });
+        let claimable_exact = streaming::get_claimable_amount(&env, stream_id).unwrap();
+        assert_eq!(claimable_exact, 500, "Exactly at cliff should be 50%");
+
+        // TEST 2: One second before cliff
+        env.ledger().with_mut(|li| {
+            li.timestamp = 149;
+        });
+        let claimable_before = streaming::get_claimable_amount(&env, stream_id).unwrap();
+        assert_eq!(claimable_before, 0, "Before cliff should be 0%");
+
+        // TEST 3: One second after cliff
+        env.ledger().with_mut(|li| {
+            li.timestamp = 151;
+        });
+        let claimable_after = streaming::get_claimable_amount(&env, stream_id).unwrap();
+        assert!(claimable_after > 500, "After cliff should be > 50%");
+
+        // TEST 4: Exactly at end time
+        env.ledger().with_mut(|li| {
+            li.timestamp = 200;
+        });
+        let claimable_end = streaming::get_claimable_amount(&env, stream_id).unwrap();
+        assert_eq!(claimable_end, 1000, "At end time should be 100%");
+
+        // VERIFY INVARIANTS
+        assert!(claimable_before <= claimable_exact);
+        assert!(claimable_exact <= claimable_after);
+        assert!(claimable_after <= claimable_end);
+    }
+
+    #[test]
+    fn test_lifecycle_zero_cliff_stream() {
+        // Test: stream with no cliff (cliff = start)
+        let (env, _admin, creator, recipient) = setup();
+
+        // CREATE STREAM WITH NO CLIFF
+        let stream_id = create_test_stream(&env, &creator, &recipient, 1000, 100, 200, 100);
+
+        // IMMEDIATELY AFTER START - SHOULD HAVE VESTING
+        env.ledger().with_mut(|li| {
+            li.timestamp = 101;
+        });
+        let claimable = streaming::get_claimable_amount(&env, stream_id).unwrap();
+        assert!(claimable > 0, "Should have vesting immediately after start");
+
+        // CLAIM IMMEDIATELY
+        let claimed = streaming::claim_stream(&env, &recipient, stream_id).unwrap();
+        assert!(claimed > 0);
+
+        // VERIFY STREAM STATE
+        let stream = storage::get_stream(&env, stream_id).unwrap();
+        assert_eq!(stream.claimed_amount, claimed);
+        assert!(stream.claimed_amount <= stream.total_amount);
+    }
+
+    #[test]
+    fn test_lifecycle_invariant_monotonic_vesting() {
+        // Test: vesting amount is monotonically increasing
+        let (env, _admin, creator, recipient) = setup();
+
+        let stream_id = create_test_stream(&env, &creator, &recipient, 1000, 100, 200, 150);
+
+        let mut prev_claimable = 0i128;
+
+        for timestamp in 100..=200 {
+            env.ledger().with_mut(|li| {
+                li.timestamp = timestamp;
+            });
+            let claimable = streaming::get_claimable_amount(&env, stream_id).unwrap();
+            assert!(
+                claimable >= prev_claimable,
+                "Claimable amount must be monotonically increasing at timestamp {}",
+                timestamp
+            );
+            prev_claimable = claimable;
+        }
+
+        // Final amount should be total
+        assert_eq!(prev_claimable, 1000);
+    }
+
+    #[test]
+    fn test_lifecycle_invariant_claimed_never_exceeds_total() {
+        // Test: claimed amount never exceeds total amount
+        let (env, _admin, creator, recipient) = setup();
+
+        let stream_id = create_test_stream(&env, &creator, &recipient, 1000, 100, 200, 150);
+
+        // Multiple claims at different times
+        for timestamp in [150, 175, 200] {
+            env.ledger().with_mut(|li| {
+                li.timestamp = timestamp;
+            });
+            let _ = streaming::claim_stream(&env, &recipient, stream_id);
+            let stream = storage::get_stream(&env, stream_id).unwrap();
+            assert!(
+                stream.claimed_amount <= stream.total_amount,
+                "Claimed amount {} exceeds total {} at timestamp {}",
+                stream.claimed_amount,
+                stream.total_amount,
+                timestamp
+            );
+        }
+    }
+}
+
     // Helper function to get symbol_short for testing
     fn symbol_short(s: &str) -> soroban_sdk::Symbol {
         soroban_sdk::symbol_short!(s)

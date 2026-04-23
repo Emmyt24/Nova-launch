@@ -39,6 +39,7 @@ cp .env.example .env
 ```
 
 Required environment variables:
+
 - `PORT` - Server port (default: 3001)
 - `ADMIN_JWT_SECRET` - Secret for admin JWT tokens
 - `DATABASE_URL` - Database connection string
@@ -67,6 +68,15 @@ npm start
 npm test
 ```
 
+Run the database pool chaos spec directly when validating exhaustion handling:
+
+```bash
+npm test backend/src/__tests__/chaos.db-pool.test.ts
+```
+
+This spec covers concurrent query saturation, client acquisition failures,
+and safe shutdown behavior for the pg pool wrapper.
+
 ## API Endpoints
 
 ### Governance API
@@ -78,6 +88,7 @@ Public endpoints for governance proposals and voting. No authentication required
 Returns all governance proposals with optional filters.
 
 **Query Parameters:**
+
 - `status` - Filter by status: `ACTIVE`, `PASSED`, `REJECTED`, `EXECUTED`, `CANCELLED`, `EXPIRED`
 - `proposalType` - Filter by type: `PARAMETER_CHANGE`, `ADMIN_TRANSFER`, `TREASURY_SPEND`, `CONTRACT_UPGRADE`, `CUSTOM`
 - `tokenId` - Filter by token ID
@@ -88,6 +99,7 @@ Returns all governance proposals with optional filters.
 - `sortOrder` - Sort order: `asc`, `desc` (default: `desc`)
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -105,6 +117,7 @@ Returns all governance proposals with optional filters.
 Returns detailed proposal information with analytics.
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -126,6 +139,7 @@ Returns detailed proposal information with analytics.
 Returns all votes for a specific proposal.
 
 **Query Parameters:**
+
 - `limit` - Results per page: 1-100 (default: `100`)
 - `offset` - Pagination offset (default: `0`)
 
@@ -134,6 +148,7 @@ Returns all votes for a specific proposal.
 Returns execution status and history for a proposal.
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -157,6 +172,7 @@ Returns overall governance statistics.
 Returns voting statistics for a specific address.
 
 **Features:**
+
 - ✅ Input validation with express-validator
 - ✅ Pagination support
 - ✅ Comprehensive error handling
@@ -164,6 +180,7 @@ Returns voting statistics for a specific address.
 - ✅ Full test coverage
 
 **Documentation:**
+
 - [Full API Documentation](GOVERNANCE_API.md)
 - [Quick Reference](GOVERNANCE_API_QUICK_REF.md)
 
@@ -178,11 +195,13 @@ Public endpoints for token rankings and leaderboards. No authentication required
 Returns tokens with the highest burn volume.
 
 **Query Parameters:**
+
 - `period` - Time period: `24h`, `7d`, `30d`, `all` (default: `7d`)
 - `page` - Page number: 1-100 (default: `1`)
 - `limit` - Results per page: 1-100 (default: `10`)
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -226,6 +245,7 @@ Returns tokens with the most burn transactions.
 Returns recently created tokens.
 
 **Query Parameters:**
+
 - `page` - Page number
 - `limit` - Results per page
 
@@ -248,12 +268,14 @@ Returns tokens with the most unique burners.
 **Metric:** Number of unique addresses that burned tokens
 
 **Features:**
+
 - ✅ Server-side caching (5-minute TTL)
 - ✅ Rate limiting (100 requests per 15 minutes)
 - ✅ Optimized database queries with indexes
 - ✅ Comprehensive error handling
 
 **Documentation:**
+
 - [Full API Documentation](LEADERBOARD_API.md)
 - [Quick Reference](LEADERBOARD_QUICK_REF.md)
 
@@ -272,6 +294,7 @@ Authorization: Bearer <admin_jwt_token>
 #### GET /api/admin/stats
 
 Get platform statistics including:
+
 - Total tokens created
 - Total burns executed
 - Total volume burned
@@ -281,6 +304,7 @@ Get platform statistics including:
 - Growth metrics (daily/weekly/monthly)
 
 **Response:**
+
 ```json
 {
   "totalTokens": 150,
@@ -294,9 +318,24 @@ Get platform statistics including:
     "avgResponseTime": 150
   },
   "growth": {
-    "daily": { "newTokens": 5, "newUsers": 12, "burnVolume": "50000", "revenue": "250" },
-    "weekly": { "newTokens": 28, "newUsers": 67, "burnVolume": "300000", "revenue": "1500" },
-    "monthly": { "newTokens": 120, "newUsers": 250, "burnVolume": "900000", "revenue": "4500" }
+    "daily": {
+      "newTokens": 5,
+      "newUsers": 12,
+      "burnVolume": "50000",
+      "revenue": "250"
+    },
+    "weekly": {
+      "newTokens": 28,
+      "newUsers": 67,
+      "burnVolume": "300000",
+      "revenue": "1500"
+    },
+    "monthly": {
+      "newTokens": 120,
+      "newUsers": 250,
+      "burnVolume": "900000",
+      "revenue": "4500"
+    }
   }
 }
 ```
@@ -308,12 +347,14 @@ Get platform statistics including:
 List all tokens with optional filters.
 
 **Query Parameters:**
+
 - `flagged` - Filter by flagged status (true/false)
 - `deleted` - Include deleted tokens (true/false)
 - `creator` - Filter by creator address
 - `search` - Search by name, symbol, or address
 
 **Response:**
+
 ```json
 {
   "tokens": [...],
@@ -326,6 +367,7 @@ List all tokens with optional filters.
 Get detailed token information including creator details.
 
 **Response:**
+
 ```json
 {
   "token": {
@@ -359,6 +401,7 @@ Update token (flag/unflag, update metadata).
 **Permissions:** Admin or Super Admin
 
 **Request Body:**
+
 ```json
 {
   "flagged": true,
@@ -382,11 +425,13 @@ Soft delete a token.
 List all users with optional filters.
 
 **Query Parameters:**
+
 - `banned` - Filter by banned status (true/false)
 - `role` - Filter by role (user/admin/super_admin)
 - `search` - Search by address or ID
 
 **Response:**
+
 ```json
 {
   "users": [...],
@@ -399,6 +444,7 @@ List all users with optional filters.
 Get user details with activity and tokens.
 
 **Response:**
+
 ```json
 {
   "user": {...},
@@ -419,6 +465,7 @@ Update user (ban/unban, change role).
 **Permissions:** Super Admin only
 
 **Request Body:**
+
 ```json
 {
   "banned": true,
@@ -439,6 +486,7 @@ Export user data including all tokens and activity.
 Get audit logs with filters and pagination.
 
 **Query Parameters:**
+
 - `adminId` - Filter by admin ID
 - `action` - Filter by action type
 - `resource` - Filter by resource type
@@ -448,6 +496,7 @@ Get audit logs with filters and pagination.
 - `offset` - Pagination offset (default: 0)
 
 **Response:**
+
 ```json
 {
   "logs": [...],
@@ -478,19 +527,20 @@ Export audit logs as JSON file.
 
 ### Permission Matrix
 
-| Endpoint | User | Admin | Super Admin |
-|----------|------|-------|-------------|
-| GET /api/admin/stats | ❌ | ✅ | ✅ |
-| GET /api/admin/tokens | ❌ | ✅ | ✅ |
-| PATCH /api/admin/tokens/:id | ❌ | ✅ | ✅ |
-| DELETE /api/admin/tokens/:id | ❌ | ❌ | ✅ |
-| GET /api/admin/users | ❌ | ✅ | ✅ |
-| PATCH /api/admin/users/:id | ❌ | ❌ | ✅ |
-| GET /api/admin/audit | ❌ | ✅ | ✅ |
+| Endpoint                     | User | Admin | Super Admin |
+| ---------------------------- | ---- | ----- | ----------- |
+| GET /api/admin/stats         | ❌   | ✅    | ✅          |
+| GET /api/admin/tokens        | ❌   | ✅    | ✅          |
+| PATCH /api/admin/tokens/:id  | ❌   | ✅    | ✅          |
+| DELETE /api/admin/tokens/:id | ❌   | ❌    | ✅          |
+| GET /api/admin/users         | ❌   | ✅    | ✅          |
+| PATCH /api/admin/users/:id   | ❌   | ❌    | ✅          |
+| GET /api/admin/audit         | ❌   | ✅    | ✅          |
 
 ## Audit Logging
 
 All admin actions are automatically logged with:
+
 - Admin ID
 - Action type (method + endpoint)
 - Resource type and ID
@@ -522,6 +572,7 @@ All endpoints return consistent error responses:
 ```
 
 HTTP Status Codes:
+
 - 200 - Success
 - 400 - Bad Request (validation error)
 - 401 - Unauthorized (missing/invalid token)
@@ -568,6 +619,7 @@ npm test
 ```
 
 Tests cover:
+
 - Database operations
 - User management
 - Token management
@@ -577,6 +629,7 @@ Tests cover:
 ## Deployment
 
 1. Build the application:
+
 ```bash
 npm run build
 ```
@@ -584,6 +637,7 @@ npm run build
 2. Set production environment variables
 
 3. Start the server:
+
 ```bash
 npm start
 ```

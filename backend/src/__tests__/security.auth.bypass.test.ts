@@ -349,4 +349,170 @@ describe('Security: Authentication Bypass Tests', () => {
       );
     });
   });
+
+  describe('Regression Tests: Additional Security Scenarios', () => {
+    it('should prevent token tampering with modified payload', () => {
+      const originalToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJHVEVTVCIsIndhbGxldEFkZHJlc3MiOiJHVEVTVCIsInR5cGUiOiJhY2Nlc3MiLCJqdGkiOiJ0ZXN0LWp0aSJ9.signature';
+      const tamperedToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJHQURNSU4iLCJ3YWxsZXRBZGRyZXNzIjoiR0FETUlOIiwidHlwZSI6ImFjY2VzcyIsImp0aSI6InRlc3QtanRpIn0.signature';
+
+      jest.spyOn(jwtService, 'verify').mockImplementation(() => {
+        throw new Error('invalid signature');
+      });
+
+      expect(() => tokenService.verifyAccessToken(tamperedToken)).toThrow(
+        UnauthorizedException
+      );
+    });
+
+    it('should prevent token expiration bypass', () => {
+      const expiredToken = 'expired.jwt.token';
+
+      jest.spyOn(jwtService, 'verify').mockImplementation(() => {
+        throw new Error('jwt expired');
+      });
+
+      expect(() => tokenService.verifyAccessToken(expiredToken)).toThrow(
+        UnauthorizedException
+      );
+    });
+
+    it('should prevent nonce replay attacks', () => {
+      const nonce = 'replay-nonce';
+      const signature = 'valid-signature';
+      const publicKey = 'GTEST';
+
+      // First use should succeed
+      const result1 = stellarSig.verifySignature(publicKey, signature, nonce);
+      expect(result1.valid).toBeDefined();
+
+      // Second use of same nonce should fail
+      const result2 = stellarSig.verifySignature(publicKey, signature, nonce);
+      expect(result2.valid).toBe(false);
+    });
+
+    it('should prevent authorization header injection', () => {
+      const injectedHeader = 'Bearer valid.token\nX-Admin: true';
+
+      jest.spyOn(jwtService, 'verify').mockImplementation(() => {
+        throw new Error('invalid token format');
+      });
+
+      expect(() => tokenService.verifyAccessToken(injectedHeader)).toThrow(
+        UnauthorizedException
+      );
+    });
+
+    it('should prevent null byte injection in public key', () => {
+      const keyWithNullByte = 'GTEST\x00ADMIN';
+
+      expect(stellarSig.isValidPublicKey(keyWithNullByte)).toBe(false);
+    });
+
+    it('should prevent SQL injection in wallet address', () => {
+      const sqlInjectionAddress = "GTEST'; DROP TABLE users; --";
+
+      expect(stellarSig.isValidPublicKey(sqlInjectionAddress)).toBe(false);
+    });
+
+    it('should prevent XSS in nonce parameter', () => {
+      const xssNonce = '<script>alert("xss")</script>';
+      const publicKey = 'GTEST';
+      const signature = 'sig';
+
+      const result = stellarSig.verifySignature(publicKey, signature, xssNonce);
+      expect(result.valid).toBe(false);
+    });
+
+    it('should enforce strict token type validation', () => {
+      const invalidTypes = ['admin', 'superuser', 'root', 'system', null, undefined, 123];
+
+      invalidTypes.forEach((type) => {
+        jest.spyOn(jwtService, 'verify').mockReturnValue({
+          sub: 'GTEST',
+          walletAddress: 'GTEST',
+          type,
+          jti: 'test-jti',
+        });
+
+        expect(() => tokenService.verifyAccessToken('token')).toThrow(
+          UnauthorizedException
+        );
+      });
+    });
+
+    it('should prevent token substitution attacks', () => {
+      const accessToken = 'access.token.here';
+      const refreshToken = 'refresh.token.here';
+
+      jest.spyOn(jwtService, 'verify').mockImplementation((token) => {
+        if (token === accessToken) {
+          return {
+            sub: 'GTEST',
+            walletAddress: 'GTEST',
+            type: 'access',
+            jti: 'access-jti',
+          };
+        } else if (token === refreshToken) {
+          return {
+            sub: 'GTEST',
+            walletAddress: 'GTEST',
+            type: 'refresh',
+            jti: 'refresh-jti',
+          };
+        }
+        throw new Error('invalid token');
+      });
+
+      // Using refresh token as access token should fail
+      expect(() => tokenService.verifyAccessToken(refreshToken)).toThrow(
+        UnauthorizedException
+      );
+
+      // Using access token as refresh token should fail
+      expect(() => tokenService.verifyRefreshToken(accessToken)).toThrow(
+        UnauthorizedException
+      );
+    });
+
+    it('should prevent timing attacks on signature verification', () => {
+      const validSignature = 'valid-signature';
+      const invalidSignature = 'invalid-signature';
+      const publicKey = 'GTEST';
+      const nonce = 'test-nonce';
+
+      const startValid = Date.now();
+      stellarSig.verifySignature(publicKey, validSignature, nonce);
+      const timeValid = Date.now() - startValid;
+
+      const startInvalid = Date.now();
+      stellarSig.verifySignature(publicKey, invalidSignature, nonce);
+      const timeInvalid = Date.now() - startInvalid;
+
+      // Times should be similar (constant-time comparison)
+      // Allow 10ms variance for system timing
+      expect(Math.abs(timeValid - timeInvalid)).toBeLessThan(10);
+    });
+
+    it('should prevent privilege escalation via token modification', () => {
+      const userToken = 'user.token.here';
+
+      jest.spyOn(jwtService, 'verify').mockReturnValue({
+        sub: 'GUSER',
+        walletAddress: 'GUSER',
+        type: 'access',
+        jti: 'user-jti',
+        role: 'user', // Regular user role
+      });
+
+      const payload = jwtService.verify(userToken);
+      expect(payload.role).toBe('user');
+
+      // Attempting to modify role should not work
+      payload.role = 'admin';
+      expect(() => tokenService.verifyAccessToken(userToken)).not.toThrow();
+      // But the verified token should still have user role
+      const verifiedPayload = jwtService.verify(userToken);
+      expect(verifiedPayload.role).toBe('user');
+    });
+  });
 });

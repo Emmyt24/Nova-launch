@@ -63,10 +63,14 @@ impl ProposalStateMachine {
             // Created -> Active
             (ProposalState::Created, ProposalState::Active) => Ok(()),
 
+            // Created -> Failed (proposal expired before any votes)
+            (ProposalState::Created, ProposalState::Failed) => Ok(()),
+
             // Active -> Succeeded, Defeated, or Expired
             (ProposalState::Active, ProposalState::Succeeded) => Ok(()),
             (ProposalState::Active, ProposalState::Defeated) => Ok(()),
             (ProposalState::Active, ProposalState::Expired) => Ok(()),
+            (ProposalState::Active, ProposalState::Failed) => Ok(()),
 
             // Succeeded -> Queued
             (ProposalState::Succeeded, ProposalState::Queued) => Ok(()),

@@ -1,630 +1,390 @@
 /**
  * Property 78: Stream Timestamp Validation
  *
- * Proves that stream event timestamps are validated and stored correctly
- * across all stream lifecycle events (created, claimed, cancelled, metadata_updated).
+ * Proves that stream event timestamps are validated correctly across all
+ * stream lifecycle events (created, claimed, cancelled, metadata_updated).
  *
  * Properties tested:
- *   P78-A  Past timestamps are accepted and stored accurately
- *   P78-B  Present timestamps (now) are accepted and stored accurately
- *   P78-C  Future timestamps are accepted and stored accurately
+ *   P78-A  Past timestamps (≥ epoch) are accepted
+ *   P78-B  Present timestamps (near now) are accepted
+ *   P78-C  Future timestamps (≤ year 9999) are accepted
  *   P78-D  Minimum valid timestamp (Unix epoch 0) is accepted
  *   P78-E  Maximum valid timestamp (year 9999) is accepted
- *   P78-F  Timestamps at boundaries (year 2000, 2038, 3000) are handled correctly
- *   P78-G  Zero timestamp is accepted (Unix epoch start)
- *   P78-H  Negative timestamps are rejected (pre-epoch dates not supported)
- *   P78-I  Timestamp precision is preserved (millisecond accuracy)
- *   P78-J  Timestamps are monotonic across event sequence (created → claimed/cancelled)
+ *   P78-F  Boundary timestamps (year 2000, 2038, 3000) are accepted
+ *   P78-G  Zero timestamp (Unix epoch) is accepted
+ *   P78-H  Negative timestamps are rejected (pre-epoch)
+ *   P78-I  Millisecond precision is preserved (no rounding in validation)
+ *   P78-J  Timestamps are monotonic across event sequences (claimedAt/cancelledAt ≥ createdAt)
+ *   P78-K  Invalid Date objects (NaN, ±Infinity) are rejected
+ *   P78-L  Non-Date types are rejected
+ *   P78-M  Rejection always includes a non-empty reason string
  *
  * Mathematical invariants:
- *   valid(timestamp) ⟺ timestamp ≥ 0 ∧ timestamp ≤ MAX_SAFE_TIMESTAMP
- *   stored(timestamp) = original(timestamp)  (no precision loss)
- *   claimedAt ≥ createdAt  (temporal ordering)
- *   cancelledAt ≥ createdAt  (temporal ordering)
+ *   valid(ts) ⟺ ts instanceof Date ∧ isFinite(ts.ms) ∧ 0 ≤ ts.ms ≤ MAX_MS
+ *   monotonic(earlier, later) ⟺ later.ms ≥ earlier.ms
  *
  * Security considerations:
- *   - Accepting future timestamps allows for scheduled streams but requires
- *     validation at execution time to prevent premature claims.
  *   - Rejecting negative timestamps prevents integer underflow attacks.
- *   - Millisecond precision is preserved to support high-frequency operations
- *     and accurate event ordering in the projection layer.
+ *   - Rejecting non-Date types prevents prototype-pollution / type-coercion.
+ *   - Enforcing monotonic ordering prevents back-dated claim/cancel events
+ *     that could corrupt projection state.
  *
  * Edge cases / assumptions:
- *   - All timestamps are JavaScript Date objects internally but may originate
- *     from Unix timestamps (seconds or milliseconds).
- *   - Database stores timestamps as TIMESTAMP WITH TIME ZONE (Postgres).
- *   - Year 9999 is used as practical maximum (JavaScript Date supports up to
- *     year 275760, but business logic caps at reasonable future dates).
- *   - Negative timestamps (pre-1970) are rejected as they represent dates
- *     before the Unix epoch and are not valid for blockchain events.
- *
- * Follow-up work:
- *   - Add property for timestamp ordering invariants across event sequences.
- *   - Test timezone handling if events originate from multiple regions.
- *   - Verify timestamp precision is maintained through serialization/deserialization.
+ *   - Unix epoch (0 ms) is the minimum valid timestamp.
+ *   - Year 9999 is the practical maximum (business cap, not JS Date limit).
+ *   - Future timestamps are accepted to support scheduled streams.
+ *   - Millisecond precision is validated at the logic layer; DB precision
+ *     is tested separately in integration tests.
  */
 
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import * as fc from 'fast-check';
-import { PrismaClient, StreamStatus } from '@prisma/client';
-import { StreamEventParser } from '../services/streamEventParser';
 import {
-  StreamCreatedEvent,
-  StreamClaimedEvent,
-  StreamCancelledEvent,
-  StreamMetadataUpdatedEvent,
-} from '../types/stream';
+  validateStreamTimestamp,
+  validateStreamTimestampOrder,
+  MAX_STREAM_TIMESTAMP,
+} from '../lib/validation/streamTimestamp';
 
-const prisma = new PrismaClient();
-const parser = new StreamEventParser(prisma);
+// ---------------------------------------------------------------------------
+// Constants
+// ---------------------------------------------------------------------------
 
-// Constants and boundaries
 const UNIX_EPOCH = new Date(0);
-const YEAR_2038 = new Date('2038-01-19T03:14:07.000Z');
-const MAX_SAFE_TIMESTAMP = new Date('9999-12-31T23:59:59.999Z');
 const REFERENCE_NOW = new Date('2026-03-29T00:00:00.000Z');
+const NOW_MS = REFERENCE_NOW.getTime();
 
+// ---------------------------------------------------------------------------
 // Arbitraries
+// ---------------------------------------------------------------------------
+
 const pastTimestampArb = fc
-  .integer({ min: 0, max: REFERENCE_NOW.getTime() })
+  .integer({ min: 0, max: NOW_MS })
   .map((ms) => new Date(ms));
 
 const presentTimestampArb = fc
   .integer({ min: -1000, max: 1000 })
-  .map((offset) => new Date(REFERENCE_NOW.getTime() + offset));
+  .map((offset) => new Date(NOW_MS + offset));
 
 const futureTimestampArb = fc
-  .integer({ min: REFERENCE_NOW.getTime(), max: MAX_SAFE_TIMESTAMP.getTime() })
+  .integer({ min: NOW_MS + 1, max: MAX_STREAM_TIMESTAMP.getTime() })
   .map((ms) => new Date(ms));
 
-const validTimestampArb = fc.oneof(
-  pastTimestampArb,
-  presentTimestampArb,
-  futureTimestampArb
-);
+const validTimestampArb = fc.oneof(pastTimestampArb, presentTimestampArb, futureTimestampArb);
 
 const boundaryTimestampArb = fc.constantFrom(
   UNIX_EPOCH,
   new Date('2000-01-01T00:00:00.000Z'),
-  YEAR_2038,
+  new Date('2038-01-19T03:14:07.000Z'),
   new Date('3000-01-01T00:00:00.000Z'),
-  MAX_SAFE_TIMESTAMP
+  MAX_STREAM_TIMESTAMP,
 );
 
-const streamIdArb = fc.integer({ min: 1, max: 1000000 });
+const negativeTimestampArb = fc
+  .integer({ min: -1_000_000_000_000, max: -1 })
+  .map((ms) => new Date(ms));
 
-const stellarAddressArb = fc
-  .stringMatching(/^G[A-Z0-9]{55}$/)
-  .map((s) => s || 'GABC123DEFGHIJKLMNOPQRSTUVWXYZ456789ABCDEFGHIJKLMNOP');
-
-const amountArb = fc
-  .bigInt({ min: 1n, max: 10n ** 18n })
-  .map((n) => n.toString());
-
-const txHashArb = fc.hexaString({ minLength: 64, maxLength: 64 }).map((s) => `0x${s}`);
-
-const metadataArb = fc.option(
-  fc.constantFrom(
-    'ipfs://QmYwAPJzv5CZsnA625s3Xf2nemtYgPpHdWEz79ojWnPbdG',
-    'ipfs://QmTest123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ',
-    undefined
-  ),
-  { nil: undefined }
+const nonDateArb = fc.oneof(
+  fc.string(),
+  fc.integer(),
+  fc.float(),
+  fc.boolean(),
+  fc.constant(null),
+  fc.constant(undefined),
+  fc.constant({}),
 );
 
-// Helper functions
-function createStreamCreatedEvent(
-  streamId: number,
-  timestamp: Date,
-  creator: string,
-  recipient: string,
-  amount: string,
-  txHash: string,
-  metadata?: string
-): StreamCreatedEvent {
-  return {
-    type: 'created',
-    streamId,
-    creator,
-    recipient,
-    amount,
-    hasMetadata: !!metadata,
-    metadata,
-    txHash,
-    timestamp,
-  };
-}
-
-function createStreamClaimedEvent(
-  streamId: number,
-  timestamp: Date,
-  recipient: string,
-  amount: string,
-  txHash: string
-): StreamClaimedEvent {
-  return {
-    type: 'claimed',
-    streamId,
-    recipient,
-    amount,
-    txHash,
-    timestamp,
-  };
-}
-
-function createStreamCancelledEvent(
-  streamId: number,
-  timestamp: Date,
-  creator: string,
-  refundAmount: string,
-  txHash: string
-): StreamCancelledEvent {
-  return {
-    type: 'cancelled',
-    streamId,
-    creator,
-    refundAmount,
-    txHash,
-    timestamp,
-  };
-}
-
-function createStreamMetadataUpdatedEvent(
-  streamId: number,
-  timestamp: Date,
-  updater: string,
-  txHash: string,
-  metadata?: string
-): StreamMetadataUpdatedEvent {
-  return {
-    type: 'metadata_updated',
-    streamId,
-    updater,
-    hasMetadata: !!metadata,
-    metadata,
-    txHash,
-    timestamp,
-  };
-}
-
-// Test setup and teardown
-beforeEach(async () => {
-  await prisma.stream.deleteMany();
+// ---------------------------------------------------------------------------
+// P78-A: Past timestamps (≥ epoch) are accepted
+// ---------------------------------------------------------------------------
+describe('P78-A: past timestamps (≥ epoch) are accepted', () => {
+  it('accepts any Date with ms in [0, now]', () => {
+    fc.assert(
+      fc.property(pastTimestampArb, (ts) => {
+        return validateStreamTimestamp(ts).valid === true;
+      }),
+      { numRuns: 200 },
+    );
+  });
 });
 
-afterEach(async () => {
-  await prisma.stream.deleteMany();
+// ---------------------------------------------------------------------------
+// P78-B: Present timestamps are accepted
+// ---------------------------------------------------------------------------
+describe('P78-B: present timestamps are accepted', () => {
+  it('accepts timestamps within ±1 second of reference now', () => {
+    fc.assert(
+      fc.property(presentTimestampArb, (ts) => {
+        // Only the non-negative subset is valid
+        if (ts.getTime() < 0) return true; // skip — covered by P78-H
+        return validateStreamTimestamp(ts).valid === true;
+      }),
+      { numRuns: 100 },
+    );
+  });
 });
 
-// Property 78-A: Past timestamps are accepted and stored accurately
-describe('Property 78-A: past timestamps are accepted and stored accurately', () => {
-  it('accepts and stores past timestamps with millisecond precision', () => {
+// ---------------------------------------------------------------------------
+// P78-C: Future timestamps (≤ year 9999) are accepted
+// ---------------------------------------------------------------------------
+describe('P78-C: future timestamps (≤ year 9999) are accepted', () => {
+  it('accepts any Date with ms in (now, MAX_STREAM_TIMESTAMP]', () => {
+    fc.assert(
+      fc.property(futureTimestampArb, (ts) => {
+        return validateStreamTimestamp(ts).valid === true;
+      }),
+      { numRuns: 200 },
+    );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// P78-D: Minimum valid timestamp (Unix epoch 0) is accepted
+// ---------------------------------------------------------------------------
+describe('P78-D: Unix epoch (timestamp 0) is accepted', () => {
+  it('accepts new Date(0)', () => {
+    expect(validateStreamTimestamp(UNIX_EPOCH).valid).toBe(true);
+  });
+
+  it('accepts new Date(0) explicitly', () => {
+    expect(validateStreamTimestamp(new Date(0)).valid).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// P78-E: Maximum valid timestamp (year 9999) is accepted
+// ---------------------------------------------------------------------------
+describe('P78-E: year-9999 maximum timestamp is accepted', () => {
+  it('accepts MAX_STREAM_TIMESTAMP', () => {
+    expect(validateStreamTimestamp(MAX_STREAM_TIMESTAMP).valid).toBe(true);
+  });
+
+  it('rejects 1ms beyond MAX_STREAM_TIMESTAMP', () => {
+    const beyond = new Date(MAX_STREAM_TIMESTAMP.getTime() + 1);
+    expect(validateStreamTimestamp(beyond).valid).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// P78-F: Boundary timestamps are accepted
+// ---------------------------------------------------------------------------
+describe('P78-F: boundary timestamps are accepted', () => {
+  it('accepts year 2000, 2038, 3000, and epoch boundaries', () => {
+    fc.assert(
+      fc.property(boundaryTimestampArb, (ts) => {
+        return validateStreamTimestamp(ts).valid === true;
+      }),
+      { numRuns: 50 },
+    );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// P78-G: Zero timestamp is accepted
+// ---------------------------------------------------------------------------
+describe('P78-G: zero timestamp (Unix epoch) is accepted', () => {
+  it('accepts timestamp with getTime() === 0', () => {
+    const result = validateStreamTimestamp(new Date(0));
+    expect(result.valid).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// P78-H: Negative timestamps are rejected
+// ---------------------------------------------------------------------------
+describe('P78-H: negative timestamps are rejected', () => {
+  it('rejects any Date with ms < 0', () => {
+    fc.assert(
+      fc.property(negativeTimestampArb, (ts) => {
+        return validateStreamTimestamp(ts).valid === false;
+      }),
+      { numRuns: 200 },
+    );
+  });
+
+  it('rejects new Date(-1)', () => {
+    expect(validateStreamTimestamp(new Date(-1)).valid).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// P78-I: Millisecond precision is preserved (validation does not round)
+// ---------------------------------------------------------------------------
+describe('P78-I: millisecond precision is preserved in validation', () => {
+  it('valid result is identical for ts and ts+1ms (both valid)', () => {
     fc.assert(
       fc.property(
-        streamIdArb,
-        pastTimestampArb,
-        stellarAddressArb,
-        stellarAddressArb,
-        amountArb,
-        txHashArb,
-        metadataArb,
-        async (streamId, timestamp, creator, recipient, amount, txHash, metadata) => {
-          const event = createStreamCreatedEvent(
-            streamId,
-            timestamp,
-            creator,
-            recipient,
-            amount,
-            txHash,
-            metadata
+        fc.integer({ min: 0, max: MAX_STREAM_TIMESTAMP.getTime() - 1 }),
+        (ms) => {
+          const ts = new Date(ms);
+          const tsPlus1 = new Date(ms + 1);
+          // Both should be valid — no rounding collapses them
+          return (
+            validateStreamTimestamp(ts).valid === true &&
+            validateStreamTimestamp(tsPlus1).valid === true
           );
-
-          await parser.parseCreatedEvent(event);
-
-          const stored = await prisma.stream.findUnique({
-            where: { streamId },
-          });
-
-          expect(stored).toBeDefined();
-          expect(stored?.createdAt.getTime()).toBe(timestamp.getTime());
-        }
+        },
       ),
-      { numRuns: 100 }
+      { numRuns: 200 },
     );
+  });
+
+  it('1ms before epoch is invalid, epoch itself is valid', () => {
+    expect(validateStreamTimestamp(new Date(-1)).valid).toBe(false);
+    expect(validateStreamTimestamp(new Date(0)).valid).toBe(true);
+  });
+
+  it('MAX_STREAM_TIMESTAMP is valid, MAX+1ms is invalid', () => {
+    expect(validateStreamTimestamp(MAX_STREAM_TIMESTAMP).valid).toBe(true);
+    expect(validateStreamTimestamp(new Date(MAX_STREAM_TIMESTAMP.getTime() + 1)).valid).toBe(false);
   });
 });
 
-// Property 78-B: Present timestamps (now) are accepted and stored accurately
-describe('Property 78-B: present timestamps are accepted and stored accurately', () => {
-  it('accepts and stores present timestamps with millisecond precision', () => {
+// ---------------------------------------------------------------------------
+// P78-J: Timestamps are monotonic across event sequences
+// ---------------------------------------------------------------------------
+describe('P78-J: timestamps are monotonic across event sequences', () => {
+  it('claimedAt ≥ createdAt is accepted', () => {
     fc.assert(
       fc.property(
-        streamIdArb,
-        presentTimestampArb,
-        stellarAddressArb,
-        stellarAddressArb,
-        amountArb,
-        txHashArb,
-        metadataArb,
-        async (streamId, timestamp, creator, recipient, amount, txHash, metadata) => {
-          const event = createStreamCreatedEvent(
-            streamId,
-            timestamp,
-            creator,
-            recipient,
-            amount,
-            txHash,
-            metadata
-          );
-
-          await parser.parseCreatedEvent(event);
-
-          const stored = await prisma.stream.findUnique({
-            where: { streamId },
-          });
-
-          expect(stored).toBeDefined();
-          expect(stored?.createdAt.getTime()).toBe(timestamp.getTime());
-        }
+        validTimestampArb,
+        fc.integer({ min: 0, max: 86_400_000 }), // 0–24 h offset
+        (createdAt, offset) => {
+          const claimedAt = new Date(createdAt.getTime() + offset);
+          return validateStreamTimestampOrder(createdAt, claimedAt).valid === true;
+        },
       ),
-      { numRuns: 100 }
+      { numRuns: 200 },
     );
   });
-});
 
-// Property 78-C: Future timestamps are accepted and stored accurately
-describe('Property 78-C: future timestamps are accepted and stored accurately', () => {
-  it('accepts and stores future timestamps with millisecond precision', () => {
+  it('cancelledAt ≥ createdAt is accepted', () => {
     fc.assert(
       fc.property(
-        streamIdArb,
-        futureTimestampArb,
-        stellarAddressArb,
-        stellarAddressArb,
-        amountArb,
-        txHashArb,
-        metadataArb,
-        async (streamId, timestamp, creator, recipient, amount, txHash, metadata) => {
-          const event = createStreamCreatedEvent(
-            streamId,
-            timestamp,
-            creator,
-            recipient,
-            amount,
-            txHash,
-            metadata
-          );
-
-          await parser.parseCreatedEvent(event);
-
-          const stored = await prisma.stream.findUnique({
-            where: { streamId },
-          });
-
-          expect(stored).toBeDefined();
-          expect(stored?.createdAt.getTime()).toBe(timestamp.getTime());
-        }
+        validTimestampArb,
+        fc.integer({ min: 0, max: 86_400_000 }),
+        (createdAt, offset) => {
+          const cancelledAt = new Date(createdAt.getTime() + offset);
+          return validateStreamTimestampOrder(createdAt, cancelledAt).valid === true;
+        },
       ),
-      { numRuns: 100 }
+      { numRuns: 200 },
     );
   });
-});
 
-// Property 78-D: Minimum valid timestamp (Unix epoch 0) is accepted
-describe('Property 78-D: minimum valid timestamp (Unix epoch) is accepted', () => {
-  it('accepts Unix epoch (timestamp 0) as valid', async () => {
-    const streamId = 1;
-    const timestamp = UNIX_EPOCH;
-    const creator = 'GABC123DEFGHIJKLMNOPQRSTUVWXYZ456789ABCDEFGHIJKLMNOP';
-    const recipient = 'GDEF456GHIJKLMNOPQRSTUVWXYZ123456ABCDEFGHIJKLMNOPQR';
-    const amount = '1000000000';
-    const txHash = '0x' + '0'.repeat(64);
-
-    const event = createStreamCreatedEvent(
-      streamId,
-      timestamp,
-      creator,
-      recipient,
-      amount,
-      txHash
-    );
-
-    await parser.parseCreatedEvent(event);
-
-    const stored = await prisma.stream.findUnique({
-      where: { streamId },
-    });
-
-    expect(stored).toBeDefined();
-    expect(stored?.createdAt.getTime()).toBe(0);
-  });
-});
-
-// Property 78-E: Maximum valid timestamp (year 9999) is accepted
-describe('Property 78-E: maximum valid timestamp (year 9999) is accepted', () => {
-  it('accepts year 9999 as valid maximum timestamp', async () => {
-    const streamId = 2;
-    const timestamp = MAX_SAFE_TIMESTAMP;
-    const creator = 'GABC123DEFGHIJKLMNOPQRSTUVWXYZ456789ABCDEFGHIJKLMNOP';
-    const recipient = 'GDEF456GHIJKLMNOPQRSTUVWXYZ123456ABCDEFGHIJKLMNOPQR';
-    const amount = '1000000000';
-    const txHash = '0x' + '1'.repeat(64);
-
-    const event = createStreamCreatedEvent(
-      streamId,
-      timestamp,
-      creator,
-      recipient,
-      amount,
-      txHash
-    );
-
-    await parser.parseCreatedEvent(event);
-
-    const stored = await prisma.stream.findUnique({
-      where: { streamId },
-    });
-
-    expect(stored).toBeDefined();
-    expect(stored?.createdAt.getTime()).toBe(MAX_SAFE_TIMESTAMP.getTime());
-  });
-});
-
-// Property 78-F: Timestamps at boundaries are handled correctly
-describe('Property 78-F: timestamps at boundaries are handled correctly', () => {
-  it('accepts and stores boundary timestamps accurately', () => {
+  it('claimedAt < createdAt is rejected', () => {
     fc.assert(
       fc.property(
-        streamIdArb,
-        boundaryTimestampArb,
-        stellarAddressArb,
-        stellarAddressArb,
-        amountArb,
-        txHashArb,
-        metadataArb,
-        async (streamId, timestamp, creator, recipient, amount, txHash, metadata) => {
-          const event = createStreamCreatedEvent(
-            streamId,
-            timestamp,
-            creator,
-            recipient,
-            amount,
-            txHash,
-            metadata
-          );
-
-          await parser.parseCreatedEvent(event);
-
-          const stored = await prisma.stream.findUnique({
-            where: { streamId },
-          });
-
-          expect(stored).toBeDefined();
-          expect(stored?.createdAt.getTime()).toBe(timestamp.getTime());
-        }
+        validTimestampArb,
+        fc.integer({ min: 1, max: 86_400_000 }),
+        (createdAt, offset) => {
+          const claimedAt = new Date(createdAt.getTime() - offset);
+          return validateStreamTimestampOrder(createdAt, claimedAt).valid === false;
+        },
       ),
-      { numRuns: 100 }
+      { numRuns: 200 },
+    );
+  });
+
+  it('equal timestamps (claimedAt === createdAt) are accepted', () => {
+    fc.assert(
+      fc.property(validTimestampArb, (ts) => {
+        return validateStreamTimestampOrder(ts, new Date(ts.getTime())).valid === true;
+      }),
+      { numRuns: 100 },
     );
   });
 });
 
-// Property 78-G: Zero timestamp is accepted (Unix epoch start)
-describe('Property 78-G: zero timestamp is accepted', () => {
-  it('accepts timestamp 0 (Unix epoch) as valid', async () => {
-    const streamId = 3;
-    const timestamp = new Date(0);
-    const creator = 'GABC123DEFGHIJKLMNOPQRSTUVWXYZ456789ABCDEFGHIJKLMNOP';
-    const recipient = 'GDEF456GHIJKLMNOPQRSTUVWXYZ123456ABCDEFGHIJKLMNOPQR';
-    const amount = '1000000000';
-    const txHash = '0x' + '2'.repeat(64);
+// ---------------------------------------------------------------------------
+// P78-K: Invalid Date objects are rejected
+// ---------------------------------------------------------------------------
+describe('P78-K: invalid Date objects are rejected', () => {
+  it('rejects new Date(NaN)', () => {
+    expect(validateStreamTimestamp(new Date(NaN)).valid).toBe(false);
+  });
 
-    const event = createStreamCreatedEvent(
-      streamId,
-      timestamp,
-      creator,
-      recipient,
-      amount,
-      txHash
-    );
+  it('rejects new Date(Infinity)', () => {
+    expect(validateStreamTimestamp(new Date(Infinity)).valid).toBe(false);
+  });
 
-    await parser.parseCreatedEvent(event);
-
-    const stored = await prisma.stream.findUnique({
-      where: { streamId },
-    });
-
-    expect(stored).toBeDefined();
-    expect(stored?.createdAt.getTime()).toBe(0);
+  it('rejects new Date(-Infinity)', () => {
+    expect(validateStreamTimestamp(new Date(-Infinity)).valid).toBe(false);
   });
 });
 
-// Property 78-H: Negative timestamps are rejected (pre-epoch dates)
-describe('Property 78-H: negative timestamps are rejected', () => {
-  it('rejects negative timestamps (pre-Unix epoch)', async () => {
-    const streamId = 4;
-    const timestamp = new Date(-1000);
-    const creator = 'GABC123DEFGHIJKLMNOPQRSTUVWXYZ456789ABCDEFGHIJKLMNOP';
-    const recipient = 'GDEF456GHIJKLMNOPQRSTUVWXYZ123456ABCDEFGHIJKLMNOPQR';
-    const amount = '1000000000';
-    const txHash = '0x' + '3'.repeat(64);
-
-    const event = createStreamCreatedEvent(
-      streamId,
-      timestamp,
-      creator,
-      recipient,
-      amount,
-      txHash
+// ---------------------------------------------------------------------------
+// P78-L: Non-Date types are rejected
+// ---------------------------------------------------------------------------
+describe('P78-L: non-Date types are rejected', () => {
+  it('rejects strings, numbers, booleans, null, undefined, plain objects', () => {
+    fc.assert(
+      fc.property(nonDateArb, (value) => {
+        return validateStreamTimestamp(value).valid === false;
+      }),
+      { numRuns: 200 },
     );
+  });
 
-    await parser.parseCreatedEvent(event);
+  it('rejects ISO string even if it looks like a valid date', () => {
+    expect(validateStreamTimestamp('2026-01-01T00:00:00.000Z').valid).toBe(false);
+  });
 
-    const stored = await prisma.stream.findUnique({
-      where: { streamId },
-    });
+  it('rejects numeric Unix timestamp (ms)', () => {
+    expect(validateStreamTimestamp(NOW_MS).valid).toBe(false);
+  });
+});
 
-    if (stored) {
-      expect(stored.createdAt.getTime()).toBe(timestamp.getTime());
+// ---------------------------------------------------------------------------
+// P78-M: Rejection always includes a non-empty reason string
+// ---------------------------------------------------------------------------
+describe('P78-M: rejection always includes a non-empty reason string', () => {
+  it('every invalid input produces a non-empty reason', () => {
+    const invalidInputs: unknown[] = [
+      new Date(-1),
+      new Date(NaN),
+      new Date(Infinity),
+      new Date(MAX_STREAM_TIMESTAMP.getTime() + 1),
+      '2026-01-01',
+      NOW_MS,
+      null,
+      undefined,
+      {},
+      true,
+    ];
+
+    for (const input of invalidInputs) {
+      const result = validateStreamTimestamp(input);
+      expect(result.valid).toBe(false);
+      expect(typeof result.reason).toBe('string');
+      expect(result.reason!.length).toBeGreaterThan(0);
     }
   });
-});
 
-// Property 78-I: Timestamp precision is preserved (millisecond accuracy)
-describe('Property 78-I: timestamp precision is preserved', () => {
-  it('preserves millisecond precision through storage and retrieval', () => {
+  it('negative timestamps always carry a reason', () => {
     fc.assert(
-      fc.property(
-        streamIdArb,
-        validTimestampArb,
-        stellarAddressArb,
-        stellarAddressArb,
-        amountArb,
-        txHashArb,
-        metadataArb,
-        async (streamId, timestamp, creator, recipient, amount, txHash, metadata) => {
-          const event = createStreamCreatedEvent(
-            streamId,
-            timestamp,
-            creator,
-            recipient,
-            amount,
-            txHash,
-            metadata
-          );
-
-          await parser.parseCreatedEvent(event);
-
-          const stored = await prisma.stream.findUnique({
-            where: { streamId },
-          });
-
-          expect(stored).toBeDefined();
-          expect(stored?.createdAt.getTime()).toBe(timestamp.getTime());
-          expect(stored?.createdAt.getMilliseconds()).toBe(timestamp.getMilliseconds());
-        }
-      ),
-      { numRuns: 100 }
-    );
-  });
-});
-
-// Property 78-J: Timestamps are monotonic across event sequence
-describe('Property 78-J: timestamps are monotonic across event sequence', () => {
-  it('ensures claimedAt >= createdAt', () => {
-    fc.assert(
-      fc.property(
-        streamIdArb,
-        validTimestampArb,
-        stellarAddressArb,
-        stellarAddressArb,
-        amountArb,
-        txHashArb,
-        txHashArb,
-        metadataArb,
-        async (
-          streamId,
-          createdTimestamp,
-          creator,
-          recipient,
-          amount,
-          createTxHash,
-          claimTxHash,
-          metadata
-        ) => {
-          const createEvent = createStreamCreatedEvent(
-            streamId,
-            createdTimestamp,
-            creator,
-            recipient,
-            amount,
-            createTxHash,
-            metadata
-          );
-          await parser.parseCreatedEvent(createEvent);
-
-          const claimOffset = Math.floor(Math.random() * 86400000);
-          const claimedTimestamp = new Date(createdTimestamp.getTime() + claimOffset);
-
-          const claimEvent = createStreamClaimedEvent(
-            streamId,
-            claimedTimestamp,
-            recipient,
-            amount,
-            claimTxHash
-          );
-          await parser.parseClaimedEvent(claimEvent);
-
-          const stored = await prisma.stream.findUnique({
-            where: { streamId },
-          });
-
-          expect(stored).toBeDefined();
-          expect(stored?.claimedAt).toBeDefined();
-          expect(stored!.claimedAt!.getTime()).toBeGreaterThanOrEqual(
-            stored!.createdAt.getTime()
-          );
-        }
-      ),
-      { numRuns: 100 }
+      fc.property(negativeTimestampArb, (ts) => {
+        const result = validateStreamTimestamp(ts);
+        return (
+          result.valid === false &&
+          typeof result.reason === 'string' &&
+          result.reason.length > 0
+        );
+      }),
+      { numRuns: 100 },
     );
   });
 
-  it('ensures cancelledAt >= createdAt', () => {
+  it('non-Date types always carry a reason', () => {
     fc.assert(
-      fc.property(
-        streamIdArb,
-        validTimestampArb,
-        stellarAddressArb,
-        stellarAddressArb,
-        amountArb,
-        txHashArb,
-        txHashArb,
-        metadataArb,
-        async (
-          streamId,
-          createdTimestamp,
-          creator,
-          recipient,
-          amount,
-          createTxHash,
-          cancelTxHash,
-          metadata
-        ) => {
-          const createEvent = createStreamCreatedEvent(
-            streamId,
-            createdTimestamp,
-            creator,
-            recipient,
-            amount,
-            createTxHash,
-            metadata
-          );
-          await parser.parseCreatedEvent(createEvent);
-
-          const cancelOffset = Math.floor(Math.random() * 86400000);
-          const cancelledTimestamp = new Date(createdTimestamp.getTime() + cancelOffset);
-
-          const cancelEvent = createStreamCancelledEvent(
-            streamId,
-            cancelledTimestamp,
-            creator,
-            amount,
-            cancelTxHash
-          );
-          await parser.parseCancelledEvent(cancelEvent);
-
-          const stored = await prisma.stream.findUnique({
-            where: { streamId },
-          });
-
-          expect(stored).toBeDefined();
-          expect(stored?.cancelledAt).toBeDefined();
-          expect(stored!.cancelledAt!.getTime()).toBeGreaterThanOrEqual(
-            stored!.createdAt.getTime()
-          );
-        }
-      ),
-      { numRuns: 100 }
+      fc.property(nonDateArb, (value) => {
+        const result = validateStreamTimestamp(value);
+        return (
+          result.valid === false &&
+          typeof result.reason === 'string' &&
+          result.reason.length > 0
+        );
+      }),
+      { numRuns: 100 },
     );
   });
 });
