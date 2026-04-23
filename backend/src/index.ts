@@ -15,6 +15,7 @@ import campaignRoutes from "./routes/campaigns";
 import streamRoutes from "./routes/streams";
 import vaultRoutes from "./routes/vaults";
 import versionRoutes from "./routes/version";
+import healthRoutes from "./routes/health";
 import { Database } from "./config/database";
 import { successResponse, errorResponse } from "./utils/response";
 import { requestLoggingMiddleware } from "./middleware/request-logging.middleware";
@@ -69,27 +70,7 @@ app.use("/api/campaigns", campaignRoutes);
 app.use("/api/streams", streamRoutes);
 app.use("/api/vaults", vaultRoutes);
 app.use("/api/version", versionRoutes);
-
-import { healthService } from "./lib/health/health.service";
-
-// Health check — liveness (is the process alive?)
-app.get("/health/live", (_req, res) => {
-  res.json(successResponse({ status: "ok", uptime: process.uptime() }));
-});
-
-// Health check — readiness (are all dependencies reachable?)
-app.get("/health/ready", async (_req, res) => {
-  const result = await healthService.checkHealth();
-  const httpStatus = result.status === "healthy" ? 200 : result.status === "degraded" ? 207 : 503;
-  res.status(httpStatus).json(successResponse(result));
-});
-
-// Legacy /health — kept for backwards compatibility, maps to readiness
-app.get("/health", async (_req, res) => {
-  const result = await healthService.checkHealth();
-  const httpStatus = result.status === "healthy" ? 200 : result.status === "degraded" ? 207 : 503;
-  res.status(httpStatus).json(successResponse(result));
-});
+app.use("/health", healthRoutes);
 
 // Error handling middleware
 app.use(
