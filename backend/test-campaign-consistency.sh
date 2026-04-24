@@ -28,6 +28,11 @@ npm test -- campaignConsistencyRandomized.test.ts --run
 echo "✅ Randomized Tests Complete"
 echo ""
 
+echo "🧪 Running Regression Tests..."
+npm test -- campaignConsistencyChecker.regression.test.ts --run
+echo "✅ Regression Tests Complete"
+echo ""
+
 echo "=========================================="
 echo "✅ All Consistency Tests Passed!"
 echo ""
@@ -35,4 +40,5 @@ echo "Verification Complete:"
 echo "  ✅ Backend aggregates match on-chain values"
 echo "  ✅ Fixture scenarios verified"
 echo "  ✅ Randomized execution traces verified"
+echo "  ✅ Regression tests passed"
 echo "  ✅ No consistency drift detected"

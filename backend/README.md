@@ -68,6 +68,12 @@ npm start
 npm test
 ```
 
+Run the rate limiter tests specifically:
+
+```bash
+npm test src/middleware/rateLimiter.test.ts
+```
+
 Run the database pool chaos spec directly when validating exhaustion handling:
 
 ```bash
@@ -77,43 +83,67 @@ npm test backend/src/__tests__/chaos.db-pool.test.ts
 This spec covers concurrent query saturation, client acquisition failures,
 and safe shutdown behavior for the pg pool wrapper.
 
-## Multi-Tenant Support
+## Rate Limiting
 
-The API supports multi-tenancy via `src/middleware/tenancy.ts`.
+The API uses a **Redis-backed sliding-window rate limiter** (`src/middleware/rateLimiter.ts`).
 
 ### How it works
 
-Tenant identity is resolved on each request in this order:
+Each request is recorded as a timestamped entry in a Redis sorted set. On every
+request the middleware:
 
-1. `X-Tenant-ID` request header
-2. `tenantId` / `tenant_id` claim in the Bearer JWT
+1. Removes entries older than the window (`ZREMRANGEBYSCORE`).
+2. Adds the current timestamp (`ZADD`).
+3. Counts remaining entries (`ZCARD`).
+4. Refreshes the key TTL (`EXPIRE`).
 
-On success, `req.tenant` is populated with `{ id, name?, source }`.
+All four operations run in a single atomic pipeline, making the counter safe
+for distributed deployments.
 
-### Usage
+### Fail-open behaviour
 
-```typescript
-import { tenantMiddleware, requireTenantMatch } from "./middleware/tenancy";
+If Redis is unavailable the middleware calls `next()` and allows the request
+through. This prevents a cache outage from taking down the API.
 
-// Permissive — tenant optional
-app.use(tenantMiddleware());
+### Response headers
 
-// Strict — reject requests without a tenant
-app.use(tenantMiddleware({ required: true }));
-
-// Guard a parameterised route against cross-tenant access
-app.get("/api/tenants/:tenantId/tokens", tenantMiddleware({ required: true }), requireTenantMatch, handler);
-```
-
-### Tenant ID format
-
-Alphanumeric, hyphens, and underscores; 1–64 characters (`/^[a-zA-Z0-9_-]{1,64}$/`).
+| Header | Description |
+|---|---|
+| `X-RateLimit-Limit` | Configured maximum requests per window |
+| `X-RateLimit-Remaining` | Requests remaining in the current window |
+| `X-RateLimit-Reset` | Unix timestamp (seconds) when the window resets |
+| `Retry-After` | Seconds until the client may retry (only on 429) |
 
 ### Configuration
 
 | Environment variable | Default | Description |
 |---|---|---|
-| `JWT_SECRET` | `dev-secret-key` | Secret used to verify Bearer tokens |
+| `REDIS_URL` | `redis://localhost:6379` | Redis connection URL |
+| `RATE_LIMIT_WINDOW_MS` | `900000` (15 min) | Window size in milliseconds |
+| `RATE_LIMIT_MAX_REQUESTS` | `100` | Max requests per window (global limiter) |
+
+### Pre-configured limiters
+
+| Export | Max requests | Key prefix | Used for |
+|---|---|---|---|
+| `globalRateLimiter` | 100 / 15 min | `rl:global` | All API routes |
+| `webhookRateLimiter` | 20 / 15 min | `rl:webhook` | Webhook subscription endpoints |
+
+### Custom limiter
+
+```typescript
+import { createRateLimiter, createRedisClient } from "./middleware/rateLimiter";
+
+const redis = createRedisClient();
+const limiter = createRateLimiter(redis, {
+  windowMs: 60_000,   // 1 minute
+  max: 30,
+  keyPrefix: "rl:myroute",
+  message: "Slow down!",
+});
+
+app.use("/api/my-route", limiter);
+```
 
 ## API Endpoints
 
