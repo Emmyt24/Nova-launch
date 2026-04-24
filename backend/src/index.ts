@@ -16,6 +16,7 @@ import streamRoutes from "./routes/streams";
 import vaultRoutes from "./routes/vaults";
 import versionRoutes from "./routes/version";
 import graphqlRouter from "./graphql";
+import openApiRouter from "./lib/openapi/router";
 import { Database } from "./config/database";
 import { successResponse, errorResponse } from "./utils/response";
 import { requestLoggingMiddleware } from "./middleware/request-logging.middleware";
@@ -72,6 +73,7 @@ app.use("/api/streams", streamRoutes);
 app.use("/api/vaults", vaultRoutes);
 app.use("/api/version", versionRoutes);
 app.use("/api/graphql", graphqlRouter);
+app.use("/api/docs", openApiRouter);
 
 import { healthService } from "./lib/health/health.service";
 
