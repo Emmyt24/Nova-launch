@@ -1388,3 +1388,36 @@ pub fn decrement_active_campaign_count(env: &Env) -> Result<u32, Error> {
     set_active_campaign_count(env, new_count);
     Ok(new_count)
 }
+
+// ============================================================
+// Reentrancy Guard
+// ============================================================
+
+/// Returns `true` if the reentrancy lock is currently held.
+pub fn is_reentrancy_locked(env: &Env) -> bool {
+    env.storage()
+        .instance()
+        .get(&DataKey::ReentrancyLock)
+        .unwrap_or(false)
+}
+
+/// Acquire the reentrancy lock.
+///
+/// Returns `Err(Error::ReentrancyGuard)` if the lock is already held,
+/// preventing reentrant calls within the same transaction.
+pub fn acquire_reentrancy_lock(env: &Env) -> Result<(), Error> {
+    if is_reentrancy_locked(env) {
+        return Err(Error::ReentrancyGuard);
+    }
+    env.storage()
+        .instance()
+        .set(&DataKey::ReentrancyLock, &true);
+    Ok(())
+}
+
+/// Release the reentrancy lock.
+pub fn release_reentrancy_lock(env: &Env) {
+    env.storage()
+        .instance()
+        .set(&DataKey::ReentrancyLock, &false);
+}

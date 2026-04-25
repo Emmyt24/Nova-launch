@@ -63,6 +63,10 @@ mod vault_funding_overflow_property_test; // Property 73
 #[cfg(test)]
 mod vault_concurrent_claims_chaos_test;
 
+// Flash loan / reentrancy protection tests
+#[cfg(test)]
+mod flash_loan_protection_test;
+
 // Temporarily disabled due to pre-existing compilation errors
 // #[cfg(test)]
 // mod two_step_admin_security_test;
@@ -853,7 +857,11 @@ impl TokenFactory {
         tokens: Vec<TokenCreationParams>,
         total_fee_payment: i128,
     ) -> Result<Vec<Address>, Error> {
-        token_creation::batch_create_tokens(&env, creator, tokens, total_fee_payment)
+        // Flash loan / reentrancy protection
+        storage::acquire_reentrancy_lock(&env)?;
+        let result = token_creation::batch_create_tokens(&env, creator, tokens, total_fee_payment);
+        storage::release_reentrancy_lock(&env);
+        result
     }
 
     /// Set metadata for a token
@@ -1274,17 +1282,23 @@ impl TokenFactory {
             return Err(Error::ContractPaused);
         }
 
+        // Flash loan / reentrancy protection
+        storage::acquire_reentrancy_lock(&env)?;
+
         creator.require_auth();
 
         // Verify creator owns the token
         let token_info = storage::get_token_info(&env, token_index).ok_or(Error::TokenNotFound)?;
 
         if token_info.creator != creator {
+            storage::release_reentrancy_lock(&env);
             return Err(Error::Unauthorized);
         }
 
         // Perform mint with max supply validation
-        mint::mint(&env, token_index, &to, amount)
+        let result = mint::mint(&env, token_index, &to, amount);
+        storage::release_reentrancy_lock(&env);
+        result
     }
 
     /// Get remaining mintable supply for a token
@@ -1642,11 +1656,27 @@ impl TokenFactory {
             return Err(Error::ContractPaused);
         }
 
+        // Flash loan / reentrancy protection — must be acquired before any state reads
+        // that could be manipulated by a reentrant call.
+        storage::acquire_reentrancy_lock(&env)?;
+
+        let result = Self::claim_vault_inner(&env, &owner, vault_id, proof);
+        storage::release_reentrancy_lock(&env);
+        result
+    }
+
+    /// Inner implementation of claim_vault, called only after the reentrancy lock is held.
+    fn claim_vault_inner(
+        env: &Env,
+        owner: &Address,
+        vault_id: u64,
+        proof: Option<Bytes>,
+    ) -> Result<i128, Error> {
         // Load vault
-        let mut vault = storage::get_vault(&env, vault_id).ok_or(Error::TokenNotFound)?;
+        let mut vault = storage::get_vault(env, vault_id).ok_or(Error::TokenNotFound)?;
 
         // Verify owner
-        if vault.owner != owner {
+        if vault.owner != *owner {
             return Err(Error::Unauthorized);
         }
 
@@ -1699,7 +1729,7 @@ impl TokenFactory {
 
         // Transfer tokens
         let token_client = soroban_sdk::token::Client::new(&env, &vault.token);
-        token_client.transfer(&env.current_contract_address(), &owner, &claimable);
+        token_client.transfer(&env.current_contract_address(), &*owner, &claimable);
 
         // Update vault
         vault.claimed_amount = vault.total_amount;
@@ -1707,7 +1737,7 @@ impl TokenFactory {
         storage::set_vault(&env, &vault)?;
 
         // Emit event
-        events::emit_vault_claimed(&env, vault_id, &owner, claimable);
+        events::emit_vault_claimed(&env, vault_id, owner, claimable);
 
         Ok(claimable)
     }
