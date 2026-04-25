@@ -273,3 +273,155 @@ describe('Edge case: single execution equals targetAmount', () => {
     expect(buildProgress(state)).toBe(100);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Property 61-F: Rejection of invalid amounts
+// ---------------------------------------------------------------------------
+describe('Property 61-F: invalid amounts are rejected', () => {
+  it('zero amounts are never applied', () => {
+    fc.assert(
+      fc.property(targetAmountArb, (target) => {
+        let state: CampaignState = {
+          targetAmount: target,
+          currentAmount: BigInt(0),
+          executionCount: 0,
+          processedTxHashes: new Set(),
+        };
+
+        const result = applyExecution(state, BigInt(0), 'tx-zero');
+        return !result.applied && result.reason === 'non-positive amount';
+      }),
+      { numRuns: 50 },
+    );
+  });
+
+  it('negative amounts are never applied', () => {
+    fc.assert(
+      fc.property(
+        targetAmountArb,
+        fc.bigInt({ min: BigInt('-9223372036854775807'), max: BigInt(-1) }),
+        (target, negAmount) => {
+          let state: CampaignState = {
+            targetAmount: target,
+            currentAmount: BigInt(0),
+            executionCount: 0,
+            processedTxHashes: new Set(),
+          };
+
+          const result = applyExecution(state, negAmount, 'tx-neg');
+          return !result.applied && result.reason === 'non-positive amount';
+        },
+      ),
+      { numRuns: 50 },
+    );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Property 61-G: Concurrent execution safety (order independence)
+// ---------------------------------------------------------------------------
+describe('Property 61-G: execution order independence', () => {
+  it('final currentAmount is independent of execution order', () => {
+    fc.assert(
+      fc.property(
+        targetAmountArb,
+        fc.array(bigIntAmountArb, { minLength: 2, maxLength: 10 }),
+        (target, amounts) => {
+          // Process in original order
+          let state1: CampaignState = {
+            targetAmount: target,
+            currentAmount: BigInt(0),
+            executionCount: 0,
+            processedTxHashes: new Set(),
+          };
+
+          amounts.forEach((amount, i) => {
+            const wouldExceed = state1.currentAmount + amount > state1.targetAmount;
+            if (!wouldExceed) {
+              const result = applyExecution(state1, amount, `tx-${i}`);
+              state1 = result.state;
+            }
+          });
+
+          // Process in reversed order
+          let state2: CampaignState = {
+            targetAmount: target,
+            currentAmount: BigInt(0),
+            executionCount: 0,
+            processedTxHashes: new Set(),
+          };
+
+          const reversed = [...amounts].reverse();
+          reversed.forEach((amount, i) => {
+            const wouldExceed = state2.currentAmount + amount > state2.targetAmount;
+            if (!wouldExceed) {
+              const result = applyExecution(state2, amount, `tx-rev-${i}`);
+              state2 = result.state;
+            }
+          });
+
+          // Both should reach the same currentAmount (though execution count may differ)
+          return state1.currentAmount === state2.currentAmount;
+        },
+      ),
+      { numRuns: 50 },
+    );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Property 61-H: Progress calculation accuracy
+// ---------------------------------------------------------------------------
+describe('Property 61-H: progress calculation accuracy', () => {
+  it('progress is always in range [0, 100]', () => {
+    fc.assert(
+      fc.property(targetAmountArb, executionListArb, (target, amounts) => {
+        let state: CampaignState = {
+          targetAmount: target,
+          currentAmount: BigInt(0),
+          executionCount: 0,
+          processedTxHashes: new Set(),
+        };
+
+        amounts.forEach((amount, i) => {
+          const wouldExceed = state.currentAmount + amount > state.targetAmount;
+          if (!wouldExceed) {
+            const result = applyExecution(state, amount, `tx-${i}`);
+            state = result.state;
+          }
+        });
+
+        const progress = buildProgress(state);
+        return progress >= 0 && progress <= 100;
+      }),
+      { numRuns: 100 },
+    );
+  });
+
+  it('progress is monotonically non-decreasing', () => {
+    fc.assert(
+      fc.property(targetAmountArb, executionListArb, (target, amounts) => {
+        let state: CampaignState = {
+          targetAmount: target,
+          currentAmount: BigInt(0),
+          executionCount: 0,
+          processedTxHashes: new Set(),
+        };
+
+        let prevProgress = 0;
+        for (const amount of amounts) {
+          const wouldExceed = state.currentAmount + amount > state.targetAmount;
+          if (!wouldExceed) {
+            const result = applyExecution(state, amount, `tx-${Math.random()}`);
+            state = result.state;
+            const progress = buildProgress(state);
+            if (progress < prevProgress) return false;
+            prevProgress = progress;
+          }
+        }
+        return true;
+      }),
+      { numRuns: 100 },
+    );
+  });
+});
