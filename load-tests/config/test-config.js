@@ -35,6 +35,12 @@ export const config = {
       http_req_duration: ['p(95)<2000', 'p(99)<5000'],
       http_req_failed: ['rate<0.10'],
     },
+    integration: {
+      dashboard_load: ['p(95)<1500', 'p(99)<2500'],
+      token_search: ['p(95)<400', 'p(99)<800'],
+      campaign_refresh: ['p(95)<800', 'p(99)<1500'],
+      monitoring_volume: ['rate<10'], // requests per minute per VU
+    },
   },
   
   // Rate limiting

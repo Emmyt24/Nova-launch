@@ -45,7 +45,7 @@ describe('Formatting Utilities - Property-Based Tests', () => {
                     (amount: number) => {
                         const result = formatXLM(amount);
                         // Should only contain digits, commas, and decimal point
-                        expect(/^[\d,\.]+$/.test(result)).toBe(true);
+                        expect(/^[\d,.]+$/.test(result)).toBe(true);
                     }
                 ),
                 { numRuns: 1000 }

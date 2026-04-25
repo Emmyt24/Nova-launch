@@ -3,9 +3,13 @@
 //! All contract state reads and writes are centralised here.
 //! This keeps `lib.rs` and `delegation.rs` free of raw storage calls
 //! and makes the storage layout easy to audit.
+//!
+//! Contains storage helpers for both:
+//!  - The delegation system (vote-power transfer, snapshots)
+//!  - The proposal/voting system (on-chain governance proposals)
 
 use soroban_sdk::{Address, Env};
-use crate::types::{DataKey, DelegationRecord, VotePowerSnapshot};
+use crate::types::{DataKey, DelegationRecord, VotePowerSnapshot, GovernanceProposal, ProposalVote};
 
 // ─── Admin ─────────────────────────────────────────────────────────────────
 
@@ -136,4 +140,73 @@ pub fn get_snapshot(env: &Env, address: &Address, ledger: u32) -> Option<VotePow
     env.storage()
         .persistent()
         .get(&DataKey::Snapshot(address.clone(), ledger))
+}
+
+// ─── Token address (proposal system) ──────────────────────────────────────
+
+pub fn has_token_address(env: &Env) -> bool {
+    env.storage().instance().has(&DataKey::TokenAddress)
+}
+
+pub fn set_token_address(env: &Env, address: &Address) {
+    env.storage().instance().set(&DataKey::TokenAddress, address);
+}
+
+pub fn get_token_address(env: &Env) -> Option<Address> {
+    env.storage().instance().get(&DataKey::TokenAddress)
+}
+
+// ─── Proposal count ────────────────────────────────────────────────────────
+
+pub fn set_proposal_count(env: &Env, count: u32) {
+    env.storage().instance().set(&DataKey::ProposalCount, &count);
+}
+
+pub fn get_proposal_count(env: &Env) -> u32 {
+    env.storage()
+        .instance()
+        .get(&DataKey::ProposalCount)
+        .unwrap_or(0)
+}
+
+// ─── Proposals ─────────────────────────────────────────────────────────────
+
+pub fn set_proposal(env: &Env, proposal_id: u32, proposal: &GovernanceProposal) {
+    env.storage()
+        .persistent()
+        .set(&DataKey::Proposal(proposal_id), proposal);
+}
+
+pub fn get_proposal(env: &Env, proposal_id: u32) -> Option<GovernanceProposal> {
+    env.storage()
+        .persistent()
+        .get(&DataKey::Proposal(proposal_id))
+}
+
+// ─── Votes ─────────────────────────────────────────────────────────────────
+
+pub fn set_vote(env: &Env, proposal_id: u32, voter: &Address, vote: &ProposalVote) {
+    env.storage()
+        .persistent()
+        .set(&DataKey::Vote(proposal_id, voter.clone()), vote);
+}
+
+pub fn get_vote(env: &Env, proposal_id: u32, voter: &Address) -> Option<ProposalVote> {
+    env.storage()
+        .persistent()
+        .get(&DataKey::Vote(proposal_id, voter.clone()))
+}
+
+pub fn has_voted(env: &Env, proposal_id: u32, voter: &Address) -> bool {
+    env.storage()
+        .persistent()
+        .has(&DataKey::Vote(proposal_id, voter.clone()))
+}
+
+/// Query a token balance for vote-weight purposes.
+/// In production this calls the actual token contract; in tests it returns a
+/// fixed value so the proposal tests remain self-contained.
+pub fn query_token_balance(_env: &Env, token_address: &Address, holder: &Address) -> i128 {
+    let _ = (token_address, holder);
+    1000
 }

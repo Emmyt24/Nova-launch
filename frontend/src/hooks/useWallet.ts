@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { WalletService } from '../services/wallet';
 import { analytics, AnalyticsEvent } from '../services/analytics';
+import { ACTIVE_NETWORK, STELLAR_CONFIG } from '../config/stellar';
+import { checkNetworkContractMismatch } from '../utils/validation';
 import type { WalletState } from '../types';
 
 const WALLET_CONNECTED_KEY = 'nova_wallet_connected';
@@ -18,6 +20,7 @@ export const useWallet = (options: UseWalletOptions = {}) => {
     });
     const [isConnecting, setIsConnecting] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [networkMismatchWarning, setNetworkMismatchWarning] = useState<string | null>(null);
     const cleanupRef = useRef<(() => void) | null>(null);
     const isInitializedRef = useRef(false);
     const prevNetworkRef = useRef(externalNetwork);
@@ -69,6 +72,14 @@ export const useWallet = (options: UseWalletOptions = {}) => {
                 network,
             });
             localStorage.setItem(WALLET_CONNECTED_KEY, 'true');
+
+            // Check for network/contract mismatch
+            const { mismatch, message } = checkNetworkContractMismatch(
+                STELLAR_CONFIG.factoryContractId,
+                network,
+                ACTIVE_NETWORK
+            );
+            setNetworkMismatchWarning(mismatch ? (message ?? null) : null);
 
             // Privacy: do NOT send addresses or any PII. Only send non-identifying metadata.
             try {
@@ -165,5 +176,6 @@ export const useWallet = (options: UseWalletOptions = {}) => {
         disconnect,
         isConnecting,
         error,
+        networkMismatchWarning,
     };
 };

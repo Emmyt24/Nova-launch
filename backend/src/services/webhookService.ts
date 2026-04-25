@@ -8,7 +8,7 @@ import {
   WebhookEventData,
   WebhookDeliveryLog,
 } from "../types/webhook";
-import { generateWebhookSecret, generateSignature } from "../utils/crypto";
+import { generateWebhookSecret, generateWebhookSignature } from "../utils/crypto";
 
 export class WebhookService {
   /**
@@ -192,14 +192,15 @@ export class WebhookService {
     data: WebhookEventData,
     secret: string
   ): WebhookPayload {
+    const timestamp = new Date().toISOString();
     const payload: Omit<WebhookPayload, "signature"> = {
       event,
-      timestamp: new Date().toISOString(),
+      timestamp,
       data,
     };
 
     const payloadString = JSON.stringify(payload);
-    const signature = generateSignature(payloadString, secret);
+    const signature = generateWebhookSignature(payloadString, secret);
 
     return {
       ...payload,

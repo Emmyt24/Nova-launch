@@ -2,10 +2,14 @@
 //!
 //! Defines all on-chain data structures, storage keys, and error codes
 //! used by the governance delegation contract.
+//!
+//! This module contains two sets of types:
+//!  1. Delegation system types (vote-power transfer, snapshots)
+//!  2. Proposal/voting types (on-chain governance proposals)
 
 #![allow(dead_code)]
 
-use soroban_sdk::{contracttype, contracterror, Address};
+use soroban_sdk::{contracttype, contracterror, Address, String};
 
 // ─── Storage keys ──────────────────────────────────────────────────────────
 
@@ -16,6 +20,7 @@ use soroban_sdk::{contracttype, contracterror, Address};
 #[contracttype]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum DataKey {
+    // ── Delegation system keys ──────────────────────────────────────────
     /// Contract admin address (instance storage)
     Admin,
     /// Whether the contract is paused (instance storage)
@@ -27,15 +32,24 @@ pub enum DataKey {
     /// Who `delegator` has delegated their vote power to: Delegate(delegator)
     Delegate(Address),
     /// Accumulated vote power of `delegatee` (sum of all delegators + own balance)
-    /// VotePower(delegatee)
     VotePower(Address),
     /// Nonce for replay-protection on delegation signatures: Nonce(address)
     Nonce(Address),
     /// Snapshot of vote power at a given ledger: Snapshot(address, ledger_seq)
     Snapshot(Address, u32),
+
+    // ── Proposal/voting system keys ─────────────────────────────────────
+    /// Address of the associated token contract
+    TokenAddress,
+    /// Total number of proposals created
+    ProposalCount,
+    /// Individual proposal by ID
+    Proposal(u32),
+    /// Vote cast by a specific voter on a specific proposal
+    Vote(u32, Address),
 }
 
-// ─── On-chain structs ──────────────────────────────────────────────────────
+// ─── Delegation structs ────────────────────────────────────────────────────
 
 /// A single delegation record stored on-chain.
 ///
@@ -66,8 +80,46 @@ pub struct VotePowerSnapshot {
     pub power: i128,
 }
 
+// ─── Proposal/voting structs ───────────────────────────────────────────────
+
+/// An on-chain governance proposal.
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct GovernanceProposal {
+    pub id: u32,
+    pub creator: Address,
+    pub description: String,
+    pub voting_end: u64,
+    pub quorum: i128,
+    pub threshold_percent: u32,
+    pub votes_for: i128,
+    pub votes_against: i128,
+    pub status: ProposalStatus,
+}
+
+/// Status of a governance proposal.
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum ProposalStatus {
+    Active,
+    Passed,
+    Rejected,
+    Failed,
+}
+
+/// A single vote cast on a proposal.
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ProposalVote {
+    pub voter: Address,
+    pub proposal_id: u32,
+    pub weight: i128,
+    pub in_favor: bool,
+}
+
 // ─── Error codes ───────────────────────────────────────────────────────────
 
+/// Errors for the delegation system.
 #[contracterror]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Error {
@@ -91,4 +143,29 @@ pub enum Error {
     CircularDelegation = 9,
     /// Snapshot not found for the requested ledger
     SnapshotNotFound = 10,
+}
+
+/// Errors for the proposal voting system.
+#[contracterror]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[repr(u32)]
+pub enum VoteError {
+    ProposalNotFound = 1,
+    ProposalNotActive = 2,
+    AlreadyVoted = 3,
+    InsufficientBalance = 4,
+    VotingPeriodEnded = 5,
+    NotInitialized = 6,
+    AlreadyInitialized = 7,
+    Overflow = 8,
+}
+
+/// Errors for proposal finalization.
+#[contracterror]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[repr(u32)]
+pub enum FinalizationError {
+    ProposalNotFound = 1,
+    VotingPeriodNotEnded = 2,
+    AlreadyFinalized = 3,
 }

@@ -1,6 +1,5 @@
 /// <reference types="vite/client" />
 import { defineConfig } from 'vite'
-// @ts-expect-error - plugin-react types will be available after npm install
 import react from '@vitejs/plugin-react'
 import compression from 'vite-plugin-compression'
 import { visualizer } from 'rollup-plugin-visualizer'
@@ -60,14 +59,7 @@ export default defineConfig({
         },
       },
     },
-    
-    minify: 'terser',
-    terserOptions: {
-      compress: {
-        drop_console: true,
-        drop_debugger: true,
-      },
-    },
+    minify: 'esbuild',
   },
   
   optimizeDeps: {

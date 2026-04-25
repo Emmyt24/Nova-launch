@@ -205,7 +205,7 @@ function reportMetric(name: string, value: number): void {
     metrics[name] = value;
     metrics.timestamp = Date.now();
     localStorage.setItem('performance_metrics', JSON.stringify(metrics));
-  } catch (error) {
+  } catch {
     // Ignore localStorage errors
   }
 }

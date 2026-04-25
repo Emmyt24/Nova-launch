@@ -20,12 +20,16 @@ import {
   StellarTimeoutException,
   StellarTransactionFailedException,
 } from "./stellar.exceptions";
-import { RateLimiter } from "./rate-limiter";
+import { 
+  RateLimiter, 
+  BACKGROUND_RETRY_CONFIG,
+  calculateBackoffDelay,
+  isRetryableError,
+  sleep
+} from "./rate-limiter";
 import {
   assertValidAddress,
   isValidAddress,
-  calculateBackoff,
-  sleep,
 } from "./stellar.utils";
 
 @Injectable()
@@ -436,14 +440,16 @@ export class StellarService implements OnModuleInit {
 
   /**
    * Wraps an async operation with retry + exponential backoff logic.
+   * Uses background retry configuration for resilient polling.
    */
   private async withRetry<T>(
     operation: () => Promise<T>,
     operationName: string
   ): Promise<T> {
+    const config = BACKGROUND_RETRY_CONFIG;
     let lastError: unknown;
 
-    for (let attempt = 0; attempt < this.config.retry.maxAttempts; attempt++) {
+    for (let attempt = 1; attempt <= config.maxAttempts; attempt++) {
       try {
         const result = await Promise.race<T>([
           operation(),
@@ -454,36 +460,46 @@ export class StellarService implements OnModuleInit {
             )
           ),
         ]);
+        
+        if (attempt > 1) {
+          this.logger.log(
+            `${operationName} succeeded on attempt ${attempt}/${config.maxAttempts}`
+          );
+        }
+        
         return result;
       } catch (error) {
         lastError = error;
 
-        // Don't retry on validation or not-found errors
-        if (
-          error instanceof StellarTimeoutException ||
-          (error as any)?.code === "INVALID_ADDRESS" ||
-          (error as any)?.status === 404
-        ) {
+        // Check if error is retryable
+        const retryable = isRetryableError(error);
+        
+        if (!retryable || attempt === config.maxAttempts) {
+          if (!retryable) {
+            this.logger.error(
+              `${operationName} failed with terminal error (not retryable)`,
+              error
+            );
+          } else {
+            this.logger.error(
+              `${operationName} failed after ${config.maxAttempts} attempts`,
+              error
+            );
+          }
           throw error;
         }
 
-        if (attempt < this.config.retry.maxAttempts - 1) {
-          const delay = calculateBackoff(
-            attempt,
-            this.config.retry.initialDelay,
-            this.config.retry.maxDelay,
-            this.config.retry.backoffFactor
-          );
-          this.logger.warn(
-            `${operationName} failed (attempt ${attempt + 1}/${this.config.retry.maxAttempts}). Retrying in ${delay}ms...`
-          );
-          await sleep(delay);
-        }
+        const delay = calculateBackoffDelay(attempt, config);
+        this.logger.warn(
+          `${operationName} failed (attempt ${attempt}/${config.maxAttempts}). ` +
+          `Retrying in ${Math.round(delay)}ms... Error: ${error instanceof Error ? error.message : String(error)}`
+        );
+        await sleep(delay);
       }
     }
 
     this.logger.error(
-      `${operationName} failed after ${this.config.retry.maxAttempts} attempts`
+      `${operationName} failed after ${config.maxAttempts} attempts`
     );
     throw lastError;
   }

@@ -1,5 +1,9 @@
 import { PrismaClient } from "@prisma/client";
 
+const connectionString =
+  process.env.DATABASE_URL ??
+  "postgresql://postgres:postgres@localhost:5432/postgres?schema=public";
+
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
 };
@@ -13,7 +17,7 @@ export const prisma =
         : ["error"],
     datasources: {
       db: {
-        url: process.env.DATABASE_URL,
+        url: connectionString,
       },
     },
   });

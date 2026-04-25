@@ -120,7 +120,8 @@ describe("Token Search Integration Tests", () => {
     expect(tokens.length).toBeGreaterThanOrEqual(2);
     expect(
       tokens.every(
-        (t) => t.totalSupply >= BigInt(500000) && t.totalSupply <= BigInt(1000000)
+        (t) =>
+          t.totalSupply >= BigInt(500000) && t.totalSupply <= BigInt(1000000)
       )
     ).toBe(true);
   });

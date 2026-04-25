@@ -62,9 +62,6 @@ export default function DeployPage({
 
   return (
     <ErrorBoundary>
-      <a href="#main-content" className="skip-to-main">
-        Skip to main content
-      </a>
       <div className="min-h-screen bg-gray-50">
         <Header>
           <div className="flex flex-wrap items-center justify-end gap-2 sm:gap-4">

@@ -20,6 +20,15 @@ const NAV_ITEMS: NavItem[] = [
     ),
   },
   {
+    label: 'Campaign Dashboard',
+    href: '/campaign-dashboard',
+    icon: (
+      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-6m3 6V7m3 10v-4m3 8H6a2 2 0 01-2-2V5a2 2 0 012-2h12a2 2 0 012 2v14a2 2 0 01-2 2z" />
+      </svg>
+    ),
+  },
+  {
     label: 'Recurring Payments',
     href: '/recurring-payments',
     icon: (
@@ -34,6 +43,15 @@ const NAV_ITEMS: NavItem[] = [
     icon: (
       <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+      </svg>
+    ),
+  },
+  {
+    label: 'Webhooks',
+    href: '/webhooks',
+    icon: (
+      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
       </svg>
     ),
   },
@@ -57,6 +75,7 @@ export function DashboardLayout({
   currentPath,
 }: DashboardLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   const handleConnect = useCallback(async () => {
     try {
@@ -78,42 +97,66 @@ export function DashboardLayout({
     setSidebarOpen(false);
   }, []);
 
+  const toggleSidebarCollapsed = useCallback(() => {
+    setSidebarCollapsed((prev) => !prev);
+  }, []);
+
   // Truncate address for display
   const truncatedAddress = wallet.address 
     ? `${wallet.address.slice(0, 6)}...${wallet.address.slice(-4)}`
     : '';
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-background-dark text-text-primary">
       {/* Mobile sidebar backdrop */}
       {sidebarOpen && (
         <div 
-          className="fixed inset-0 z-40 bg-black bg-opacity-50 lg:hidden"
+          className="fixed inset-0 z-40 bg-black/70 backdrop-blur-sm lg:hidden"
           onClick={closeSidebar}
           aria-hidden="true"
         />
       )}
 
       {/* Sidebar */}
-      <aside 
-        className={`fixed inset-y-0 left-0 z-50 w-64 bg-white border-r border-gray-200 transform transition-transform duration-300 ease-in-out lg:translate-x-0 ${
+      <aside
+        className={`fixed inset-y-0 left-0 z-50 border-r border-border-medium bg-background-elevated transform transition-all duration-300 ease-in-out lg:translate-x-0 ${
+          sidebarCollapsed ? 'lg:w-20' : 'lg:w-64'
+        } ${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
         <div className="flex flex-col h-full">
           {/* Logo */}
-          <div className="flex items-center justify-between h-16 px-4 border-b border-gray-200">
-            <a href="/" className="text-xl font-bold text-gray-900">
-              NovaLaunch
+          <div className="flex items-center justify-between h-16 px-4 border-b border-border-medium">
+            <a
+              href="/"
+              className={`font-bold text-text-primary transition-all ${sidebarCollapsed ? 'text-lg' : 'text-xl'}`}
+            >
+              {sidebarCollapsed ? 'NL' : 'NovaLaunch'}
             </a>
             <button
               onClick={closeSidebar}
-              className="p-2 text-gray-500 hover:text-gray-700 lg:hidden"
+              className="p-2 text-text-secondary hover:text-text-primary lg:hidden"
               aria-label="Close sidebar"
             >
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
+            </button>
+            <button
+              onClick={toggleSidebarCollapsed}
+              className="hidden rounded-md p-2 text-text-secondary hover:bg-background-card hover:text-text-primary lg:inline-flex"
+              aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            >
+              {sidebarCollapsed ? (
+                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5v14" />
+                </svg>
+              ) : (
+                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7M19 5v14" />
+                </svg>
+              )}
             </button>
           </div>
 
@@ -129,41 +172,47 @@ export function DashboardLayout({
                   href={item.href}
                   className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                     isActive
-                      ? 'bg-blue-50 text-blue-700'
-                      : 'text-gray-700 hover:bg-gray-100'
+                      ? 'bg-primary/15 text-primary border border-primary/30'
+                      : 'text-text-secondary hover:bg-background-card hover:text-text-primary'
                   }`}
+                  title={sidebarCollapsed ? item.label : undefined}
                   onClick={closeSidebar}
                 >
-                  <span className={isActive ? 'text-blue-600' : 'text-gray-400'}>
+                  <span className={isActive ? 'text-primary' : 'text-text-muted'}>
                     {item.icon}
                   </span>
-                  {item.label}
+                  {!sidebarCollapsed && item.label}
                 </a>
               );
             })}
           </nav>
 
           {/* Wallet section */}
-          <div className="p-4 border-t border-gray-200">
+          <div className="p-4 border-t border-border-medium">
             {wallet.connected && wallet.address ? (
               <div className="space-y-3">
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 bg-green-500 rounded-full" />
-                  <span className="text-sm text-gray-600">Connected</span>
+                <div className={`flex items-center ${sidebarCollapsed ? 'justify-center' : 'gap-2'}`}>
+                  <div className="w-2 h-2 bg-emerald-400 rounded-full" />
+                  {!sidebarCollapsed && <span className="text-sm text-text-secondary">Connected</span>}
                 </div>
-                <div className="p-2 bg-gray-50 rounded-lg">
-                  <p className="text-xs text-gray-500">Wallet</p>
-                  <p className="text-sm font-mono text-gray-900 truncate" title={wallet.address}>
-                    {truncatedAddress}
-                  </p>
-                </div>
+                {!sidebarCollapsed && (
+                  <div className="p-2 bg-background-card border border-border-subtle rounded-lg">
+                    <p className="text-xs text-text-muted">Wallet</p>
+                    <p className="text-sm font-mono text-text-primary truncate" title={wallet.address}>
+                      {truncatedAddress}
+                    </p>
+                  </div>
+                )}
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={handleDisconnect}
-                  className="w-full"
+                  className={`border-primary/40 text-text-primary hover:bg-primary/10 ${
+                    sidebarCollapsed ? 'w-full px-2' : 'w-full'
+                  }`}
+                  title={sidebarCollapsed ? 'Disconnect' : undefined}
                 >
-                  Disconnect
+                  {sidebarCollapsed ? 'Off' : 'Disconnect'}
                 </Button>
               </div>
             ) : (
@@ -172,9 +221,10 @@ export function DashboardLayout({
                 size="sm"
                 onClick={handleConnect}
                 loading={isConnecting}
-                className="w-full"
+                className={`bg-primary hover:bg-[#E63428] hover:shadow-glow-red ${sidebarCollapsed ? 'w-full px-2' : 'w-full'}`}
+                title={sidebarCollapsed ? 'Connect Wallet' : undefined}
               >
-                Connect Wallet
+                {sidebarCollapsed ? 'On' : 'Connect Wallet'}
               </Button>
             )}
           </div>
@@ -182,20 +232,20 @@ export function DashboardLayout({
       </aside>
 
       {/* Main content area */}
-      <div className="lg:pl-64">
+      <div className={`transition-all duration-300 ${sidebarCollapsed ? 'lg:pl-20' : 'lg:pl-64'}`}>
         {/* Top bar for mobile */}
-        <header className="sticky top-0 z-30 bg-white border-b border-gray-200 lg:hidden">
+        <header className="sticky top-0 z-30 border-b border-border-medium bg-background-elevated/90 backdrop-blur-md lg:hidden">
           <div className="flex items-center justify-between h-16 px-4">
             <button
               onClick={toggleSidebar}
-              className="p-2 text-gray-500 hover:text-gray-700"
+              className="p-2 text-text-secondary hover:text-text-primary"
               aria-label="Open sidebar"
             >
               <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
               </svg>
             </button>
-            <span className="text-lg font-bold text-gray-900">NovaLaunch</span>
+            <span className="text-lg font-bold text-text-primary">NovaLaunch</span>
             <div className="w-10" /> {/* Spacer for centering */}
           </div>
         </header>

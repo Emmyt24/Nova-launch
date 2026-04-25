@@ -1,6 +1,7 @@
 import { vi } from 'vitest';
 import type { TestAccount, TokenDeploymentParams, TokenDeploymentResult } from '../../services/stellar.service';
-import type { IPFSUploadResult, TokenMetadata } from '../../services/ipfs.service';
+import type { IPFSUploadResult } from '../../services/IPFSService';
+import type { TokenMetadata } from '../../types';
 
 /**
  * Mock implementations for testing without real API calls

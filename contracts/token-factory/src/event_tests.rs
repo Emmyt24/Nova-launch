@@ -2,10 +2,15 @@
 // Issue #258: Add Contract Event Testing and Verification
 // Comprehensive tests for all contract events with utilities for
 // event assertion, data verification, ordering, and filtering.
+//
+// Event Schema Versioning Tests
+// All events now include version identifiers (e.g., "_v1") to support
+// stable backend indexers. These tests validate the exact schema of each
+// versioned event including topic names, payload structure, and data types.
 
 use soroban_sdk::{
     symbol_short,
-    testutils::Address as _,
+    testutils::{Address as _, Events},
     Address, Env, String, Vec,
 };
 use crate::{TokenFactory, TokenFactoryClient};
@@ -75,7 +80,7 @@ fn test_admin_transfer_event_emitted() {
     );
     let event = events.get(events.len() - 1).unwrap();
     let topic = event.0.get(0).unwrap();
-    assert_eq!(topic, soroban_sdk::Val::from(symbol_short!("admin_xfer")));
+    assert_eq!(topic, soroban_sdk::Val::from(symbol_short!("adm_xf_v1")));
 }
 
 #[test]
@@ -111,7 +116,7 @@ fn test_pause_event_emitted() {
     let topic = last.0.get(0).unwrap();
     assert_eq!(
         topic,
-        soroban_sdk::Val::from(symbol_short!("pause")),
+        soroban_sdk::Val::from(symbol_short!("pause_v1")),
         "pause event should be emitted"
     );
 }
@@ -130,7 +135,7 @@ fn test_unpause_event_emitted() {
     let topic = last.0.get(0).unwrap();
     assert_eq!(
         topic,
-        soroban_sdk::Val::from(symbol_short!("unpause")),
+        soroban_sdk::Val::from(symbol_short!("unpaus_v1")),
         "unpause event should be emitted after unpausing"
     );
 }
@@ -157,7 +162,7 @@ fn test_pause_unpause_event_data_contains_admin() {
 // ── Fees Updated Event Tests ──────────────────────────────────────────────
 
 #[test]
-fn test_fees_updated_event_emitted() {
+fn test_fee_upd_event_emitted() {
     let env = Env::default();
     env.mock_all_auths();
     let (client, admin, _) = setup_factory(&env);
@@ -171,13 +176,13 @@ fn test_fees_updated_event_emitted() {
     let topic = last.0.get(0).unwrap();
     assert_eq!(
         topic,
-        soroban_sdk::Val::from(symbol_short!("fees_updated")),
-        "fees_updated event should be emitted"
+        soroban_sdk::Val::from(symbol_short!("fee_up_v1")),
+        "fee_upd event should be emitted"
     );
 }
 
 #[test]
-fn test_fees_updated_event_data_accuracy() {
+fn test_fee_upd_event_data_accuracy() {
     let env = Env::default();
     env.mock_all_auths();
     let (client, admin, _) = setup_factory(&env);
@@ -195,7 +200,7 @@ fn test_fees_updated_event_data_accuracy() {
 }
 
 #[test]
-fn test_fees_updated_only_base_fee() {
+fn test_fee_upd_only_base_fee() {
     let env = Env::default();
     env.mock_all_auths();
     let (client, admin, _) = setup_factory(&env);
@@ -207,8 +212,8 @@ fn test_fees_updated_only_base_fee() {
     let topic = last.0.get(0).unwrap();
     assert_eq!(
         topic,
-        soroban_sdk::Val::from(symbol_short!("fees_updated")),
-        "fees_updated should be emitted even for partial update"
+        soroban_sdk::Val::from(symbol_short!("fee_up_v1")),
+        "fee_upd should be emitted even for partial update"
     );
 }
 
@@ -221,13 +226,13 @@ fn test_multiple_events_ordered() {
     let (client, admin, _) = setup_factory(&env);
     let new_admin = Address::generate(&env);
 
-    // Event 1: fees_updated
+    // Event 1: fee_upd
     client.update_fees(&admin, &Some(50_000_000), &Some(20_000_000));
     // Event 2: pause
     client.pause(&admin);
     // Event 3: unpause
     client.unpause(&admin);
-    // Event 4: admin_xfer
+    // Event 4: adm_xfer
     client.transfer_admin(&admin, &new_admin);
 
     let events = env.events().all();
@@ -238,10 +243,10 @@ fn test_multiple_events_ordered() {
     let t2 = events.get(2).unwrap().0.get(0).unwrap();
     let t3 = events.get(3).unwrap().0.get(0).unwrap();
 
-    assert_eq!(t0, soroban_sdk::Val::from(symbol_short!("fees_updated")));
-    assert_eq!(t1, soroban_sdk::Val::from(symbol_short!("pause")));
-    assert_eq!(t2, soroban_sdk::Val::from(symbol_short!("unpause")));
-    assert_eq!(t3, soroban_sdk::Val::from(symbol_short!("admin_xfer")));
+    assert_eq!(t0, soroban_sdk::Val::from(symbol_short!("fee_up_v1")));
+    assert_eq!(t1, soroban_sdk::Val::from(symbol_short!("pause_v1")));
+    assert_eq!(t2, soroban_sdk::Val::from(symbol_short!("unpaus_v1")));
+    assert_eq!(t3, soroban_sdk::Val::from(symbol_short!("adm_xf_v1")));
 }
 
 // ── No Event on Read-Only Functions ──────────────────────────────────────
@@ -267,15 +272,15 @@ fn test_no_event_on_readonly_functions() {
 // ── Admin Burn Event Tests ────────────────────────────────────────────────
 
 #[test]
-fn test_admin_burn_event_emitted() {
+fn test_adm_burn_event_emitted() {
     let env = Env::default();
     env.mock_all_auths();
     let (client, admin, _) = setup_factory(&env);
 
-    // Only run if admin_burn exists and a token is available
-    // This test verifies event structure when admin_burn is called
+    // Only run if adm_burn exists and a token is available
+    // This test verifies event structure when adm_burn is called
     let events_before = count_events(&env);
-    // Trigger a state change that emits admin_burn if token exists
+    // Trigger a state change that emits adm_burn if token exists
     // Since we cannot create tokens without the full stellar asset setup,
     // we verify the event module is correctly wired by checking pause event
     client.pause(&admin);
@@ -323,4 +328,193 @@ fn test_update_fees_emits_exactly_one_event() {
     let after = count_events(&env);
 
     assert_eq!(after - before, 1, "update_fees must emit exactly one event");
+}
+
+// ── Schema Validation Tests ───────────────────────────────────────────────
+// These tests validate the exact schema of each versioned event to prevent
+// breaking changes to backend indexers.
+
+#[test]
+fn test_init_v1_schema() {
+    let env = Env::default();
+    env.mock_all_auths();
+    let admin = Address::generate(&env);
+    let treasury = Address::generate(&env);
+    
+    let contract_id = env.register_contract(None, TokenFactory);
+    let client = TokenFactoryClient::new(&env, &contract_id);
+    client.initialize(&admin, &treasury, &BASE_FEE, &METADATA_FEE);
+    
+    let events = env.events().all();
+    assert_eq!(events.len(), 1, "initialize must emit exactly one event");
+    
+    let event = events.get(0).unwrap();
+    
+    // Validate topic structure
+    let topics = &event.0;
+    assert_eq!(topics.len(), 1, "init_v1 must have exactly 1 topic");
+    assert_eq!(
+        topics.get(0).unwrap(),
+        soroban_sdk::Val::from(symbol_short!("init_v1")),
+        "Event name must be 'init_v1'"
+    );
+    
+    // Validate payload structure: (admin, treasury, base_fee, metadata_fee)
+    let payload: (Address, Address, i128, i128) = soroban_sdk::FromVal::from_val(&env, &event.1);
+    assert_eq!(payload.0, admin, "First payload element must be admin");
+    assert_eq!(payload.1, treasury, "Second payload element must be treasury");
+    assert_eq!(payload.2, BASE_FEE, "Third payload element must be base_fee");
+    assert_eq!(payload.3, METADATA_FEE, "Fourth payload element must be metadata_fee");
+}
+
+#[test]
+fn test_adm_xf_v1_schema() {
+    let env = Env::default();
+    env.mock_all_auths();
+    let (client, admin, _) = setup_factory(&env);
+    let new_admin = Address::generate(&env);
+    
+    client.transfer_admin(&admin, &new_admin);
+    
+    let events = env.events().all();
+    let event = events.get(events.len() - 1).unwrap();
+    
+    // Validate topic structure
+    let topics = &event.0;
+    assert_eq!(topics.len(), 1, "adm_xf_v1 must have exactly 1 topic");
+    assert_eq!(
+        topics.get(0).unwrap(),
+        soroban_sdk::Val::from(symbol_short!("adm_xf_v1")),
+        "Event name must be 'adm_xf_v1'"
+    );
+    
+    // Validate payload structure: (old_admin, new_admin)
+    let payload: (Address, Address) = soroban_sdk::FromVal::from_val(&env, &event.1);
+    assert_eq!(payload.0, admin, "First payload element must be old_admin");
+    assert_eq!(payload.1, new_admin, "Second payload element must be new_admin");
+}
+
+#[test]
+fn test_pause_v1_schema() {
+    let env = Env::default();
+    env.mock_all_auths();
+    let (client, admin, _) = setup_factory(&env);
+    
+    client.pause(&admin);
+    
+    let events = env.events().all();
+    let event = events.get(events.len() - 1).unwrap();
+    
+    // Validate topic structure
+    let topics = &event.0;
+    assert_eq!(topics.len(), 1, "pause_v1 must have exactly 1 topic");
+    assert_eq!(
+        topics.get(0).unwrap(),
+        soroban_sdk::Val::from(symbol_short!("pause_v1")),
+        "Event name must be 'pause_v1'"
+    );
+    
+    // Validate payload structure: (admin,)
+    let payload: (Address,) = soroban_sdk::FromVal::from_val(&env, &event.1);
+    assert_eq!(payload.0, admin, "Payload must contain admin address");
+}
+
+#[test]
+fn test_unpaus_v1_schema() {
+    let env = Env::default();
+    env.mock_all_auths();
+    let (client, admin, _) = setup_factory(&env);
+    
+    client.pause(&admin);
+    client.unpause(&admin);
+    
+    let events = env.events().all();
+    let event = events.get(events.len() - 1).unwrap();
+    
+    // Validate topic structure
+    let topics = &event.0;
+    assert_eq!(topics.len(), 1, "unpaus_v1 must have exactly 1 topic");
+    assert_eq!(
+        topics.get(0).unwrap(),
+        soroban_sdk::Val::from(symbol_short!("unpaus_v1")),
+        "Event name must be 'unpaus_v1'"
+    );
+    
+    // Validate payload structure: (admin,)
+    let payload: (Address,) = soroban_sdk::FromVal::from_val(&env, &event.1);
+    assert_eq!(payload.0, admin, "Payload must contain admin address");
+}
+
+#[test]
+fn test_fee_up_v1_schema() {
+    let env = Env::default();
+    env.mock_all_auths();
+    let (client, admin, _) = setup_factory(&env);
+    
+    let new_base = 50_000_000i128;
+    let new_meta = 20_000_000i128;
+    client.update_fees(&admin, &Some(new_base), &Some(new_meta));
+    
+    let events = env.events().all();
+    let event = events.get(events.len() - 1).unwrap();
+    
+    // Validate topic structure
+    let topics = &event.0;
+    assert_eq!(topics.len(), 1, "fee_up_v1 must have exactly 1 topic");
+    assert_eq!(
+        topics.get(0).unwrap(),
+        soroban_sdk::Val::from(symbol_short!("fee_up_v1")),
+        "Event name must be 'fee_up_v1'"
+    );
+    
+    // Validate payload structure: (base_fee, metadata_fee)
+    let payload: (i128, i128) = soroban_sdk::FromVal::from_val(&env, &event.1);
+    assert_eq!(payload.0, new_base, "First payload element must be base_fee");
+    assert_eq!(payload.1, new_meta, "Second payload element must be metadata_fee");
+}
+
+// ── Event Name Character Limit Tests ──────────────────────────────────────
+
+#[test]
+fn test_all_event_names_within_limit() {
+    // Verify all versioned event names are ≤ 10 characters (symbol_short! limit)
+    let event_names = vec![
+        "init_v1",    // 7 chars
+        "tok_rg_v1",  // 9 chars
+        "adm_xf_v1",  // 9 chars
+        "pause_v1",   // 8 chars
+        "unpaus_v1",  // 9 chars
+        "fee_up_v1",  // 9 chars
+        "adm_br_v1",  // 9 chars
+        "clwbck_v1",  // 9 chars
+        "tok_br_v1",  // 9 chars
+    ];
+    
+    for name in event_names {
+        assert!(
+            name.len() <= 10,
+            "Event name '{}' exceeds 10-character limit (length: {})",
+            name,
+            name.len()
+        );
+    }
+}
+
+#[test]
+fn test_versioned_event_names_compile() {
+    // This test verifies that all versioned event names compile with symbol_short!
+    let env = Env::default();
+    
+    let _ = symbol_short!("init_v1");
+    let _ = symbol_short!("tok_rg_v1");
+    let _ = symbol_short!("adm_xf_v1");
+    let _ = symbol_short!("pause_v1");
+    let _ = symbol_short!("unpaus_v1");
+    let _ = symbol_short!("fee_up_v1");
+    let _ = symbol_short!("adm_br_v1");
+    let _ = symbol_short!("clwbck_v1");
+    let _ = symbol_short!("tok_br_v1");
+    
+    // If this test compiles, all event names are valid
+    assert!(true, "All versioned event names compile successfully");
 }

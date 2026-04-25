@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-03-07",
+  "notes": "Current gas snapshot under test.",
+  "operations": {
+    "create": {
+      "cpu": 162139,
+      "memory": 21456
+    },
+    "mint": {
+      "cpu": 128440,
+      "memory": 19812
+    },
+    "burn": {
+      "cpu": 137220,
+      "memory": 20690
+    },
+    "claim": {
+      "cpu": 124600,
+      "memory": 18970
+    },
+    "propose": {
+      "cpu": 149380,
+      "memory": 21710
+    },
+    "vote": {
+      "cpu": 121950,
+      "memory": 18440
+    },
+    "execute": {
+      "cpu": 133870,
+      "memory": 20120
+    }
+  }
+}

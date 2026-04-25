@@ -47,12 +47,28 @@ jobs:
         key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
     
     - name: Run fuzz tests
+      id: fuzz-tests
       working-directory: contracts/token-factory
       run: cargo test --release fuzz_ -- --nocapture
     
     - name: Run edge case tests
+      id: edge-tests
       working-directory: contracts/token-factory
       run: cargo test --release edge_cases -- --nocapture
+    
+    - name: Upload test artifacts
+      if: failure()
+      run: |
+        chmod +x scripts/upload-test-artifacts.sh
+        ./scripts/upload-test-artifacts.sh
+    
+    - name: Upload artifacts to GitHub
+      if: failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: fuzz-failure-artifacts-${{ github.run_number }}
+        path: test-artifacts/
+        retention-days: 30
     
     - name: Generate test report
       if: always()
@@ -61,3 +77,53 @@ jobs:
         echo "## Fuzz Test Results" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         cargo test --release 2>&1 | tail -20 >> $GITHUB_STEP_SUMMARY
+
+  campaign-stateful-fuzz-nightly:
+    name: Campaign Stateful Fuzz (Nightly High Depth)
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule'
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install Rust
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+        target: wasm32-unknown-unknown
+        override: true
+
+    - name: Cache cargo registry
+      uses: actions/cache@v4
+      with:
+        path: ~/.cargo/registry
+        key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+
+    - name: Cache cargo index
+      uses: actions/cache@v4
+      with:
+        path: ~/.cargo/git
+        key: ${{ runner.os }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}
+
+    - name: Cache cargo build
+      uses: actions/cache@v4
+      with:
+        path: contracts/target
+        key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
+
+    - name: Run high-depth campaign stateful fuzz
+      working-directory: contracts/token-factory
+      env:
+        CAMPAIGN_FUZZ_BASE_SEED: 12648430
+        CAMPAIGN_FUZZ_CASES: 400
+        CAMPAIGN_FUZZ_DEPTH: 600
+        CAMPAIGN_FUZZ_ARTIFACT_DIR: test-artifacts/campaign-fuzz
+      run: cargo test --lib campaign_stateful_fuzz_test::stateful_campaign_fuzz -- --nocapture
+
+    - name: Upload campaign fuzz artifacts
+      if: failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: campaign-stateful-fuzz-failures-${{ github.run_number }}
+        path: contracts/token-factory/test-artifacts/campaign-fuzz/
+        retention-days: 30

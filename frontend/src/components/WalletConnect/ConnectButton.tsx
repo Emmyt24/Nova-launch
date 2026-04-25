@@ -1,5 +1,6 @@
 import { useState, useCallback } from "react";
 import { LoadingButton } from "../UI";
+import { Button } from "../UI/Button";
 import { useToast } from "../../hooks/useToast";
 
 interface ConnectButtonProps {

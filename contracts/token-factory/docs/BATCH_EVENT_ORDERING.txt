@@ -1,0 +1,52 @@
+Batch Event Ordering Contract
+=============================
+
+This document defines the deterministic event ordering contract for indexers and replay engines.
+
+1) batch_create_tokens
+----------------------
+
+Successful batch of N tokens emits exactly:
+1. tok_crt for token 0
+2. tok_crt for token 1
+3. ...
+4. tok_crt for token N-1
+5. bch_tkn summary
+
+Failure contract:
+- If validation fails for any item, no tok_crt or bch_tkn success events are emitted.
+
+2) batch_mint
+-------------
+
+Successful batch of N recipients emits exactly:
+1. mint for recipient 0
+2. mint for recipient 1
+3. ...
+4. mint for recipient N-1
+5. btch_mnt summary
+
+Failure contract:
+- If any item fails validation, no mint or btch_mnt success events are emitted.
+
+3) batch_claim
+--------------
+
+Successful batch emits strm_clm events in the same order as input stream_ids, but only for claimable streams.
+
+Failure contract:
+- If phase-1 validation fails, no strm_clm success events are emitted.
+
+4) Governance operation sequence (create/vote/queue/execute)
+-------------------------------------------------------------
+
+For a successful proposal flow:
+1. prop_cr_v1 on create
+2. vote_cs_v1 per accepted vote, in vote call order
+3. prop_qu_v1 on queue
+4. action event during execute (fee_up_v1 or pause_v1 or unpaus_v1)
+5. prop_ex_v1 on execute
+
+Failure contract:
+- Failed queue emits no prop_qu_v1.
+- Failed execute emits no action event and no prop_ex_v1.

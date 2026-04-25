@@ -6,6 +6,7 @@
     "dev": "vite",
     "build": "vite build",
     "measure": "node scripts/measure.js",
+    "check:gas-thresholds": "node scripts/check-thresholds.js",
     "alert": "node scripts/alert.js",
     "report": "node scripts/report.js",
     "schedule": "node scripts/scheduler.js"

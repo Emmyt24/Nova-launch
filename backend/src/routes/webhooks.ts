@@ -22,16 +22,12 @@ router.post(
     try {
       const subscription = await webhookService.createSubscription(req.body);
 
-      // Return subscription without exposing the secret
-      const { secret, ...publicData } = subscription;
-
+      // Return subscription with full secret ONLY on creation
+      // Users must store this secret securely as it won't be shown again
       res.status(201).json({
         success: true,
-        data: {
-          ...publicData,
-          secret: `${secret.substring(0, 8)}...`, // Show only first 8 chars
-        },
-        message: "Webhook subscription created successfully",
+        data: subscription,
+        message: "Webhook subscription created successfully. Please store your secret securely; it will not be shown again.",
       });
     } catch (error) {
       console.error("Error creating subscription:", error);

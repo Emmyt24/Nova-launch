@@ -15,14 +15,43 @@ app.use(express.json());
 const WEBHOOK_SECRET = process.env.WEBHOOK_SECRET || 'your-secret-here';
 
 /**
- * Verify webhook signature
+ * Verify webhook signature with replay protection (v1)
+ * 
+ * Signature format: v1.<timestamp>.<signature>
+ * Signed content: <timestamp>.<raw_body_string>
  */
-function verifySignature(payload, signature, secret) {
+function verifyWebhookSignature(payload, header, secret, toleranceSeconds = 300) {
+  if (!header || !header.startsWith('v1.')) {
+    return false;
+  }
+
+  const parts = header.split('.');
+  if (parts.length !== 3) {
+    return false;
+  }
+
+  const timestamp = parseInt(parts[1], 10);
+  const signature = parts[2];
+
+  if (isNaN(timestamp)) {
+    return false;
+  }
+
+  // 1. Prevent replay attacks by checking if the timestamp is too old
+  const now = Math.floor(Date.now() / 1000);
+  if (Math.abs(now - timestamp) > toleranceSeconds) {
+    console.error(`Replay attack detected or clock drift: diff=${Math.abs(now - timestamp)}s`);
+    return false;
+  }
+
+  // 2. Generate expected signature
+  const message = `${timestamp}.${payload}`;
   const expectedSignature = crypto
     .createHmac('sha256', secret)
-    .update(payload)
+    .update(message)
     .digest('hex');
   
+  // 3. Constant-time comparison to prevent timing attacks
   return crypto.timingSafeEqual(
     Buffer.from(signature),
     Buffer.from(expectedSignature)
@@ -34,18 +63,19 @@ function verifySignature(payload, signature, secret) {
  */
 app.post('/webhook', (req, res) => {
   try {
-    const signature = req.headers['x-webhook-signature'];
+    const signatureHeader = req.headers['x-webhook-signature'];
     const eventType = req.headers['x-webhook-event'];
     
-    if (!signature) {
-      return res.status(401).json({ error: 'Missing signature' });
+    if (!signatureHeader) {
+      return res.status(401).json({ error: 'Missing signature header' });
     }
     
     // Verify signature
+    // Note: Use raw body for verification if your parser modifies req.body
     const payload = JSON.stringify(req.body);
-    if (!verifySignature(payload, signature, WEBHOOK_SECRET)) {
-      console.error('Invalid signature');
-      return res.status(401).json({ error: 'Invalid signature' });
+    if (!verifyWebhookSignature(payload, signatureHeader, WEBHOOK_SECRET)) {
+      console.error('Invalid signature or replay detected');
+      return res.status(401).json({ error: 'Authentication failed' });
     }
     
     // Process event

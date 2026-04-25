@@ -16,8 +16,10 @@ model Token {
   decimals      Int      @default(18)
   totalSupply   BigInt
   initialSupply BigInt
+  /// Defaults preserve replay/upgrade compatibility for legacy tokens that predate burn tracking.
   totalBurned   BigInt   @default(0)
   burnCount     Int      @default(0)
+  /// Remains nullable so migrated historical rows do not require synthetic metadata backfills.
   metadataUri   String?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
@@ -37,14 +39,15 @@ model Token {
 }
 
 model BurnRecord {
-  id         String   @id @default(uuid())
-  tokenId    String
-  from       String
-  amount     BigInt
-  burnedBy   String
-  isAdminBurn Boolean @default(false)
-  txHash     String   @unique
-  timestamp  DateTime @default(now())
+  id          String   @id @default(uuid())
+  tokenId     String
+  from        String
+  amount      BigInt
+  burnedBy    String
+  /// Legacy burn rows default to user-initiated semantics unless explicitly marked as admin burns.
+  isAdminBurn Boolean  @default(false)
+  txHash      String   @unique
+  timestamp   DateTime @default(now())
 
   token Token @relation(fields: [tokenId], references: [id])
 
@@ -52,6 +55,45 @@ model BurnRecord {
   @@index([from])
   @@index([txHash])
   @@index([timestamp])
+}
+
+model BuybackCampaign {
+  id             Int            @id @default(autoincrement())
+  tokenAddress   String
+  totalAmount    String
+  executedAmount String         @default("0")
+  currentStep    Int            @default(0)
+  totalSteps     Int
+  status         CampaignStatus @default(ACTIVE)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  steps BuybackStep[]
+
+  @@index([status])
+  @@index([tokenAddress])
+  @@index([createdAt])
+}
+
+model BuybackStep {
+  id         Int        @id @default(autoincrement())
+  campaignId Int
+  stepNumber Int
+  amount     String
+  status     StepStatus @default(PENDING)
+  executedAt DateTime?
+  txHash     String?
+
+  campaign BuybackCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@unique([campaignId, stepNumber])
+  @@index([status])
+}
+
+enum StepStatus {
+  PENDING
+  COMPLETED
+  FAILED
 }
 
 model User {
@@ -82,27 +124,27 @@ model Analytics {
 
 /// A dividend pool funded by a token creator/admin for distribution to holders.
 model DividendPool {
-  id              String              @id @default(uuid())
-  tokenId         String
+  id             String             @id @default(uuid())
+  tokenId        String
   /// Stellar address of the account that funded this pool
-  fundedBy        String
+  fundedBy       String
   /// Total amount deposited into this pool (in token's smallest unit)
-  totalAmount     BigInt
+  totalAmount    BigInt
   /// Amount already claimed from this pool
-  claimedAmount   BigInt              @default(0)
+  claimedAmount  BigInt             @default(0)
   /// Snapshot of total supply at pool creation (used for pro-rata calculation)
-  supplySnapshot  BigInt
+  supplySnapshot BigInt
   /// Optional per-holder cap (0 = no cap)
-  perHolderCap    BigInt              @default(0)
+  perHolderCap   BigInt             @default(0)
   /// ISO-8601 deadline after which unclaimed funds can be reclaimed
-  expiresAt       DateTime?
-  status          DividendPoolStatus  @default(ACTIVE)
-  txHash          String              @unique
-  createdAt       DateTime            @default(now())
-  updatedAt       DateTime            @updatedAt
+  expiresAt      DateTime?
+  status         DividendPoolStatus @default(ACTIVE)
+  txHash         String             @unique
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
 
-  token   Token           @relation(fields: [tokenId], references: [id])
-  claims  DividendClaim[]
+  token     Token            @relation(fields: [tokenId], references: [id])
+  claims    DividendClaim[]
   snapshots HolderSnapshot[]
 
   @@index([tokenId])
@@ -139,17 +181,209 @@ model HolderSnapshot {
 
 /// Records each individual dividend claim by a holder.
 model DividendClaim {
-  id        String      @id @default(uuid())
+  id        String   @id @default(uuid())
   poolId    String
   /// Stellar address of the claimant
   claimant  String
   amount    BigInt
-  txHash    String      @unique
-  claimedAt DateTime    @default(now())
+  txHash    String   @unique
+  claimedAt DateTime @default(now())
 
   pool DividendPool @relation(fields: [poolId], references: [id])
 
   @@index([poolId])
   @@index([claimant])
   @@index([claimedAt])
+}
+
+model WebhookSubscription {
+  id          String   @id @default(uuid())
+  userAddress String
+  endpoint    String   @unique
+  createdAt   DateTime @default(now())
+
+  @@index([userAddress])
+}
+
+model Stream {
+  id          String       @id @default(uuid())
+  streamId    Int          @unique
+  creator     String
+  recipient   String
+  amount      BigInt
+  /// Optional metadata and terminal timestamps keep old projection rows readable after upgrades.
+  metadata    String?
+  status      StreamStatus @default(CREATED)
+  txHash      String       @unique
+  createdAt   DateTime     @default(now())
+  claimedAt   DateTime?
+  cancelledAt DateTime?
+
+  @@index([creator])
+  @@index([recipient])
+  @@index([status])
+  @@index([createdAt])
+}
+
+enum StreamStatus {
+  CREATED
+  CLAIMED
+  CANCELLED
+}
+
+model Proposal {
+  id           String         @id @default(uuid())
+  proposalId   Int            @unique
+  tokenId      String
+  proposer     String
+  title        String
+  /// Governance projections are upgraded in place, so these fields stay nullable for legacy rows.
+  description  String?
+  proposalType ProposalType
+  status       ProposalStatus @default(ACTIVE)
+  startTime    DateTime
+  endTime      DateTime
+  quorum       BigInt
+  threshold    BigInt
+  metadata     String?
+  txHash       String         @unique
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  executedAt   DateTime?
+  cancelledAt  DateTime?
+  /// Nullable for legacy rows that predate cancellation tracking.
+  canceller    String?
+  cancelReason String?
+
+  votes      Vote[]
+  executions ProposalExecution[]
+
+  @@index([tokenId])
+  @@index([proposer])
+  @@index([status])
+  @@index([startTime])
+  @@index([endTime])
+  @@index([createdAt])
+}
+
+model Vote {
+  id         String   @id @default(uuid())
+  proposalId String
+  voter      String
+  support    Boolean
+  weight     BigInt
+  reason     String?
+  txHash     String   @unique
+  timestamp  DateTime @default(now())
+
+  proposal Proposal @relation(fields: [proposalId], references: [id])
+
+  @@unique([proposalId, voter])
+  @@index([proposalId])
+  @@index([voter])
+  @@index([timestamp])
+}
+
+model ProposalExecution {
+  id         String   @id @default(uuid())
+  proposalId String
+  executor   String
+  success    Boolean
+  returnData String?
+  gasUsed    BigInt?
+  txHash     String   @unique
+  executedAt DateTime @default(now())
+
+  proposal Proposal @relation(fields: [proposalId], references: [id])
+
+  @@index([proposalId])
+  @@index([executor])
+  @@index([executedAt])
+}
+
+enum ProposalType {
+  PARAMETER_CHANGE
+  ADMIN_TRANSFER
+  TREASURY_SPEND
+  CONTRACT_UPGRADE
+  CUSTOM
+}
+
+enum ProposalStatus {
+  ACTIVE
+  PASSED
+  REJECTED
+  QUEUED
+  EXECUTED
+  CANCELLED
+  EXPIRED
+}
+
+model Campaign {
+  id             String         @id @default(uuid())
+  campaignId     Int            @unique
+  tokenId        String
+  creator        String
+  type           CampaignType
+  status         CampaignStatus @default(ACTIVE)
+  targetAmount   BigInt
+  /// Incrementing projections must remain safe for pre-existing campaigns restored from replay.
+  currentAmount  BigInt         @default(0)
+  executionCount Int            @default(0)
+  startTime      DateTime
+  endTime        DateTime?
+  metadata       String?
+  txHash         String         @unique
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  completedAt    DateTime?
+  cancelledAt    DateTime?
+  pausedAt       DateTime?
+
+  executions CampaignExecution[]
+
+  @@index([tokenId])
+  @@index([creator])
+  @@index([status])
+  @@index([type])
+  @@index([startTime])
+  @@index([createdAt])
+}
+
+model CampaignExecution {
+  id         String   @id @default(uuid())
+  campaignId String
+  executor   String
+  amount     BigInt
+  recipient  String?
+  txHash     String   @unique
+  executedAt DateTime @default(now())
+
+  campaign Campaign @relation(fields: [campaignId], references: [id])
+
+  @@index([campaignId])
+  @@index([executor])
+  @@index([executedAt])
+}
+
+enum CampaignType {
+  BUYBACK
+  AIRDROP
+  LIQUIDITY
+}
+
+enum CampaignStatus {
+  ACTIVE
+  PAUSED
+  COMPLETED
+  CANCELLED
+}
+
+/// Stores durable state for long-running backend services.
+/// Used by StellarEventListener to persist the last processed event cursor
+/// so it can resume correctly after restarts without missing or replaying events.
+model IntegrationState {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
 }

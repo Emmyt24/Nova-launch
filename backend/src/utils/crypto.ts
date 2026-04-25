@@ -8,21 +8,58 @@ export function generateWebhookSecret(length: number = 32): string {
 }
 
 /**
- * Generate HMAC signature for webhook payload
+ * Generate HMAC signature for webhook payload with timestamp (v1)
+ * Format: v1.<timestamp>.<signature>
+ * Message signed: <timestamp>.<payload_string>
  */
-export function generateSignature(payload: string, secret: string): string {
-  return crypto.createHmac("sha256", secret).update(payload).digest("hex");
+export function generateWebhookSignature(
+  payload: string,
+  secret: string,
+  timestamp: number = Math.floor(Date.now() / 1000)
+): string {
+  const message = `${timestamp}.${payload}`;
+  const signature = crypto
+    .createHmac("sha256", secret)
+    .update(message)
+    .digest("hex");
+  return `v1.${timestamp}.${signature}`;
 }
 
 /**
- * Verify webhook signature
+ * Verify advanced webhook signature with replay protection (5 min window)
  */
-export function verifySignature(
+export function verifyWebhookSignature(
   payload: string,
-  signature: string,
-  secret: string
+  header: string,
+  secret: string,
+  toleranceSeconds: number = 300 // 5 minutes
 ): boolean {
-  const expectedSignature = generateSignature(payload, secret);
+  if (!header || !header.startsWith("v1.")) {
+    return false;
+  }
+
+  const parts = header.split(".");
+  if (parts.length !== 3) {
+    return false;
+  }
+
+  const timestamp = parseInt(parts[1], 10);
+  const signature = parts[2];
+
+  if (isNaN(timestamp)) {
+    return false;
+  }
+
+  // Check for replay attacks
+  const now = Math.floor(Date.now() / 1000);
+  if (Math.abs(now - timestamp) > toleranceSeconds) {
+    return false;
+  }
+
+  // Verify signature
+  const expectedHeader = generateWebhookSignature(payload, secret, timestamp);
+  const expectedSignature = expectedHeader.split(".")[2];
+
   return crypto.timingSafeEqual(
     Buffer.from(signature),
     Buffer.from(expectedSignature)

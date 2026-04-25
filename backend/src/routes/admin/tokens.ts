@@ -144,7 +144,9 @@ router.patch(
         );
       }
 
-      res.json(successResponse({ token, message: "Token updated successfully" }));
+      res.json(
+        successResponse({ token, message: "Token updated successfully" })
+      );
     } catch (error) {
       if (error instanceof z.ZodError) {
         return res.status(400).json(

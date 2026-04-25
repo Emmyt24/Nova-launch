@@ -1,0 +1,288 @@
+/**
+ * Governance Proposal List Component
+ * Displays governance proposals from backend governance APIs.
+ * 
+ * Issue: #617 - Add Governance Read Integration to Frontend Dashboard
+ */
+
+import { useState, useEffect, useCallback } from 'react';
+import { Card } from '../UI/Card';
+import { Spinner } from '../UI/Spinner';
+import { Button } from '../UI/Button';
+import { truncateAddress } from '../../utils/formatting';
+import {
+    fetchProposals,
+    type ProposalParams,
+} from '../../services/governanceApi';
+import type { GovernanceProposal, ProposalStatus } from '../../types';
+
+export interface ProposalListProps {
+    /** Filter by status */
+    status?: ProposalStatus;
+    /** Filter by creator */
+    creator?: string;
+    /** Number of items per page */
+    limit?: number;
+    /** Callback when proposal is selected */
+    onProposalSelect?: (proposal: GovernanceProposal) => void;
+}
+
+/**
+ * Status filter options
+ */
+const STATUS_OPTIONS: { value: ProposalStatus | ''; label: string }[] = [
+    { value: '', label: 'All' },
+    { value: 'draft', label: 'Draft' },
+    { value: 'active', label: 'Active' },
+    { value: 'passed', label: 'Passed' },
+    { value: 'failed', label: 'Failed' },
+    { value: 'executed', label: 'Executed' },
+    { value: 'cancelled', label: 'Cancelled' },
+];
+
+/**
+ * Get status badge color
+ */
+function getStatusBadge(status: ProposalStatus): string {
+    switch (status) {
+        case 'draft':
+            return 'bg-gray-100 text-gray-700';
+        case 'active':
+            return 'bg-blue-100 text-blue-700';
+        case 'passed':
+            return 'bg-green-100 text-green-700';
+        case 'failed':
+            return 'bg-red-100 text-red-700';
+        case 'executed':
+            return 'bg-purple-100 text-purple-700';
+        case 'cancelled':
+            return 'bg-yellow-100 text-yellow-700';
+        default:
+            return 'bg-gray-100 text-gray-700';
+    }
+}
+
+/**
+ * Format time remaining
+ */
+function getTimeRemaining(endsAt: number): string {
+    const now = Date.now();
+    const diff = endsAt - now;
+    
+    if (diff <= 0) return 'Ended';
+    
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+    const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    
+    if (days > 0) return `${days}d ${hours}h left`;
+    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+    if (hours > 0) return `${hours}h ${minutes}m left`;
+    return `${minutes}m left`;
+}
+
+export function ProposalList({
+    status,
+    creator,
+    limit = 10,
+    onProposalSelect,
+}: ProposalListProps) {
+    const [proposals, setProposals] = useState<GovernanceProposal[]>([]);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+    const [currentPage, setCurrentPage] = useState(1);
+    const [totalPages, setTotalPages] = useState(1);
+    const [statusFilter, setStatusFilter] = useState<ProposalStatus | ''>(status || '');
+
+    /**
+     * Fetch proposals from backend
+     */
+    const fetchData = useCallback(async (page: number) => {
+        setLoading(true);
+        setError(null);
+
+        try {
+            const params: ProposalParams = {
+                page,
+                limit,
+                sortBy: 'createdAt',
+                sortOrder: 'desc',
+            };
+
+            if (statusFilter) {
+                params.status = statusFilter;
+            }
+            if (creator) {
+                params.creator = creator;
+            }
+
+            const response = await fetchProposals(params);
+            setProposals(response.proposals);
+            setTotalPages(response.totalPages);
+            setCurrentPage(response.page);
+        } catch (err) {
+            setError(err instanceof Error ? err.message : 'Failed to fetch proposals');
+        } finally {
+            setLoading(false);
+        }
+    }, [statusFilter, creator, limit]);
+
+    // Fetch on filter change
+    useEffect(() => {
+        fetchData(1);
+    }, [fetchData]);
+
+    /**
+     * Handle page change
+     */
+    const handlePageChange = (page: number) => {
+        fetchData(page);
+    };
+
+    /**
+     * Handle proposal click
+     */
+    const handleProposalClick = (proposal: GovernanceProposal) => {
+        onProposalSelect?.(proposal);
+    };
+
+    return (
+        <Card className="p-4">
+            <h2 className="text-xl font-bold text-gray-900 mb-4">Governance Proposals</h2>
+
+            {/* Status filter */}
+            <div className="flex flex-wrap gap-2 mb-4">
+                {STATUS_OPTIONS.map((opt) => (
+                    <button
+                        key={opt.value}
+                        onClick={() => setStatusFilter(opt.value)}
+                        className={`px-3 py-1 text-sm rounded-full transition-colors ${
+                            statusFilter === opt.value
+                                ? 'bg-blue-600 text-white'
+                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        }`}
+                    >
+                        {opt.label}
+                    </button>
+                ))}
+            </div>
+
+            {/* Loading state */}
+            {loading && (
+                <div className="flex justify-center py-8">
+                    <Spinner size="lg" />
+                </div>
+            )}
+
+            {/* Error state */}
+            {error && (
+                <div className="text-center py-8">
+                    <p className="text-red-600 mb-4">{error}</p>
+                    <Button variant="outline" onClick={() => fetchData(currentPage)}>
+                        Try Again
+                    </Button>
+                </div>
+            )}
+
+            {/* Proposal list */}
+            {!loading && !error && (
+                <div className="space-y-4">
+                    {proposals.length === 0 ? (
+                        <div className="text-center py-8 text-gray-500">
+                            No proposals found
+                        </div>
+                    ) : (
+                        proposals.map((proposal) => (
+                            <div
+                                key={proposal.id}
+                                onClick={() => handleProposalClick(proposal)}
+                                className="p-4 border rounded-lg hover:bg-gray-50 cursor-pointer transition-colors"
+                            >
+                                <div className="flex items-start justify-between mb-2">
+                                    <div>
+                                        <h3 className="font-medium text-gray-900">
+                                            {proposal.title}
+                                        </h3>
+                                        <p className="text-sm text-gray-500 mt-1">
+                                            {proposal.description.substring(0, 100)}...
+                                        </p>
+                                    </div>
+                                    <span
+                                        className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusBadge(proposal.status)}`}
+                                    >
+                                        {proposal.status}
+                                    </span>
+                                </div>
+
+                                <div className="flex items-center justify-between text-sm text-gray-500 mt-3">
+                                    <div className="flex items-center gap-4">
+                                        <span>
+                                            By: {truncateAddress(proposal.creator)}
+                                        </span>
+                                        <span>
+                                            Votes: {proposal.voteCount}
+                                        </span>
+                                    </div>
+                                    <div className="flex items-center gap-4">
+                                        {proposal.status === 'active' && (
+                                            <span className="text-blue-600">
+                                                {getTimeRemaining(proposal.votingEndsAt)}
+                                            </span>
+                                        )}
+                                        <span>
+                                            {new Date(proposal.createdAt).toLocaleDateString()}
+                                        </span>
+                                    </div>
+                                </div>
+
+                                {/* Vote progress bar */}
+                                {proposal.status === 'active' && (
+                                    <div className="mt-3">
+                                        <div className="flex justify-between text-xs text-gray-500 mb-1">
+                                            <span>For: {proposal.votesFor}</span>
+                                            <span>Against: {proposal.votesAgainst}</span>
+                                        </div>
+                                        <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+                                            <div
+                                                className="h-full bg-green-500"
+                                                style={{
+                                                    width: `${(parseInt(proposal.votesFor) / (parseInt(proposal.votesFor) + parseInt(proposal.votesAgainst))) * 100}%`,
+                                                }}
+                                            />
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        ))
+                    )}
+                </div>
+            )}
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+                <div className="flex items-center justify-center gap-2 mt-4">
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={currentPage === 1}
+                        onClick={() => handlePageChange(currentPage - 1)}
+                    >
+                        Previous
+                    </Button>
+                    <span className="text-sm text-gray-600">
+                        Page {currentPage} of {totalPages}
+                    </span>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={currentPage === totalPages}
+                        onClick={() => handlePageChange(currentPage + 1)}
+                    >
+                        Next
+                    </Button>
+                </div>
+            )}
+        </Card>
+    );
+}
+
+export default ProposalList;

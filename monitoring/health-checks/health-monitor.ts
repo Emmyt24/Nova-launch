@@ -1,6 +1,7 @@
 /**
  * Health Check System for Nova Launch
  * Provides comprehensive health monitoring for all system components
+ * Including projection lag threshold monitoring for backend indexing
  */
 
 import { EventEmitter } from 'events';
@@ -11,13 +12,18 @@ import { MetricsCollector } from '../metrics/prometheus-config';
 // Health check configuration
 interface HealthCheckConfig {
   name: string;
-  type: 'http' | 'database' | 'rpc' | 'custom';
+  type: 'http' | 'database' | 'rpc' | 'custom' | 'projection-lag';
   interval: number; // milliseconds
   timeout: number; // milliseconds
   retries: number;
   critical: boolean; // affects overall system health status
   url?: string;
   customCheck?: () => Promise<boolean>;
+  lagThresholdConfig?: {
+    warningThresholdMs?: number;
+    criticalThresholdMs?: number;
+    queryFn?: () => Promise<{ average: number; max: number; count: number }>;
+  };
 }
 
 interface HealthCheckResult {
@@ -26,6 +32,14 @@ interface HealthCheckResult {
   responseTime: number;
   error?: string;
   timestamp: Date;
+  metadata?: Record<string, unknown>; // For projection lag metrics
+}
+
+interface ProjectionLagHealthDetail {
+  averageLag: number;
+  maxLag: number;
+  measurementCount: number;
+  status: 'healthy' | 'warning' | 'critical';
 }
 
 /**
@@ -75,6 +89,7 @@ export class HealthMonitor extends EventEmitter {
     const startTime = Date.now();
     let healthy = false;
     let error: string | undefined;
+    let metadata: Record<string, unknown> | undefined;
 
     try {
       switch (config.type) {
@@ -84,6 +99,16 @@ export class HealthMonitor extends EventEmitter {
               timeout: config.timeout,
             });
             healthy = response.status >= 200 && response.status < 300;
+          }
+          break;
+
+        case 'projection-lag':
+          // Projection lag health check
+          if (config.lagThresholdConfig?.queryFn) {
+            const result = await this.checkProjectionLag(config);
+            healthy = result.healthy;
+            metadata = result.metadata;
+            error = result.error;
           }
           break;
 
@@ -109,6 +134,7 @@ export class HealthMonitor extends EventEmitter {
       responseTime,
       error,
       timestamp: new Date(),
+      metadata,
     };
 
     this.results.set(config.name, result);
@@ -118,6 +144,7 @@ export class HealthMonitor extends EventEmitter {
       healthy,
       responseTime,
       error,
+      metadata,
     });
 
     // Record metrics
@@ -137,10 +164,84 @@ export class HealthMonitor extends EventEmitter {
   }
 
   /**
+   * Check projection lag against configured thresholds
+   */
+  private async checkProjectionLag(config: HealthCheckConfig): Promise<{
+    healthy: boolean;
+    error?: string;
+    metadata?: Record<string, unknown>;
+  }> {
+    try {
+      if (!config.lagThresholdConfig?.queryFn) {
+        return {
+          healthy: false,
+          error: 'Projection lag query function not configured',
+        };
+      }
+
+      const lagMetrics = await config.lagThresholdConfig.queryFn();
+      const warningThreshold = config.lagThresholdConfig.warningThresholdMs ?? 30000;
+      const criticalThreshold = config.lagThresholdConfig.criticalThresholdMs ?? 60000;
+
+      let status: 'healthy' | 'warning' | 'critical' = 'healthy';
+      if (lagMetrics.average >= criticalThreshold) {
+        status = 'critical';
+      } else if (lagMetrics.average >= warningThreshold) {
+        status = 'warning';
+      }
+
+      const healthy = status === 'healthy';
+
+      if (!healthy) {
+        structuredLogger.warn('Projection lag threshold exceeded', {
+          status,
+          averageLag: lagMetrics.average,
+          maxLag: lagMetrics.max,
+          threshold: status === 'critical' ? criticalThreshold : warningThreshold,
+        });
+      }
+
+      return {
+        healthy,
+        metadata: {
+          averageLag: lagMetrics.average,
+          maxLag: lagMetrics.max,
+          measurementCount: lagMetrics.count,
+          status,
+          warningThreshold,
+          criticalThreshold,
+        },
+      };
+    } catch (err) {
+      return {
+        healthy: false,
+        error: err instanceof Error ? err.message : 'Unknown error checking projection lag',
+      };
+    }
+  }
+
+  /**
    * Get all health check results
    */
   getResults(): HealthCheckResult[] {
     return Array.from(this.results.values());
+  }
+
+  /**
+   * Get projection lag health details if available
+   */
+  getProjectionLagHealth(): ProjectionLagHealthDetail | null {
+    const result = this.results.get('projection-lag');
+    if (!result?.metadata) {
+      return null;
+    }
+
+    return {
+      averageLag: (result.metadata.averageLag as number) ?? 0,
+      maxLag: (result.metadata.maxLag as number) ?? 0,
+      measurementCount: (result.metadata.measurementCount as number) ?? 0,
+      status: (result.metadata.status as 'healthy' | 'warning' | 'critical') ?? 'healthy',
+    };
   }
 
   /**
@@ -151,6 +252,27 @@ export class HealthMonitor extends EventEmitter {
     const healthy = results.every((r) => r.healthy);
 
     return { healthy, checks: results };
+  }
+
+  /**
+   * Fetch and log expanded dependency health from the backend /health/ready endpoint.
+   * Returns null if the endpoint is unreachable.
+   */
+  async fetchBackendHealth(backendUrl: string): Promise<Record<string, unknown> | null> {
+    try {
+      const response = await axios.get(`${backendUrl}/health/ready`, { timeout: 5000 });
+      const data = response.data?.data ?? response.data;
+      structuredLogger.info('Backend dependency health', {
+        status: data?.status,
+        services: data?.services,
+      });
+      return data as Record<string, unknown>;
+    } catch (err) {
+      structuredLogger.warn('Failed to fetch backend health', {
+        error: err instanceof Error ? err.message : String(err),
+      });
+      return null;
+    }
   }
 
   /**

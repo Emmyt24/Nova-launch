@@ -3,12 +3,45 @@
  */
 
 export const STELLAR_ADDRESS_REGEX = /^G[A-Z2-7]{55}$/;
+/** Soroban contract IDs are 56-char base32 strings starting with 'C'. */
+export const CONTRACT_ID_REGEX = /^C[A-Z2-7]{55}$/;
 
 /**
  * Validate Stellar address format
  */
 export function isValidStellarAddress(address: string): boolean {
     return STELLAR_ADDRESS_REGEX.test(address);
+}
+
+/**
+ * Validate a Soroban contract ID format.
+ */
+export function isValidContractId(id: string): boolean {
+    return CONTRACT_ID_REGEX.test(id);
+}
+
+/**
+ * Check whether a contract ID is plausibly for the given network.
+ * This is a heuristic — contract IDs don't encode network, but a
+ * misconfigured env (e.g. testnet ID used on mainnet) is caught at
+ * startup by validateContractId() in stellar.ts. This helper is for
+ * runtime UI warnings when the wallet network differs from the app config.
+ */
+export function checkNetworkContractMismatch(
+    contractId: string,
+    walletNetwork: 'testnet' | 'mainnet',
+    configuredNetwork: 'testnet' | 'mainnet'
+): { mismatch: boolean; message?: string } {
+    if (!isValidContractId(contractId)) {
+        return { mismatch: true, message: `Contract ID "${contractId}" is malformed. Expected a 56-character ID starting with "C".` };
+    }
+    if (walletNetwork !== configuredNetwork) {
+        return {
+            mismatch: true,
+            message: `Your wallet is on ${walletNetwork} but the app is configured for ${configuredNetwork}. Switch your wallet network or update VITE_NETWORK.`,
+        };
+    }
+    return { mismatch: false };
 }
 
 /**

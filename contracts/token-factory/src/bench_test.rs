@@ -350,3 +350,241 @@ fn bench_baseline_report() {
         assert!(*mem > 0, "Memory cost for '{op}' should be non-zero");
     }
 }
+
+// ---------------------------------------------------------------------------
+// Streaming Operation Benchmarks
+// ---------------------------------------------------------------------------
+
+/// Benchmark: `create_stream()` gas consumption
+///
+/// Measures the cost of creating a new stream including:
+/// - Stream ID generation
+/// - Stream info storage
+/// - Event emission
+#[test]
+fn bench_create_stream() {
+    let (setup, _contract_id) = BenchSetup::initialized();
+    let creator = Address::generate(&setup.env);
+    let recipient = Address::generate(&setup.env);
+
+    let (cpu, mem) = measure(&setup.env, || {
+        let params = StreamParams {
+            recipient: recipient.clone(),
+            token_index: 0,
+            total_amount: 1_000_000_0000000,
+            start_time: 100,
+            end_time: 200,
+            cliff_time: 150,
+        };
+        let _ = streaming::create_stream(&setup.env, &creator, &params);
+    });
+
+    println!("[bench_create_stream] cpu_instructions={cpu}, memory_bytes={mem}");
+    assert!(cpu > 0, "CPU cost for create_stream should be non-zero");
+    assert!(mem > 0, "Memory cost for create_stream should be non-zero");
+}
+
+/// Benchmark: `claim_stream()` gas consumption
+///
+/// Measures the cost of claiming vested tokens including:
+/// - Vesting calculation
+/// - Amount validation
+/// - Storage updates
+/// - Event emission
+#[test]
+fn bench_claim_stream() {
+    let (setup, _contract_id) = BenchSetup::initialized();
+    let creator = Address::generate(&setup.env);
+    let recipient = Address::generate(&setup.env);
+
+    // Create a stream first
+    let params = StreamParams {
+        recipient: recipient.clone(),
+        token_index: 0,
+        total_amount: 1_000_000_0000000,
+        start_time: 100,
+        end_time: 200,
+        cliff_time: 150,
+    };
+    let stream_id = streaming::create_stream(&setup.env, &creator, &params).unwrap();
+
+    // Advance time to cliff
+    setup.env.ledger().with_mut(|li| {
+        li.timestamp = 150;
+    });
+
+    let (cpu, mem) = measure(&setup.env, || {
+        let _ = streaming::claim_stream(&setup.env, &recipient, stream_id);
+    });
+
+    println!("[bench_claim_stream] cpu_instructions={cpu}, memory_bytes={mem}");
+    assert!(cpu > 0, "CPU cost for claim_stream should be non-zero");
+    assert!(mem > 0, "Memory cost for claim_stream should be non-zero");
+}
+
+/// Benchmark: `cancel_stream()` gas consumption
+///
+/// Measures the cost of cancelling a stream including:
+/// - Authorization check
+/// - Stream state update
+/// - Event emission
+#[test]
+fn bench_cancel_stream() {
+    let (setup, _contract_id) = BenchSetup::initialized();
+    let creator = Address::generate(&setup.env);
+    let recipient = Address::generate(&setup.env);
+
+    // Create a stream first
+    let params = StreamParams {
+        recipient: recipient.clone(),
+        token_index: 0,
+        total_amount: 1_000_000_0000000,
+        start_time: 100,
+        end_time: 200,
+        cliff_time: 150,
+    };
+    let stream_id = streaming::create_stream(&setup.env, &creator, &params).unwrap();
+
+    let (cpu, mem) = measure(&setup.env, || {
+        let _ = streaming::cancel_stream(&setup.env, &creator, stream_id);
+    });
+
+    println!("[bench_cancel_stream] cpu_instructions={cpu}, memory_bytes={mem}");
+    assert!(cpu > 0, "CPU cost for cancel_stream should be non-zero");
+    assert!(mem > 0, "Memory cost for cancel_stream should be non-zero");
+}
+
+/// Benchmark: `get_claimable_amount()` gas consumption
+///
+/// Measures the cost of calculating claimable amount including:
+/// - Stream lookup
+/// - Vesting calculation
+/// - Time-based computation
+#[test]
+fn bench_get_claimable_amount() {
+    let (setup, _contract_id) = BenchSetup::initialized();
+    let creator = Address::generate(&setup.env);
+    let recipient = Address::generate(&setup.env);
+
+    // Create a stream first
+    let params = StreamParams {
+        recipient: recipient.clone(),
+        token_index: 0,
+        total_amount: 1_000_000_0000000,
+        start_time: 100,
+        end_time: 200,
+        cliff_time: 150,
+    };
+    let stream_id = streaming::create_stream(&setup.env, &creator, &params).unwrap();
+
+    // Advance time to middle of vesting
+    setup.env.ledger().with_mut(|li| {
+        li.timestamp = 175;
+    });
+
+    let (cpu, mem) = measure(&setup.env, || {
+        let _ = streaming::get_claimable_amount(&setup.env, stream_id);
+    });
+
+    println!("[bench_get_claimable_amount] cpu_instructions={cpu}, memory_bytes={mem}");
+    assert!(cpu > 0, "CPU cost for get_claimable_amount should be non-zero");
+    assert!(mem > 0, "Memory cost for get_claimable_amount should be non-zero");
+}
+
+/// Benchmark: Streaming operations comprehensive report
+///
+/// Generates a comprehensive report of all streaming operation gas costs
+#[test]
+fn bench_streaming_comprehensive_report() {
+    let (setup, _contract_id) = BenchSetup::initialized();
+    let creator = Address::generate(&setup.env);
+    let recipient = Address::generate(&setup.env);
+
+    // Create stream
+    let params = StreamParams {
+        recipient: recipient.clone(),
+        token_index: 0,
+        total_amount: 1_000_000_0000000,
+        start_time: 100,
+        end_time: 200,
+        cliff_time: 150,
+    };
+    let stream_id = streaming::create_stream(&setup.env, &creator, &params).unwrap();
+
+    // Measure create_stream
+    let (cpu_create, mem_create) = measure(&setup.env, || {
+        let params = StreamParams {
+            recipient: recipient.clone(),
+            token_index: 0,
+            total_amount: 1_000_000_0000000,
+            start_time: 100,
+            end_time: 200,
+            cliff_time: 150,
+        };
+        let _ = streaming::create_stream(&setup.env, &creator, &params);
+    });
+
+    // Advance time to cliff
+    setup.env.ledger().with_mut(|li| {
+        li.timestamp = 150;
+    });
+
+    // Measure claim_stream
+    let (cpu_claim, mem_claim) = measure(&setup.env, || {
+        let _ = streaming::claim_stream(&setup.env, &recipient, stream_id);
+    });
+
+    // Measure get_claimable_amount
+    let (cpu_claimable, mem_claimable) = measure(&setup.env, || {
+        let _ = streaming::get_claimable_amount(&setup.env, stream_id);
+    });
+
+    // Measure cancel_stream
+    let (cpu_cancel, mem_cancel) = measure(&setup.env, || {
+        let _ = streaming::cancel_stream(&setup.env, &creator, stream_id);
+    });
+
+    // Print comprehensive report
+    println!();
+    println!("Nova-Launch Streaming Operations — Gas Consumption Benchmark");
+    println!("Generated by bench_streaming_comprehensive_report");
+    println!();
+    println!(
+        "{:<35} {:>18} {:>14}",
+        "Operation", "CPU Instructions", "Memory Bytes"
+    );
+    println!("{}", "-".repeat(70));
+
+    let rows: &[(&str, u64, u64)] = &[
+        ("create_stream", cpu_create, mem_create),
+        ("claim_stream", cpu_claim, mem_claim),
+        ("get_claimable_amount", cpu_claimable, mem_claimable),
+        ("cancel_stream", cpu_cancel, mem_cancel),
+    ];
+
+    for (op, cpu, mem) in rows {
+        println!("{:<35} {:>18} {:>14}", op, cpu, mem);
+    }
+
+    println!("{}", "-".repeat(70));
+    println!();
+
+    // Sanity checks
+    for (op, cpu, mem) in rows {
+        assert!(*cpu > 0, "CPU cost for '{op}' should be non-zero");
+        assert!(*mem > 0, "Memory cost for '{op}' should be non-zero");
+    }
+
+    // Performance assertions
+    // create_stream should be more expensive than claim_stream
+    assert!(
+        cpu_create > cpu_claim,
+        "create_stream should be more expensive than claim_stream"
+    );
+
+    // get_claimable_amount should be cheaper than claim_stream
+    assert!(
+        cpu_claimable < cpu_claim,
+        "get_claimable_amount should be cheaper than claim_stream"
+    );
+}

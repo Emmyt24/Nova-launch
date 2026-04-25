@@ -4,11 +4,15 @@ import { useWallet } from "./hooks/useWallet";
 import { Spinner, ErrorBoundary } from "./components/UI";
 import { DashboardLayout } from "./components/Layout";
 import { PerformanceDashboard } from "./components/PerformanceDashboard";
+import { PWAUpdateNotification } from "./components/PWA";
+import { IntegrationVersionBanner } from "./components/IntegrationVersionBanner";
+import type { CompatibilityInfo } from "./components/IntegrationVersionBanner";
 
 // Lazy load pages
 const LandingPage = lazy(() => import("./pages/LandingPage"));
 const NotFoundRoute = lazy(() => import("./routes/NotFoundRoute"));
 const RecurringPayments = lazy(() => import("./app/dashboard/RecurringPayments"));
+const CampaignDashboard = lazy(() => import("./app/dashboard/CampaignDashboard"));
 
 // Loading fallback
 function PageLoader() {
@@ -31,7 +35,7 @@ function normalizePath(pathname: string): string {
   return pathname || "/";
 }
 
-function App() {
+function App({ compatibilityInfo }: { compatibilityInfo?: CompatibilityInfo }) {
   const [pathname, setPathname] = useState(() =>
     normalizePath(window.location.pathname)
   );
@@ -79,6 +83,20 @@ function App() {
   }, [pathname]);
 
   const page = useMemo(() => {
+    if (pathname === "/campaign-dashboard") {
+      return (
+        <DashboardLayout
+          wallet={wallet}
+          onConnect={connect}
+          onDisconnect={disconnect}
+          isConnecting={isConnecting}
+          currentPath={pathname}
+        >
+          <CampaignDashboard />
+        </DashboardLayout>
+      );
+    }
+
     if (pathname === "/recurring-payments") {
       return (
         <DashboardLayout
@@ -109,15 +127,17 @@ function App() {
 
   return (
     <ErrorBoundary>
-      <a href="#main-content" className="skip-to-main">
-        Skip to main content
-      </a>
-
+      {compatibilityInfo && (
+        <IntegrationVersionBanner info={compatibilityInfo} />
+      )}
       <Suspense fallback={<PageLoader />}>
         <div id="main-content" tabIndex={-1}>
           {page}
         </div>
       </Suspense>
+
+      {/* PWA Update Notification */}
+      <PWAUpdateNotification />
 
       {/* Performance Dashboard (Dev only) */}
       <PerformanceDashboard />

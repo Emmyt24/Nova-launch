@@ -14,7 +14,7 @@ const MAX_METRICS = 1000;
 
 export function recordMetric(metric: PerformanceMetrics): void {
   metrics.push(metric);
-  
+
   // Keep only the last MAX_METRICS entries
   if (metrics.length > MAX_METRICS) {
     metrics.shift();
@@ -23,14 +23,14 @@ export function recordMetric(metric: PerformanceMetrics): void {
 
 export function getAverageQueryTime(): number {
   if (metrics.length === 0) return 0;
-  
+
   const total = metrics.reduce((sum, m) => sum + m.queryTime, 0);
   return total / metrics.length;
 }
 
 export function getCacheHitRate(): number {
   if (metrics.length === 0) return 0;
-  
+
   const cacheHits = metrics.filter((m) => m.cacheHit).length;
   return (cacheHits / metrics.length) * 100;
 }
@@ -57,6 +57,6 @@ export async function measureTime<T>(
   const start = performance.now();
   const result = await fn();
   const duration = performance.now() - start;
-  
+
   return { result, duration };
 }

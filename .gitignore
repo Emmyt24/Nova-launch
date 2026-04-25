@@ -1,6 +1,12 @@
 # Dependencies
 node_modules/
 target/
+**/target/
+**/package-lock.json
+**/pnpm-lock.yaml
+**/yarn.lock
+**/bun.lockb
+**/Cargo.lock
 
 # Environment
 .env
@@ -33,15 +39,35 @@ npm-debug.log*
 # Documentation (excluding specific files)
 *.md
 !README.md
-!.nova/specs/stellar-token-deployer/design.md
+!CI_CD_GUIDE.md
+!.nova/specs/**/design.md
+!.nova/specs/**/requirements.md
+!.nova/specs/**/tasks.md
 !contracts/token-factory/TESTING.md
 !DEPLOYMENT_GUIDE.md
 !DEPLOYMENT_CHECKLIST.md
+!docs/buyback-lifecycle-e2e.md
+!docs/FULLSTACK_SMOKE_TEST.md
 !CONFLICT_AND_CI_REPORT.md
 !GLOBAL_ERROR_HANDLING.md
 !docs/user-guides/*.md
+!docs/ENVIRONMENT_INTEGRATION.md
+!docs/PRODUCTION_INTEGRATION_RUNBOOK.md
+!docs/CONTRACT_UPGRADE_COMPATIBILITY.md
+!docs/MAINNET_READINESS_CHECKLIST.md
+!docs/INTEGRATION_METRICS.md
+!docs/PRODUCTION_READINESS_GATE.md
 !ACCESSIBILITY_TESTING_GUIDE.md
+!TEST_ARTIFACTS_GUIDE.md
+!TEST_ARTIFACTS_QUICK_REF.md
+!TEST_ARTIFACTS_IMPLEMENTATION.md
+!TEST_ARTIFACTS_CHECKLIST.md
+!TEST_ARTIFACTS_GUIDE.md
+!TEST_ARTIFACTS_QUICK_REF.md
 
 # Deployment artifacts (generated during deployment)
 deployment-testnet.json
 deployment-mainnet.json
+
+# Test artifacts (generated during test failures)
+test-artifacts/

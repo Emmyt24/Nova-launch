@@ -39,6 +39,7 @@ cp .env.example .env
 ```
 
 Required environment variables:
+
 - `PORT` - Server port (default: 3001)
 - `ADMIN_JWT_SECRET` - Secret for admin JWT tokens
 - `DATABASE_URL` - Database connection string
@@ -67,7 +68,191 @@ npm start
 npm test
 ```
 
+Run the rate limiter tests specifically:
+
+```bash
+npm test src/middleware/rateLimiter.test.ts
+```
+
+Run the database pool chaos spec directly when validating exhaustion handling:
+
+```bash
+npm test backend/src/__tests__/chaos.db-pool.test.ts
+```
+
+This spec covers concurrent query saturation, client acquisition failures,
+and safe shutdown behavior for the pg pool wrapper.
+
+## Rate Limiting
+
+The API uses a **Redis-backed sliding-window rate limiter** (`src/middleware/rateLimiter.ts`).
+
+### How it works
+
+Each request is recorded as a timestamped entry in a Redis sorted set. On every
+request the middleware:
+
+1. Removes entries older than the window (`ZREMRANGEBYSCORE`).
+2. Adds the current timestamp (`ZADD`).
+3. Counts remaining entries (`ZCARD`).
+4. Refreshes the key TTL (`EXPIRE`).
+
+All four operations run in a single atomic pipeline, making the counter safe
+for distributed deployments.
+
+### Fail-open behaviour
+
+If Redis is unavailable the middleware calls `next()` and allows the request
+through. This prevents a cache outage from taking down the API.
+
+### Response headers
+
+| Header | Description |
+|---|---|
+| `X-RateLimit-Limit` | Configured maximum requests per window |
+| `X-RateLimit-Remaining` | Requests remaining in the current window |
+| `X-RateLimit-Reset` | Unix timestamp (seconds) when the window resets |
+| `Retry-After` | Seconds until the client may retry (only on 429) |
+
+### Configuration
+
+| Environment variable | Default | Description |
+|---|---|---|
+| `REDIS_URL` | `redis://localhost:6379` | Redis connection URL |
+| `RATE_LIMIT_WINDOW_MS` | `900000` (15 min) | Window size in milliseconds |
+| `RATE_LIMIT_MAX_REQUESTS` | `100` | Max requests per window (global limiter) |
+
+### Pre-configured limiters
+
+| Export | Max requests | Key prefix | Used for |
+|---|---|---|---|
+| `globalRateLimiter` | 100 / 15 min | `rl:global` | All API routes |
+| `webhookRateLimiter` | 20 / 15 min | `rl:webhook` | Webhook subscription endpoints |
+
+### Custom limiter
+
+```typescript
+import { createRateLimiter, createRedisClient } from "./middleware/rateLimiter";
+
+const redis = createRedisClient();
+const limiter = createRateLimiter(redis, {
+  windowMs: 60_000,   // 1 minute
+  max: 30,
+  keyPrefix: "rl:myroute",
+  message: "Slow down!",
+});
+
+app.use("/api/my-route", limiter);
+```
+
 ## API Endpoints
+
+### Governance API
+
+Public endpoints for governance proposals and voting. No authentication required.
+
+#### GET /api/governance/proposals
+
+Returns all governance proposals with optional filters.
+
+**Query Parameters:**
+
+- `status` - Filter by status: `ACTIVE`, `PASSED`, `REJECTED`, `EXECUTED`, `CANCELLED`, `EXPIRED`
+- `proposalType` - Filter by type: `PARAMETER_CHANGE`, `ADMIN_TRANSFER`, `TREASURY_SPEND`, `CONTRACT_UPGRADE`, `CUSTOM`
+- `tokenId` - Filter by token ID
+- `proposer` - Filter by proposer address
+- `limit` - Results per page: 1-100 (default: `50`)
+- `offset` - Pagination offset (default: `0`)
+- `sortBy` - Sort field: `createdAt`, `startTime`, `endTime` (default: `createdAt`)
+- `sortOrder` - Sort order: `asc`, `desc` (default: `desc`)
+
+**Response:**
+
+```json
+{
+  "success": true,
+  "data": {
+    "proposals": [...],
+    "total": 45,
+    "limit": 50,
+    "offset": 0
+  }
+}
+```
+
+#### GET /api/governance/proposals/:proposalId
+
+Returns detailed proposal information with analytics.
+
+**Response:**
+
+```json
+{
+  "success": true,
+  "data": {
+    "proposal": {...},
+    "analytics": {
+      "totalVotes": 150,
+      "votesFor": "750000",
+      "votesAgainst": "250000",
+      "participationRate": 75.5,
+      "uniqueVoters": 150
+    }
+  }
+}
+```
+
+#### GET /api/governance/proposals/:proposalId/votes
+
+Returns all votes for a specific proposal.
+
+**Query Parameters:**
+
+- `limit` - Results per page: 1-100 (default: `100`)
+- `offset` - Pagination offset (default: `0`)
+
+#### GET /api/governance/proposals/:proposalId/execution
+
+Returns execution status and history for a proposal.
+
+**Response:**
+
+```json
+{
+  "success": true,
+  "data": {
+    "proposalId": 1,
+    "status": "EXECUTED",
+    "executedAt": "2024-01-09T00:00:00.000Z",
+    "executions": [...],
+    "isExecuted": true,
+    "canExecute": false
+  }
+}
+```
+
+#### GET /api/governance/stats
+
+Returns overall governance statistics.
+
+#### GET /api/governance/voters/:address
+
+Returns voting statistics for a specific address.
+
+**Features:**
+
+- ✅ Input validation with express-validator
+- ✅ Pagination support
+- ✅ Comprehensive error handling
+- ✅ OpenAPI documentation
+- ✅ Full test coverage
+
+**Documentation:**
+
+- [Full API Documentation](GOVERNANCE_API.md)
+- [Quick Reference](GOVERNANCE_API_QUICK_REF.md)
+
+---
 
 ### Token Leaderboard API
 
@@ -78,11 +263,13 @@ Public endpoints for token rankings and leaderboards. No authentication required
 Returns tokens with the highest burn volume.
 
 **Query Parameters:**
+
 - `period` - Time period: `24h`, `7d`, `30d`, `all` (default: `7d`)
 - `page` - Page number: 1-100 (default: `1`)
 - `limit` - Results per page: 1-100 (default: `10`)
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -126,6 +313,7 @@ Returns tokens with the most burn transactions.
 Returns recently created tokens.
 
 **Query Parameters:**
+
 - `page` - Page number
 - `limit` - Results per page
 
@@ -148,12 +336,14 @@ Returns tokens with the most unique burners.
 **Metric:** Number of unique addresses that burned tokens
 
 **Features:**
+
 - ✅ Server-side caching (5-minute TTL)
 - ✅ Rate limiting (100 requests per 15 minutes)
 - ✅ Optimized database queries with indexes
 - ✅ Comprehensive error handling
 
 **Documentation:**
+
 - [Full API Documentation](LEADERBOARD_API.md)
 - [Quick Reference](LEADERBOARD_QUICK_REF.md)
 
@@ -172,6 +362,7 @@ Authorization: Bearer <admin_jwt_token>
 #### GET /api/admin/stats
 
 Get platform statistics including:
+
 - Total tokens created
 - Total burns executed
 - Total volume burned
@@ -181,6 +372,7 @@ Get platform statistics including:
 - Growth metrics (daily/weekly/monthly)
 
 **Response:**
+
 ```json
 {
   "totalTokens": 150,
@@ -194,9 +386,24 @@ Get platform statistics including:
     "avgResponseTime": 150
   },
   "growth": {
-    "daily": { "newTokens": 5, "newUsers": 12, "burnVolume": "50000", "revenue": "250" },
-    "weekly": { "newTokens": 28, "newUsers": 67, "burnVolume": "300000", "revenue": "1500" },
-    "monthly": { "newTokens": 120, "newUsers": 250, "burnVolume": "900000", "revenue": "4500" }
+    "daily": {
+      "newTokens": 5,
+      "newUsers": 12,
+      "burnVolume": "50000",
+      "revenue": "250"
+    },
+    "weekly": {
+      "newTokens": 28,
+      "newUsers": 67,
+      "burnVolume": "300000",
+      "revenue": "1500"
+    },
+    "monthly": {
+      "newTokens": 120,
+      "newUsers": 250,
+      "burnVolume": "900000",
+      "revenue": "4500"
+    }
   }
 }
 ```
@@ -208,12 +415,14 @@ Get platform statistics including:
 List all tokens with optional filters.
 
 **Query Parameters:**
+
 - `flagged` - Filter by flagged status (true/false)
 - `deleted` - Include deleted tokens (true/false)
 - `creator` - Filter by creator address
 - `search` - Search by name, symbol, or address
 
 **Response:**
+
 ```json
 {
   "tokens": [...],
@@ -226,6 +435,7 @@ List all tokens with optional filters.
 Get detailed token information including creator details.
 
 **Response:**
+
 ```json
 {
   "token": {
@@ -259,6 +469,7 @@ Update token (flag/unflag, update metadata).
 **Permissions:** Admin or Super Admin
 
 **Request Body:**
+
 ```json
 {
   "flagged": true,
@@ -282,11 +493,13 @@ Soft delete a token.
 List all users with optional filters.
 
 **Query Parameters:**
+
 - `banned` - Filter by banned status (true/false)
 - `role` - Filter by role (user/admin/super_admin)
 - `search` - Search by address or ID
 
 **Response:**
+
 ```json
 {
   "users": [...],
@@ -299,6 +512,7 @@ List all users with optional filters.
 Get user details with activity and tokens.
 
 **Response:**
+
 ```json
 {
   "user": {...},
@@ -319,6 +533,7 @@ Update user (ban/unban, change role).
 **Permissions:** Super Admin only
 
 **Request Body:**
+
 ```json
 {
   "banned": true,
@@ -339,6 +554,7 @@ Export user data including all tokens and activity.
 Get audit logs with filters and pagination.
 
 **Query Parameters:**
+
 - `adminId` - Filter by admin ID
 - `action` - Filter by action type
 - `resource` - Filter by resource type
@@ -348,6 +564,7 @@ Get audit logs with filters and pagination.
 - `offset` - Pagination offset (default: 0)
 
 **Response:**
+
 ```json
 {
   "logs": [...],
@@ -378,19 +595,20 @@ Export audit logs as JSON file.
 
 ### Permission Matrix
 
-| Endpoint | User | Admin | Super Admin |
-|----------|------|-------|-------------|
-| GET /api/admin/stats | ❌ | ✅ | ✅ |
-| GET /api/admin/tokens | ❌ | ✅ | ✅ |
-| PATCH /api/admin/tokens/:id | ❌ | ✅ | ✅ |
-| DELETE /api/admin/tokens/:id | ❌ | ❌ | ✅ |
-| GET /api/admin/users | ❌ | ✅ | ✅ |
-| PATCH /api/admin/users/:id | ❌ | ❌ | ✅ |
-| GET /api/admin/audit | ❌ | ✅ | ✅ |
+| Endpoint                     | User | Admin | Super Admin |
+| ---------------------------- | ---- | ----- | ----------- |
+| GET /api/admin/stats         | ❌   | ✅    | ✅          |
+| GET /api/admin/tokens        | ❌   | ✅    | ✅          |
+| PATCH /api/admin/tokens/:id  | ❌   | ✅    | ✅          |
+| DELETE /api/admin/tokens/:id | ❌   | ❌    | ✅          |
+| GET /api/admin/users         | ❌   | ✅    | ✅          |
+| PATCH /api/admin/users/:id   | ❌   | ❌    | ✅          |
+| GET /api/admin/audit         | ❌   | ✅    | ✅          |
 
 ## Audit Logging
 
 All admin actions are automatically logged with:
+
 - Admin ID
 - Action type (method + endpoint)
 - Resource type and ID
@@ -422,6 +640,7 @@ All endpoints return consistent error responses:
 ```
 
 HTTP Status Codes:
+
 - 200 - Success
 - 400 - Bad Request (validation error)
 - 401 - Unauthorized (missing/invalid token)
@@ -468,6 +687,7 @@ npm test
 ```
 
 Tests cover:
+
 - Database operations
 - User management
 - Token management
@@ -477,6 +697,7 @@ Tests cover:
 ## Deployment
 
 1. Build the application:
+
 ```bash
 npm run build
 ```
@@ -484,6 +705,7 @@ npm run build
 2. Set production environment variables
 
 3. Start the server:
+
 ```bash
 npm start
 ```

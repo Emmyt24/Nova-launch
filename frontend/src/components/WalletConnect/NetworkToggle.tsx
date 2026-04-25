@@ -7,6 +7,8 @@ interface NetworkToggleProps {
     onNetworkChange: (network: Network) => void;
     disabled?: boolean;
     className?: string;
+    /** Warning message shown when the wallet network doesn't match the app config. */
+    mismatchWarning?: string | null;
 }
 
 export function NetworkToggle({
@@ -14,6 +16,7 @@ export function NetworkToggle({
     onNetworkChange,
     disabled = false,
     className = '',
+    mismatchWarning,
 }: NetworkToggleProps) {
     const isMainnet = network === 'mainnet';
 
@@ -112,6 +115,20 @@ export function NetworkToggle({
                         <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500" />
                     </span>
                     Live
+                </span>
+            )}
+
+            {/* Network / contract mismatch warning — blocks mutations */}
+            {mismatchWarning && (
+                <span
+                    role="alert"
+                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-red-100 text-red-800 border border-red-300"
+                    aria-live="assertive"
+                >
+                    <svg className="w-3 h-3 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true">
+                        <path fillRule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 6a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 6zm0 9a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+                    </svg>
+                    {mismatchWarning}
                 </span>
             )}
         </div>

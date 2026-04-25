@@ -119,4 +119,27 @@ export const AnalyticsEvent = {
   TUTORIAL_COMPLETED: 'tutorial_completed',
   TUTORIAL_SKIPPED: 'tutorial_skipped',
   PWA_INSTALLED: 'pwa_installed',
+  // Projection refresh timing
+  PROJECTION_INDEXED: 'projection_refresh_indexed',
+  PROJECTION_FAILED: 'projection_refresh_failed',
+  // Transaction success funnel
+  TX_SIMULATION_PASSED: 'tx_simulation_passed',
+  TX_SIMULATION_FAILED: 'tx_simulation_failed',
+  TX_WALLET_SIGNED: 'tx_wallet_signed',
+  TX_WALLET_REJECTED: 'tx_wallet_rejected',
+  TX_SUBMITTED: 'tx_submitted',
+  TX_CONFIRMED: 'tx_confirmed',
+  TX_FAILED: 'tx_failed',
 } as const;
+
+/**
+ * Emit a transaction funnel event with action and optional outcome metadata.
+ * Keeps cardinality low — only action + outcome labels.
+ */
+export function trackTxFunnel(
+  stage: typeof AnalyticsEvent[keyof typeof AnalyticsEvent],
+  action: string,
+  extra?: Record<string, string | number | boolean>
+): void {
+  analytics.track(stage, { action, ...extra });
+}

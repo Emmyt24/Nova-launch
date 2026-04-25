@@ -93,7 +93,8 @@ describe("Query Builder", () => {
       limit: "20",
     };
 
-    const { where: whereWithoutBurns } = buildTokenSearchQuery(paramsWithoutBurns);
+    const { where: whereWithoutBurns } =
+      buildTokenSearchQuery(paramsWithoutBurns);
     expect(whereWithoutBurns.burnCount).toEqual({ equals: 0 });
   });
 

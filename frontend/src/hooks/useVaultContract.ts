@@ -6,6 +6,7 @@ import type {
   RecurringPaymentStatus,
   PaymentInterval
 } from '../types';
+import { vaultsApi } from '../services/vaultsApi';
 
 // Interval presets in seconds
 const INTERVAL_PRESETS: Record<Exclude<PaymentInterval, 'custom'>, number> = {
@@ -145,21 +146,33 @@ export function useVaultContract(options: UseVaultContractOptions = {}): UseVaul
     setError(null);
 
     try {
-      // TODO: Replace with actual contract call
-      // const contract = await getVaultContract();
-      // const payments = await contract.get_recurring_payments({ owner: walletAddress });
+      if (!walletAddress) {
+        setPayments([]);
+        return [];
+      }
+
+      const vaultProjections = await vaultsApi.getByCreator(walletAddress);
       
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      // Update status based on current time
-      const updatedPayments = MOCK_PAYMENTS.map(payment => ({
-        ...payment,
-        status: calculateStatus(payment),
+      // Map VaultProjection to RecurringPayment for compatibility
+      const mappedPayments: RecurringPayment[] = vaultProjections.map(v => ({
+        id: v.streamId.toString(),
+        recipient: v.recipient,
+        amount: v.amount,
+        tokenAddress: '', // Token info not in projection yet
+        tokenSymbol: 'USDC',
+        tokenDecimals: 7,
+        interval: 'monthly', // Default for now
+        intervalSeconds: INTERVAL_PRESETS.monthly,
+        nextPaymentTime: Date.now() + INTERVAL_PRESETS.monthly * 1000,
+        paymentCount: 0,
+        totalPaid: '0.00',
+        status: v.status.toLowerCase() as RecurringPaymentStatus,
+        createdAt: new Date(v.createdAt).getTime(),
+        creator: v.creator,
       }));
       
-      setPayments(updatedPayments);
-      return updatedPayments;
+      setPayments(mappedPayments);
+      return mappedPayments;
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to fetch recurring payments';
       setError(message);

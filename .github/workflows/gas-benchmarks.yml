@@ -1,0 +1,43 @@
+name: Gas Benchmarks
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - 'gas-dashboard/data/snapshots/**/*.json'
+      - 'gas-dashboard/scripts/check-thresholds.js'
+      - '.github/workflows/gas-benchmarks.yml'
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - 'gas-dashboard/data/snapshots/**/*.json'
+      - 'gas-dashboard/scripts/check-thresholds.js'
+      - '.github/workflows/gas-benchmarks.yml'
+
+jobs:
+  gas-threshold-regression:
+    name: Gas Threshold Regression Guard
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Enforce gas thresholds with diff report
+        run: |
+          node gas-dashboard/scripts/check-thresholds.js \
+            --baseline gas-dashboard/data/snapshots/gas-baseline.json \
+            --current gas-dashboard/data/snapshots/gas-current.json \
+            --report gas-dashboard/data/reports/gas-threshold-diff.md
+
+      - name: Upload gas diff report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gas-threshold-diff-report
+          path: gas-dashboard/data/reports/gas-threshold-diff.md
+          retention-days: 30

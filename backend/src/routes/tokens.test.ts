@@ -164,9 +164,7 @@ describe("GET /api/tokens/search", () => {
     vi.mocked(prisma.token.findMany).mockResolvedValue([mockTokens[0]]);
     vi.mocked(prisma.token.count).mockResolvedValue(1);
 
-    const response = await request(app).get(
-      "/api/tokens/search?hasBurns=true"
-    );
+    const response = await request(app).get("/api/tokens/search?hasBurns=true");
 
     expect(response.status).toBe(200);
     expect(response.body.success).toBe(true);
@@ -325,9 +323,7 @@ describe("GET /api/tokens/search", () => {
   });
 
   it("should return validation error for invalid supply format", async () => {
-    const response = await request(app).get(
-      "/api/tokens/search?minSupply=abc"
-    );
+    const response = await request(app).get("/api/tokens/search?minSupply=abc");
 
     expect(response.status).toBe(400);
     expect(response.body.success).toBe(false);

@@ -109,6 +109,18 @@
                         "key": {
                           "vec": [
                             {
+                              "symbol": "ProposalCount"
+                            }
+                          ]
+                        },
+                        "val": {
+                          "u32": 0
+                        }
+                      },
+                      {
+                        "key": {
+                          "vec": [
+                            {
                               "symbol": "TotalSupply"
                             }
                           ]

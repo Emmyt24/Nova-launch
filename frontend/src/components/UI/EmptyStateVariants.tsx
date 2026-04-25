@@ -4,6 +4,7 @@ import { EmptyState, EmptyStateIcons } from './EmptyState';
 interface EmptyStateVariantProps {
     onAction?: () => void;
     onSecondaryAction?: () => void;
+    onRetry?: () => void;
     className?: string;
 }
 

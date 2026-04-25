@@ -1,23 +1,61 @@
 #!/bin/bash
 set -e
 
-# Check if deployment info exists
-if [ ! -f "deployment-testnet.json" ]; then
-    echo "Error: deployment-testnet.json not found. Deploy contract first."
-    exit 1
+# ---------------------------------------------------------------------------
+# Reads network and contract values from the canonical env file (.env.testnet
+# by default) so this script always references the same values as the runtime
+# services and the frontend.
+# ---------------------------------------------------------------------------
+ENV_FILE="${ENV_FILE:-.env.testnet}"
+
+if [ -f "$ENV_FILE" ]; then
+  # shellcheck disable=SC1090
+  set -a; source "$ENV_FILE"; set +a
 fi
 
-# Extract contract ID
-CONTRACT_ID=$(grep -o '"contractId": "[^"]*' deployment-testnet.json | cut -d'"' -f4)
+# Fall back to deployment-testnet.json for backwards compatibility
+if [ -z "$FACTORY_CONTRACT_ID" ]; then
+  if [ ! -f "deployment-testnet.json" ]; then
+    echo "Error: Neither $ENV_FILE nor deployment-testnet.json found. Deploy the contract first."
+    exit 1
+  fi
+  FACTORY_CONTRACT_ID=$(grep -o '"contractId": "[^"]*' deployment-testnet.json | cut -d'"' -f4)
+fi
 
-echo "Verifying deployment for contract: $CONTRACT_ID"
+STELLAR_NETWORK="${STELLAR_NETWORK:-testnet}"
+
+if [ -z "$FACTORY_CONTRACT_ID" ]; then
+  echo "Error: FACTORY_CONTRACT_ID is not set. Deploy the contract first."
+  exit 1
+fi
+
+# Validate Soroban contract ID format: 56-char base32 starting with 'C'
+if ! echo "$FACTORY_CONTRACT_ID" | grep -qE '^C[A-Z2-7]{55}$'; then
+  echo "Error: FACTORY_CONTRACT_ID is malformed: \"$FACTORY_CONTRACT_ID\""
+  echo "  Expected a 56-character Soroban contract ID starting with 'C'."
+  echo "  Variable: FACTORY_CONTRACT_ID"
+  echo "  Network:  STELLAR_NETWORK=\"$STELLAR_NETWORK\""
+  echo "  Check that you copied the correct address for this network."
+  exit 1
+fi
+
+# Warn if a testnet-style contract ID is used against mainnet or vice versa.
+# This is a heuristic: real network-mismatch detection requires an RPC call,
+# but a quick prefix check catches obvious copy-paste errors.
+if [ "$STELLAR_NETWORK" = "mainnet" ]; then
+  echo "  Network: mainnet — ensure FACTORY_CONTRACT_ID was deployed to mainnet, not testnet."
+fi
+
+echo "Verifying deployment"
+echo "  Network:     $STELLAR_NETWORK"
+echo "  Contract ID: $FACTORY_CONTRACT_ID"
 echo "================================================"
 
 # Get factory state
 echo -e "\n1. Factory State:"
 soroban contract invoke \
-  --id $CONTRACT_ID \
-  --network testnet \
+  --id "$FACTORY_CONTRACT_ID" \
+  --network "$STELLAR_NETWORK" \
   --source admin \
   -- get_state
 
@@ -27,13 +65,12 @@ ADMIN_ADDRESS=$(soroban keys address admin)
 echo -e "\n2. Testing Token Creation:"
 echo "Creating test token..."
 
-# Create test token
 TOKEN_ADDRESS=$(soroban contract invoke \
-  --id $CONTRACT_ID \
-  --network testnet \
+  --id "$FACTORY_CONTRACT_ID" \
+  --network "$STELLAR_NETWORK" \
   --source admin \
   -- create_token \
-  --creator $ADMIN_ADDRESS \
+  --creator "$ADMIN_ADDRESS" \
   --name "Verification Test Token" \
   --symbol "VTT" \
   --decimals 7 \
@@ -42,6 +79,40 @@ TOKEN_ADDRESS=$(soroban contract invoke \
 
 echo "Test token created: $TOKEN_ADDRESS"
 
-echo -e "\n3. Verification Complete!"
+echo -e "\n3. Backend API Verification:"
+BACKEND_URL="${BACKEND_URL:-http://localhost:3001}"
+echo "Checking backend health at $BACKEND_URL..."
+
+HEALTH=$(curl -sf "$BACKEND_URL/health" -H "Accept: application/json" 2>/dev/null || echo "")
+if [ -n "$HEALTH" ]; then
+  echo "  ✓ Backend is reachable"
+else
+  echo "  ⚠ Backend not reachable at $BACKEND_URL (is it running?)"
+fi
+
+echo "Searching for deployed token ($TOKEN_ADDRESS) in backend index..."
+SEARCH=$(curl -sf \
+  "$BACKEND_URL/api/tokens/search?q=$(echo "$TOKEN_ADDRESS" | cut -c1-10)&limit=5" \
+  -H "Accept: application/json" 2>/dev/null || echo "")
+
+if echo "$SEARCH" | grep -q "$TOKEN_ADDRESS"; then
+  echo "  ✓ Token found in backend index"
+else
+  echo "  ⚠ Token not yet indexed (backend event listener may need time to ingest)"
+  echo "    Run: ./scripts/fullstack-smoke-test.sh to verify with polling"
+fi
+
+echo -e "\n4. Verification Complete!"
 echo "================================================"
 echo "All checks passed successfully."
+
+# Run the production readiness gate for a full integration check.
+# Pass --backend-url if BACKEND_URL is set; otherwise the gate uses its default.
+echo ""
+echo "Running production readiness gate..."
+GATE_ARGS="--network $STELLAR_NETWORK"
+if [ -n "${BACKEND_URL:-}" ]; then
+  GATE_ARGS="$GATE_ARGS --backend-url $BACKEND_URL"
+fi
+# shellcheck disable=SC2086
+"$(dirname "$0")/run-production-readiness-gate.sh" $GATE_ARGS

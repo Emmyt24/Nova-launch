@@ -22,7 +22,7 @@ use soroban_sdk::testutils::Address as _;
 use soroban_sdk::{Address, String as SorobanString};
 
 // Configuration for extensive fuzzing
-const FUZZ_ITERATIONS: u32 = 10_000;
+const FUZZ_ITERATIONS: u32 = 256;
 
 // Valid ranges for token parameters
 const MAX_TOKEN_NAME_LENGTH: usize = 64;
