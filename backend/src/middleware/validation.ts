@@ -1,7 +1,10 @@
-import { body, param, validationResult } from "express-validator";
+import { body, param, query, validationResult } from "express-validator";
 import { Request, Response, NextFunction } from "express";
 import { WebhookEventType } from "../types/webhook";
 import { isValidUrl, isValidStellarAddress } from "../utils/crypto";
+
+/** Valid campaign types as defined by the on-chain contract */
+const CAMPAIGN_TYPES = ["BUYBACK", "AIRDROP", "LIQUIDITY"] as const;
 
 /**
  * Validation middleware to check for errors
@@ -90,5 +93,112 @@ export const validateListSubscriptions = [
       }
       return true;
     }),
+  validate,
+];
+
+/**
+ * Validation rules for campaign creation (POST /api/campaigns).
+ *
+ * Security notes (OWASP):
+ *  - All string inputs are trimmed to prevent whitespace-only values.
+ *  - Numeric amounts are validated as non-negative integer strings to avoid
+ *    floating-point injection and BigInt parse errors.
+ *  - Stellar addresses are validated against the canonical G… format.
+ *  - ISO 8601 date strings are validated and endTime must be after startTime.
+ *  - metadata is capped at 1 KB to prevent oversized payload attacks.
+ */
+export const validateCampaignCreate = [
+  body("tokenId")
+    .isString()
+    .trim()
+    .notEmpty()
+    .withMessage("tokenId is required"),
+
+  body("creator")
+    .isString()
+    .trim()
+    .notEmpty()
+    .withMessage("creator is required")
+    .custom((value) => {
+      if (!isValidStellarAddress(value)) {
+        throw new Error("creator must be a valid Stellar address");
+      }
+      return true;
+    }),
+
+  body("type")
+    .isString()
+    .trim()
+    .notEmpty()
+    .withMessage("type is required")
+    .isIn(CAMPAIGN_TYPES)
+    .withMessage(`type must be one of: ${CAMPAIGN_TYPES.join(", ")}`),
+
+  body("targetAmount")
+    .isString()
+    .trim()
+    .notEmpty()
+    .withMessage("targetAmount is required")
+    .matches(/^\d+$/)
+    .withMessage("targetAmount must be a non-negative integer string")
+    .custom((value) => {
+      if (BigInt(value) <= BigInt(0)) {
+        throw new Error("targetAmount must be greater than zero");
+      }
+      return true;
+    }),
+
+  body("startTime")
+    .isISO8601()
+    .withMessage("startTime must be a valid ISO 8601 date"),
+
+  body("endTime")
+    .optional()
+    .isISO8601()
+    .withMessage("endTime must be a valid ISO 8601 date")
+    .custom((value, { req }) => {
+      if (value && req.body.startTime) {
+        if (new Date(value) <= new Date(req.body.startTime)) {
+          throw new Error("endTime must be after startTime");
+        }
+      }
+      return true;
+    }),
+
+  body("metadata")
+    .optional()
+    .isString()
+    .withMessage("metadata must be a string")
+    .isLength({ max: 1024 })
+    .withMessage("metadata must not exceed 1024 characters"),
+
+  validate,
+];
+
+/**
+ * Validation rules for campaign ID path parameter.
+ */
+export const validateCampaignId = [
+  param("campaignId")
+    .isInt({ min: 1 })
+    .withMessage("campaignId must be a positive integer"),
+  validate,
+];
+
+/**
+ * Validation rules for campaign execution history query params.
+ */
+export const validateCampaignExecutionQuery = [
+  param("campaignId")
+    .isInt({ min: 1 })
+    .withMessage("campaignId must be a positive integer"),
+  query("limit")
+    .optional()
+    .isInt({ min: 1, max: 200 })
+    .withMessage("limit must be between 1 and 200"),
+  query("offset")
+    .optional()
+    .isInt({ min: 0 })
+    .withMessage("offset must be a non-negative integer"),
   validate,
 ];

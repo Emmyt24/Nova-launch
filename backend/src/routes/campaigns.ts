@@ -1,5 +1,10 @@
 import { Router } from "express";
 import { campaignProjectionService } from "../services/campaignProjectionService";
+import {
+  validateCampaignCreate,
+  validateCampaignId,
+  validateCampaignExecutionQuery,
+} from "../middleware/validation";
 
 const router = Router();
 
@@ -40,7 +45,7 @@ router.get("/creator/:creator", async (req, res) => {
 });
 
 /** @contract CampaignExecutionsResponse */
-router.get("/:campaignId/executions", async (req, res) => {
+router.get("/:campaignId/executions", validateCampaignExecutionQuery, async (req, res) => {
   try {
     const campaignId = parseInt(req.params.campaignId);
     const limit = parseInt(req.query.limit as string) || 50;
@@ -59,7 +64,7 @@ router.get("/:campaignId/executions", async (req, res) => {
 });
 
 /** @contract CampaignRecord */
-router.get("/:campaignId", async (req, res) => {
+router.get("/:campaignId", validateCampaignId, async (req, res) => {
   try {
     const campaignId = parseInt(req.params.campaignId);
     const campaign = await campaignProjectionService.getCampaignById(campaignId);
@@ -71,6 +76,36 @@ router.get("/:campaignId", async (req, res) => {
     res.json(campaign);
   } catch (error) {
     res.status(500).json({ error: "Failed to fetch campaign" });
+  }
+});
+
+/**
+ * POST /api/campaigns
+ * Create a new campaign. Validated by validateCampaignCreate middleware.
+ * @contract CampaignRecord
+ */
+router.post("/", validateCampaignCreate, async (req, res) => {
+  try {
+    const { tokenId, creator, type, targetAmount, startTime, endTime, metadata, txHash } = req.body;
+
+    const event = {
+      campaignId: Date.now(), // placeholder — real ID comes from on-chain event
+      tokenId,
+      creator,
+      type,
+      targetAmount: BigInt(targetAmount),
+      startTime: new Date(startTime),
+      endTime: endTime ? new Date(endTime) : undefined,
+      metadata,
+      txHash: txHash ?? "",
+    };
+
+    const { campaignEventParser } = await import("../services/campaignEventParser");
+    await campaignEventParser.parseCampaignCreated(event);
+
+    res.status(201).json({ success: true, message: "Campaign created" });
+  } catch (error) {
+    res.status(500).json({ error: "Failed to create campaign" });
   }
 });
 

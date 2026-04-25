@@ -1,0 +1,1688 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Nova Launch API",
+    "version": "1.0.0",
+    "description": "REST API for the Nova Launch Stellar token deployment platform.",
+    "contact": {
+      "name": "Nova Launch",
+      "url": "https://github.com/Emmyt24/Nova-launch"
+    },
+    "license": {
+      "name": "MIT"
+    }
+  },
+  "servers": [
+    {
+      "url": "http://localhost:3000",
+      "description": "Local development"
+    },
+    {
+      "url": "https://api.nova-launch.app",
+      "description": "Production"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Health",
+      "description": "Liveness and readiness probes"
+    },
+    {
+      "name": "Version",
+      "description": "Backend version info"
+    },
+    {
+      "name": "Stats",
+      "description": "Platform statistics"
+    },
+    {
+      "name": "Tokens",
+      "description": "Token search and discovery"
+    },
+    {
+      "name": "Leaderboard",
+      "description": "Token leaderboards"
+    },
+    {
+      "name": "Governance",
+      "description": "On-chain governance proposals"
+    },
+    {
+      "name": "Campaigns",
+      "description": "Token campaigns"
+    },
+    {
+      "name": "Streams",
+      "description": "Token streams"
+    },
+    {
+      "name": "Vaults",
+      "description": "Token vaults"
+    },
+    {
+      "name": "Webhooks",
+      "description": "Webhook subscriptions and delivery"
+    }
+  ],
+  "paths": {
+    "/health/live": {
+      "get": {
+        "tags": [
+          "Health"
+        ],
+        "summary": "Liveness probe",
+        "description": "Returns 200 as long as the process is running.",
+        "responses": {
+          "200": {
+            "description": "Process is alive",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthStatus"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health/ready": {
+      "get": {
+        "tags": [
+          "Health"
+        ],
+        "summary": "Readiness probe",
+        "description": "Checks all dependency connections.",
+        "responses": {
+          "200": {
+            "description": "All dependencies healthy"
+          },
+          "207": {
+            "description": "Degraded — some dependencies unreachable"
+          },
+          "503": {
+            "description": "Unhealthy"
+          }
+        }
+      }
+    },
+    "/api/version": {
+      "get": {
+        "tags": [
+          "Version"
+        ],
+        "summary": "Backend version info",
+        "responses": {
+          "200": {
+            "description": "Version details",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "backendVersion": {
+                      "type": "string"
+                    },
+                    "contractId": {
+                      "type": "string"
+                    },
+                    "network": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/stats": {
+      "get": {
+        "tags": [
+          "Stats"
+        ],
+        "summary": "Platform statistics",
+        "responses": {
+          "200": {
+            "description": "Platform stats",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "totalTokens": {
+                      "type": "integer"
+                    },
+                    "totalUsers": {
+                      "type": "integer"
+                    },
+                    "totalBurned": {
+                      "type": "string"
+                    },
+                    "uptime": {
+                      "type": "string"
+                    },
+                    "lastUpdated": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/tokens/search": {
+      "get": {
+        "tags": [
+          "Tokens"
+        ],
+        "summary": "Search and filter tokens",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Search by name or symbol"
+          },
+          {
+            "name": "creator",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "startDate",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "endDate",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "minSupply",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "maxSupply",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "hasBurns",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ]
+            }
+          },
+          {
+            "name": "sortBy",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "created",
+                "burned",
+                "supply",
+                "name"
+              ],
+              "default": "created"
+            }
+          },
+          {
+            "name": "sortOrder",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "asc",
+                "desc"
+              ],
+              "default": "desc"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 1
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 20,
+              "maximum": 50
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Token search results",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/TokenRecord"
+                      }
+                    },
+                    "pagination": {
+                      "$ref": "#/components/schemas/Pagination"
+                    },
+                    "cached": {
+                      "type": "boolean"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid parameters",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/leaderboard/most-burned": {
+      "get": {
+        "tags": [
+          "Leaderboard"
+        ],
+        "summary": "Tokens with highest burn volume",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/PeriodParam"
+          },
+          {
+            "$ref": "#/components/parameters/PageParam"
+          },
+          {
+            "$ref": "#/components/parameters/LimitParam"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Leaderboard results"
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/leaderboard/most-active": {
+      "get": {
+        "tags": [
+          "Leaderboard"
+        ],
+        "summary": "Tokens with most burn transactions",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/PeriodParam"
+          },
+          {
+            "$ref": "#/components/parameters/PageParam"
+          },
+          {
+            "$ref": "#/components/parameters/LimitParam"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Leaderboard results"
+          }
+        }
+      }
+    },
+    "/api/leaderboard/newest": {
+      "get": {
+        "tags": [
+          "Leaderboard"
+        ],
+        "summary": "Recently created tokens",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/PageParam"
+          },
+          {
+            "$ref": "#/components/parameters/LimitParam"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Leaderboard results"
+          }
+        }
+      }
+    },
+    "/api/leaderboard/largest-supply": {
+      "get": {
+        "tags": [
+          "Leaderboard"
+        ],
+        "summary": "Tokens with highest total supply",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/PageParam"
+          },
+          {
+            "$ref": "#/components/parameters/LimitParam"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Leaderboard results"
+          }
+        }
+      }
+    },
+    "/api/leaderboard/most-burners": {
+      "get": {
+        "tags": [
+          "Leaderboard"
+        ],
+        "summary": "Tokens with most unique burners",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/PeriodParam"
+          },
+          {
+            "$ref": "#/components/parameters/PageParam"
+          },
+          {
+            "$ref": "#/components/parameters/LimitParam"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Leaderboard results"
+          }
+        }
+      }
+    },
+    "/api/governance/proposals": {
+      "get": {
+        "tags": [
+          "Governance"
+        ],
+        "summary": "List governance proposals",
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "ACTIVE",
+                "PASSED",
+                "REJECTED",
+                "EXECUTED",
+                "CANCELLED",
+                "EXPIRED"
+              ]
+            }
+          },
+          {
+            "name": "proposalType",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "PARAMETER_CHANGE",
+                "ADMIN_TRANSFER",
+                "TREASURY_SPEND",
+                "CONTRACT_UPGRADE",
+                "CUSTOM"
+              ]
+            }
+          },
+          {
+            "name": "tokenId",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "proposer",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 50,
+              "maximum": 100
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 0
+            }
+          },
+          {
+            "name": "sortBy",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "createdAt",
+                "startTime",
+                "endTime"
+              ],
+              "default": "createdAt"
+            }
+          },
+          {
+            "name": "sortOrder",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "asc",
+                "desc"
+              ],
+              "default": "desc"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of proposals",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "proposals": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/ProposalRecord"
+                          }
+                        },
+                        "total": {
+                          "type": "integer"
+                        },
+                        "limit": {
+                          "type": "integer"
+                        },
+                        "offset": {
+                          "type": "integer"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/governance/proposals/{id}": {
+      "get": {
+        "tags": [
+          "Governance"
+        ],
+        "summary": "Get proposal by ID",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Proposal detail"
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/governance/proposals/{id}/votes": {
+      "get": {
+        "tags": [
+          "Governance"
+        ],
+        "summary": "Get votes for a proposal",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 50
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Votes list",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "votes": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/GovernanceVoteRecord"
+                          }
+                        },
+                        "total": {
+                          "type": "integer"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/campaigns/stats/{tokenId}": {
+      "get": {
+        "tags": [
+          "Campaigns"
+        ],
+        "summary": "Campaign statistics for a token (or global)",
+        "parameters": [
+          {
+            "name": "tokenId",
+            "in": "path",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Campaign stats"
+          }
+        }
+      }
+    },
+    "/api/campaigns/token/{tokenId}": {
+      "get": {
+        "tags": [
+          "Campaigns"
+        ],
+        "summary": "Campaigns for a token",
+        "parameters": [
+          {
+            "name": "tokenId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Campaign list",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CampaignRecord"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/campaigns/creator/{creator}": {
+      "get": {
+        "tags": [
+          "Campaigns"
+        ],
+        "summary": "Campaigns by creator address",
+        "parameters": [
+          {
+            "name": "creator",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Campaign list"
+          }
+        }
+      }
+    },
+    "/api/campaigns/{campaignId}": {
+      "get": {
+        "tags": [
+          "Campaigns"
+        ],
+        "summary": "Get campaign by ID",
+        "parameters": [
+          {
+            "name": "campaignId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Campaign detail"
+          },
+          "404": {
+            "description": "Not found"
+          }
+        }
+      }
+    },
+    "/api/campaigns/{campaignId}/executions": {
+      "get": {
+        "tags": [
+          "Campaigns"
+        ],
+        "summary": "Execution history for a campaign",
+        "parameters": [
+          {
+            "name": "campaignId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 50
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Execution history"
+          }
+        }
+      }
+    },
+    "/api/streams/stats/{address}": {
+      "get": {
+        "tags": [
+          "Streams"
+        ],
+        "summary": "Stream statistics for an address or global",
+        "parameters": [
+          {
+            "name": "address",
+            "in": "path",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Stream stats"
+          }
+        }
+      }
+    },
+    "/api/streams/creator/{address}": {
+      "get": {
+        "tags": [
+          "Streams"
+        ],
+        "summary": "Streams created by address",
+        "parameters": [
+          {
+            "name": "address",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "CREATED",
+                "ACTIVE",
+                "COMPLETED",
+                "CANCELLED"
+              ]
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 50
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Stream list"
+          }
+        }
+      }
+    },
+    "/api/streams/recipient/{address}": {
+      "get": {
+        "tags": [
+          "Streams"
+        ],
+        "summary": "Streams where address is the recipient",
+        "parameters": [
+          {
+            "name": "address",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 50
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Stream list"
+          }
+        }
+      }
+    },
+    "/api/streams/{id}": {
+      "get": {
+        "tags": [
+          "Streams"
+        ],
+        "summary": "Get stream by on-chain ID",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Stream detail"
+          },
+          "404": {
+            "description": "Not found"
+          }
+        }
+      }
+    },
+    "/api/vaults/creator/{address}": {
+      "get": {
+        "tags": [
+          "Vaults"
+        ],
+        "summary": "Vaults created by address",
+        "parameters": [
+          {
+            "name": "address",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 50
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Vault list"
+          }
+        }
+      }
+    },
+    "/api/vaults/beneficiary/{address}": {
+      "get": {
+        "tags": [
+          "Vaults"
+        ],
+        "summary": "Vaults where address is the beneficiary",
+        "parameters": [
+          {
+            "name": "address",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 50
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Vault list"
+          }
+        }
+      }
+    },
+    "/api/vaults/{id}": {
+      "get": {
+        "tags": [
+          "Vaults"
+        ],
+        "summary": "Get vault by on-chain ID",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Vault detail"
+          },
+          "404": {
+            "description": "Not found"
+          }
+        }
+      }
+    },
+    "/api/webhooks/subscribe": {
+      "post": {
+        "tags": [
+          "Webhooks"
+        ],
+        "summary": "Create a webhook subscription",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "url",
+                  "events",
+                  "createdBy"
+                ],
+                "properties": {
+                  "url": {
+                    "type": "string",
+                    "format": "uri"
+                  },
+                  "tokenAddress": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "events": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "enum": [
+                        "token.burn.self",
+                        "token.burn.admin",
+                        "token.created",
+                        "token.metadata.updated"
+                      ]
+                    }
+                  },
+                  "createdBy": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Subscription created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebhookSubscription"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input"
+          }
+        }
+      }
+    },
+    "/api/webhooks/unsubscribe/{id}": {
+      "delete": {
+        "tags": [
+          "Webhooks"
+        ],
+        "summary": "Delete a webhook subscription",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Deleted successfully"
+          },
+          "404": {
+            "description": "Not found"
+          }
+        }
+      }
+    },
+    "/api/webhooks/subscriptions": {
+      "get": {
+        "tags": [
+          "Webhooks"
+        ],
+        "summary": "List webhook subscriptions",
+        "parameters": [
+          {
+            "name": "createdBy",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Subscription list"
+          }
+        }
+      }
+    },
+    "/api/webhooks/{id}/toggle": {
+      "patch": {
+        "tags": [
+          "Webhooks"
+        ],
+        "summary": "Toggle webhook active state",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Toggled"
+          }
+        }
+      }
+    },
+    "/api/webhooks/{id}/logs": {
+      "get": {
+        "tags": [
+          "Webhooks"
+        ],
+        "summary": "Delivery logs for a webhook",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Delivery logs"
+          }
+        }
+      }
+    },
+    "/api/webhooks/{id}/test": {
+      "post": {
+        "tags": [
+          "Webhooks"
+        ],
+        "summary": "Send a test event to a webhook",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Test result"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": false
+          },
+          "error": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "success",
+          "error"
+        ]
+      },
+      "Pagination": {
+        "type": "object",
+        "properties": {
+          "page": {
+            "type": "integer",
+            "example": 1
+          },
+          "limit": {
+            "type": "integer",
+            "example": 20
+          },
+          "total": {
+            "type": "integer",
+            "example": 100
+          },
+          "totalPages": {
+            "type": "integer",
+            "example": 5
+          },
+          "hasNext": {
+            "type": "boolean"
+          },
+          "hasPrev": {
+            "type": "boolean"
+          }
+        }
+      },
+      "TokenRecord": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "address": {
+            "type": "string"
+          },
+          "creator": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "symbol": {
+            "type": "string"
+          },
+          "decimals": {
+            "type": "integer"
+          },
+          "totalSupply": {
+            "type": "string",
+            "description": "BigInt as string"
+          },
+          "initialSupply": {
+            "type": "string",
+            "description": "BigInt as string"
+          },
+          "totalBurned": {
+            "type": "string",
+            "description": "BigInt as string"
+          },
+          "burnCount": {
+            "type": "integer"
+          },
+          "metadataUri": {
+            "type": "string",
+            "nullable": true
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "CampaignRecord": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "campaignId": {
+            "type": "integer"
+          },
+          "tokenId": {
+            "type": "string"
+          },
+          "creator": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "targetAmount": {
+            "type": "string"
+          },
+          "currentAmount": {
+            "type": "string"
+          },
+          "executionCount": {
+            "type": "integer"
+          },
+          "progress": {
+            "type": "number"
+          },
+          "startTime": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "endTime": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "ProposalRecord": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "proposalId": {
+            "type": "integer"
+          },
+          "tokenId": {
+            "type": "string"
+          },
+          "proposer": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "ACTIVE",
+              "PASSED",
+              "REJECTED",
+              "EXECUTED",
+              "CANCELLED",
+              "EXPIRED"
+            ]
+          },
+          "proposalType": {
+            "type": "string",
+            "enum": [
+              "PARAMETER_CHANGE",
+              "ADMIN_TRANSFER",
+              "TREASURY_SPEND",
+              "CONTRACT_UPGRADE",
+              "CUSTOM"
+            ]
+          },
+          "quorum": {
+            "type": "string"
+          },
+          "threshold": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "startTime": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "endTime": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "votes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GovernanceVoteRecord"
+            }
+          },
+          "executions": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          }
+        }
+      },
+      "GovernanceVoteRecord": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "voter": {
+            "type": "string"
+          },
+          "support": {
+            "type": "boolean"
+          },
+          "weight": {
+            "type": "string"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "StreamRecord": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "creator": {
+            "type": "string"
+          },
+          "recipient": {
+            "type": "string"
+          },
+          "tokenAddress": {
+            "type": "string"
+          },
+          "amount": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "CREATED",
+              "ACTIVE",
+              "COMPLETED",
+              "CANCELLED"
+            ]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "VaultRecord": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "creator": {
+            "type": "string"
+          },
+          "beneficiary": {
+            "type": "string"
+          },
+          "tokenAddress": {
+            "type": "string"
+          },
+          "amount": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "CREATED",
+              "ACTIVE",
+              "COMPLETED",
+              "CANCELLED"
+            ]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "WebhookSubscription": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string",
+            "format": "uri"
+          },
+          "tokenAddress": {
+            "type": "string",
+            "nullable": true
+          },
+          "events": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "token.burn.self",
+                "token.burn.admin",
+                "token.created",
+                "token.metadata.updated"
+              ]
+            }
+          },
+          "secret": {
+            "type": "string"
+          },
+          "active": {
+            "type": "boolean"
+          },
+          "createdBy": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "lastTriggered": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          }
+        }
+      },
+      "HealthStatus": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "healthy",
+              "degraded",
+              "unhealthy"
+            ]
+          },
+          "uptime": {
+            "type": "number"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      }
+    },
+    "parameters": {
+      "PageParam": {
+        "name": "page",
+        "in": "query",
+        "schema": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 1
+        }
+      },
+      "LimitParam": {
+        "name": "limit",
+        "in": "query",
+        "schema": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100,
+          "default": 20
+        }
+      },
+      "PeriodParam": {
+        "name": "period",
+        "in": "query",
+        "schema": {
+          "type": "string",
+          "enum": [
+            "24h",
+            "7d",
+            "30d",
+            "all"
+          ],
+          "default": "7d"
+        }
+      },
+      "AddressParam": {
+        "name": "address",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        },
+        "description": "Stellar wallet address"
+      }
+    }
+  }
+}
