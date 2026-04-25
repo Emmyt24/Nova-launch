@@ -63,3 +63,5 @@ export interface GrowthMetrics {
 export interface AdminRequest extends Express.Request {
   admin?: User;
 }
+
+export * from "./notification";
