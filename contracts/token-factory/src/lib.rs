@@ -2239,6 +2239,9 @@ mod event_replay_test;
 mod batch_token_creation_test;
 
 #[cfg(test)]
+mod supply_cap_test;
+
+#[cfg(test)]
 mod campaign_stateful_fuzz_test;
 
 #[cfg(test)]
