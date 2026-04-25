@@ -847,6 +847,8 @@ Enable pre-commit hooks to catch issues before committing:
 git config core.hooksPath .githooks
 ```
 
+The hook checks Rust formatting, frontend/backend lint, type-checking, Prettier formatting, secret detection, and conventional commit message format — scoped to staged files only for speed.
+
 For more details, see [CI/CD Guide](CI_CD_GUIDE.md).
 
 ---
