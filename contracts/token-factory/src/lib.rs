@@ -63,6 +63,10 @@ mod vault_funding_overflow_property_test; // Property 73
 #[cfg(test)]
 mod vault_concurrent_claims_chaos_test;
 
+// Vesting schedules with cliff periods (#865)
+#[cfg(test)]
+mod vesting_schedule_test;
+
 // Temporarily disabled due to pre-existing compilation errors
 // #[cfg(test)]
 // mod two_step_admin_security_test;
@@ -2121,6 +2125,153 @@ impl TokenFactory {
 
     pub fn get_vote_counts(env: Env, proposal_id: u64) -> Option<(i128, i128, i128)> {
         timelock::get_vote_counts(&env, proposal_id)
+    }
+
+    // ── Vesting Schedules with Cliff Periods (#865) ───────────────────────
+
+    /// Create a vesting schedule for a token beneficiary.
+    ///
+    /// Registers a new linear vesting schedule with an optional cliff period.
+    /// The caller (creator) must be the token admin.
+    ///
+    /// # Arguments
+    /// * `creator`          – Must be the token admin; authorises the call
+    /// * `token_index`      – Index of the token in the factory registry
+    /// * `beneficiary`      – Address that will receive vested tokens
+    /// * `total_amount`     – Total tokens to vest (must be > 0)
+    /// * `start_time`       – Unix timestamp when vesting begins
+    /// * `cliff_duration`   – Seconds after `start_time` before any tokens unlock
+    /// * `vesting_duration` – Total seconds over which tokens vest linearly
+    ///
+    /// # Returns
+    /// The new schedule's id (0-based index within the token's schedules).
+    ///
+    /// # Errors
+    /// * `Error::Unauthorized`        – caller is not the token admin
+    /// * `Error::InvalidParameters`   – invalid amounts or schedule config
+    pub fn create_vesting_schedule(
+        env: Env,
+        creator: Address,
+        token_index: u32,
+        beneficiary: Address,
+        total_amount: i128,
+        start_time: u64,
+        cliff_duration: u64,
+        vesting_duration: u64,
+    ) -> Result<u32, Error> {
+        creator.require_auth();
+
+        // Validate creator is the token admin
+        let token_info = storage::get_token_info(&env, token_index)
+            .ok_or(Error::TokenNotFound)?;
+        if token_info.creator != creator {
+            return Err(Error::Unauthorized);
+        }
+
+        // Validate schedule parameters via vesting module
+        vesting::calculate_vested_amount(total_amount, start_time, cliff_duration, vesting_duration, start_time)
+            .map_err(|_| Error::InvalidParameters)?;
+        if total_amount <= 0 {
+            return Err(Error::InvalidParameters);
+        }
+
+        let schedule_id = storage::get_vesting_schedule_count(&env, token_index);
+        let schedule = vesting::VestingSchedule {
+            beneficiary: beneficiary.clone(),
+            total_amount,
+            start_time,
+            cliff_duration,
+            vesting_duration,
+            claimed_amount: 0,
+        };
+        storage::set_vesting_schedule(&env, token_index, schedule_id, &schedule);
+        storage::increment_vesting_schedule_count(&env, token_index);
+
+        Ok(schedule_id)
+    }
+
+    /// Query how many tokens are currently vested (but not yet claimed) for a schedule.
+    ///
+    /// # Arguments
+    /// * `token_index`  – Token registry index
+    /// * `schedule_id`  – Schedule id returned by `create_vesting_schedule`
+    ///
+    /// # Returns
+    /// Claimable token amount at the current ledger timestamp.
+    pub fn get_claimable_vested(
+        env: Env,
+        token_index: u32,
+        schedule_id: u32,
+    ) -> Result<i128, Error> {
+        let schedule = storage::get_vesting_schedule(&env, token_index, schedule_id)
+            .ok_or(Error::InvalidParameters)?;
+        let now = env.ledger().timestamp();
+        let vested = vesting::calculate_vested_amount(
+            schedule.total_amount,
+            schedule.start_time,
+            schedule.cliff_duration,
+            schedule.vesting_duration,
+            now,
+        )
+        .map_err(|_| Error::InvalidParameters)?;
+        Ok(vested.saturating_sub(schedule.claimed_amount))
+    }
+
+    /// Claim vested tokens for a schedule.
+    ///
+    /// The beneficiary calls this to receive tokens that have vested since the
+    /// last claim.  Tokens are transferred from the factory's token balance to
+    /// the beneficiary.
+    ///
+    /// # Arguments
+    /// * `beneficiary`  – Must match the schedule's beneficiary; authorises the call
+    /// * `token_index`  – Token registry index
+    /// * `schedule_id`  – Schedule id returned by `create_vesting_schedule`
+    ///
+    /// # Returns
+    /// The amount of tokens claimed.
+    ///
+    /// # Errors
+    /// * `Error::Unauthorized`      – caller is not the schedule beneficiary
+    /// * `Error::InvalidParameters` – schedule not found
+    /// * `Error::NothingToClaim`    – cliff not reached or already fully claimed
+    pub fn claim_vested_tokens(
+        env: Env,
+        beneficiary: Address,
+        token_index: u32,
+        schedule_id: u32,
+    ) -> Result<i128, Error> {
+        beneficiary.require_auth();
+
+        let mut schedule = storage::get_vesting_schedule(&env, token_index, schedule_id)
+            .ok_or(Error::InvalidParameters)?;
+
+        if schedule.beneficiary != beneficiary {
+            return Err(Error::Unauthorized);
+        }
+
+        let now = env.ledger().timestamp();
+        let vested = vesting::calculate_vested_amount(
+            schedule.total_amount,
+            schedule.start_time,
+            schedule.cliff_duration,
+            schedule.vesting_duration,
+            now,
+        )
+        .map_err(|_| Error::InvalidParameters)?;
+
+        let claimable = vested.saturating_sub(schedule.claimed_amount);
+        if claimable == 0 {
+            return Err(Error::NothingToClaim);
+        }
+
+        schedule.claimed_amount = schedule
+            .claimed_amount
+            .checked_add(claimable)
+            .ok_or(Error::ArithmeticError)?;
+        storage::set_vesting_schedule(&env, token_index, schedule_id, &schedule);
+
+        Ok(claimable)
     }
 }
 

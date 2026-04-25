@@ -261,6 +261,30 @@ pub struct FeeUpdate {
     pub metadata_fee: Option<i128>,
 }
 
+/// Token vesting schedule with cliff period support.
+///
+/// Tracks a beneficiary's vesting grant including cliff enforcement.
+/// Vesting is linear from `start_time` to `start_time + vesting_duration`.
+/// No tokens are claimable until `start_time + cliff_duration` has elapsed.
+///
+/// # Fields
+/// * `beneficiary`       – Address that receives vested tokens
+/// * `total_amount`      – Total tokens to vest
+/// * `start_time`        – Unix timestamp when vesting begins
+/// * `cliff_duration`    – Seconds after start_time before any tokens unlock
+/// * `vesting_duration`  – Total seconds over which tokens vest linearly
+/// * `claimed_amount`    – Tokens already claimed by the beneficiary
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct VestingSchedule {
+    pub beneficiary: Address,
+    pub total_amount: i128,
+    pub start_time: u64,
+    pub cliff_duration: u64,
+    pub vesting_duration: u64,
+    pub claimed_amount: i128,
+}
+
 /// Storage keys for contract data
 #[contracttype]
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -307,6 +331,9 @@ pub enum DataKey {
     CampaignByCreator(Address, u32),
     CreatorCampaignCount(Address),
     ActiveCampaigns,
+    /// Vesting schedule keyed by (token_index, schedule_id)
+    VestingSchedule(u32, u32),
+    VestingScheduleCount(u32),
 }
 
 #[contracttype]
