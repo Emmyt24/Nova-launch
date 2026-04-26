@@ -59,11 +59,14 @@ pub fn create_token_internal(
         params.initial_supply,
     )?;
 
+    // Validate max_supply: if set, must be >= initial_supply
+    crate::mint::validate_max_supply_at_creation(params.initial_supply, params.max_supply)?;
+
     // Generate token address (placeholder - in production this would deploy actual token contract)
     // For now, we create a deterministic address based on token index
     let token_address = env.current_contract_address();
 
-    // Create token info
+    // Create token info — wire max_supply from params so the hard cap is persisted
     let token_info = TokenInfo {
         address: token_address.clone(),
         creator: creator.clone(),
@@ -72,7 +75,7 @@ pub fn create_token_internal(
         decimals: params.decimals,
         total_supply: params.initial_supply,
         initial_supply: params.initial_supply,
-        max_supply: None,
+        max_supply: params.max_supply,
         metadata_uri: params.metadata_uri.clone(),
         created_at: env.ledger().timestamp(),
         total_burned: 0,
