@@ -11,6 +11,7 @@ mod campaign_validation;
 mod compliance_reporting;
 mod freeze_functions;
 mod governance;
+mod ipfs_pinning;
 
 mod burn;
 mod burn_auction;
