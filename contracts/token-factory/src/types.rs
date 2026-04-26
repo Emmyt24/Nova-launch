@@ -425,10 +425,8 @@ pub enum DataKey {
     CampaignByCreator(Address, u32),
     CreatorCampaignCount(Address),
     ActiveCampaigns,
-    // Liquidity Mining
-    MiningPool(u64),
-    MiningPoolCount,
-    ProviderStake(u64, Address),
+    /// Reentrancy lock flag — set to `true` while a guarded function is executing.
+    ReentrancyLock,
 }
 
 #[contracttype]
@@ -490,10 +488,8 @@ impl Error {
     pub const CampaignNotFound: Self = Self(51);
     pub const InvalidBudget: Self = Self(52);
     pub const InsufficientBudget: Self = Self(53);
-    // Liquidity Mining errors
-    pub const PoolNotFound: Self = Self(54);
-    pub const PoolEnded: Self = Self(55);
-    pub const RewardRateZero: Self = Self(56);
+    /// Reentrant call detected — a guarded function was called while already executing.
+    pub const ReentrancyGuard: Self = Self(54);
 }
 
 impl From<Error> for soroban_sdk::Error {

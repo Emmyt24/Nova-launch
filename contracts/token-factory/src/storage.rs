@@ -1408,64 +1408,34 @@ pub fn decrement_active_campaign_count(env: &Env) -> Result<u32, Error> {
 }
 
 // ============================================================
-// Storage Functions - Liquidity Mining
+// Reentrancy Guard
 // ============================================================
 
-/// Get a liquidity mining pool by ID
-pub fn get_mining_pool(env: &Env, pool_id: u64) -> Option<crate::types::LiquidityMiningPool> {
-    env.storage()
-        .persistent()
-        .get(&crate::types::DataKey::MiningPool(pool_id))
-}
-
-/// Store a liquidity mining pool
-pub fn set_mining_pool(env: &Env, pool_id: u64, pool: &crate::types::LiquidityMiningPool) {
-    env.storage()
-        .persistent()
-        .set(&crate::types::DataKey::MiningPool(pool_id), pool);
-}
-
-/// Get total number of mining pools created
-pub fn get_mining_pool_count(env: &Env) -> u64 {
+/// Returns `true` if the reentrancy lock is currently held.
+pub fn is_reentrancy_locked(env: &Env) -> bool {
     env.storage()
         .instance()
-        .get(&crate::types::DataKey::MiningPoolCount)
-        .unwrap_or(0)
+        .get(&DataKey::ReentrancyLock)
+        .unwrap_or(false)
 }
 
-/// Increment pool count and return the new pool ID (0-indexed)
-pub fn next_mining_pool_id(env: &Env) -> Result<u64, Error> {
-    let id: u64 = env
-        .storage()
-        .instance()
-        .get(&crate::types::DataKey::MiningPoolCount)
-        .unwrap_or(0);
-    let next = id.checked_add(1).ok_or(Error::ArithmeticError)?;
+/// Acquire the reentrancy lock.
+///
+/// Returns `Err(Error::ReentrancyGuard)` if the lock is already held,
+/// preventing reentrant calls within the same transaction.
+pub fn acquire_reentrancy_lock(env: &Env) -> Result<(), Error> {
+    if is_reentrancy_locked(env) {
+        return Err(Error::ReentrancyGuard);
+    }
     env.storage()
         .instance()
-        .set(&crate::types::DataKey::MiningPoolCount, &next);
-    Ok(id)
+        .set(&DataKey::ReentrancyLock, &true);
+    Ok(())
 }
 
-/// Get a provider's stake record for a specific pool
-pub fn get_provider_stake(
-    env: &Env,
-    pool_id: u64,
-    provider: &Address,
-) -> Option<crate::types::ProviderStake> {
+/// Release the reentrancy lock.
+pub fn release_reentrancy_lock(env: &Env) {
     env.storage()
-        .persistent()
-        .get(&crate::types::DataKey::ProviderStake(pool_id, provider.clone()))
-}
-
-/// Store a provider's stake record
-pub fn set_provider_stake(
-    env: &Env,
-    pool_id: u64,
-    provider: &Address,
-    stake: &crate::types::ProviderStake,
-) {
-    env.storage()
-        .persistent()
-        .set(&crate::types::DataKey::ProviderStake(pool_id, provider.clone()), stake);
+        .instance()
+        .set(&DataKey::ReentrancyLock, &false);
 }
