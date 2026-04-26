@@ -1020,8 +1020,10 @@ impl TokenFactory {
         let mut token_info =
             storage::get_token_info(&env, token_index).ok_or(Error::TokenNotFound)?;
 
-        // Verify admin is the token creator
-        if token_info.creator != admin {
+        // Verify caller is the token creator or holds MetadataManager role
+        if token_info.creator != admin
+            && !storage::has_role(&env, token_index, &admin, types::Role::MetadataManager)
+        {
             return Err(Error::Unauthorized);
         }
 
@@ -1250,10 +1252,16 @@ impl TokenFactory {
     /// Emits `tok_paus` with token_index and admin address
     pub fn pause_token(env: Env, admin: Address, token_index: u32) -> Result<(), Error> {
         admin.require_auth();
-        if admin != storage::get_admin(&env) {
+        let stored_admin = storage::get_admin(&env);
+        let token_info =
+            storage::get_token_info(&env, token_index).ok_or(Error::TokenNotFound)?;
+        // Allow: factory admin, token creator, or address with Pauser role
+        if admin != stored_admin
+            && admin != token_info.creator
+            && !storage::has_role(&env, token_index, &admin, types::Role::Pauser)
+        {
             return Err(Error::Unauthorized);
         }
-        storage::get_token_info(&env, token_index).ok_or(Error::TokenNotFound)?;
         storage::set_token_paused(&env, token_index, true);
         events::emit_token_paused(&env, token_index, &admin);
         Ok(())
@@ -1279,10 +1287,16 @@ impl TokenFactory {
     /// Emits `tok_unpas` with token_index and admin address
     pub fn unpause_token(env: Env, admin: Address, token_index: u32) -> Result<(), Error> {
         admin.require_auth();
-        if admin != storage::get_admin(&env) {
+        let stored_admin = storage::get_admin(&env);
+        let token_info =
+            storage::get_token_info(&env, token_index).ok_or(Error::TokenNotFound)?;
+        // Allow: factory admin, token creator, or address with Pauser role
+        if admin != stored_admin
+            && admin != token_info.creator
+            && !storage::has_role(&env, token_index, &admin, types::Role::Pauser)
+        {
             return Err(Error::Unauthorized);
         }
-        storage::get_token_info(&env, token_index).ok_or(Error::TokenNotFound)?;
         storage::set_token_paused(&env, token_index, false);
         events::emit_token_unpaused(&env, token_index, &admin);
         Ok(())
@@ -1298,6 +1312,114 @@ impl TokenFactory {
     /// Returns `true` if the token is paused, `false` otherwise
     pub fn is_token_paused(env: Env, token_index: u32) -> bool {
         storage::is_token_paused(&env, token_index)
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // RBAC — Role-Based Access Control
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// Grant a role to an address for a specific token (creator only)
+    ///
+    /// Allows the token creator to delegate specific operations to other
+    /// addresses without transferring full creator authority.
+    ///
+    /// Available roles:
+    /// - `Minter` (0) — may call `mint`
+    /// - `Burner` (1) — may call `burn` and `admin_burn`
+    /// - `Pauser` (2) — may call `pause_token` and `unpause_token`
+    /// - `MetadataManager` (3) — may call `set_token_metadata` and `update_metadata`
+    ///
+    /// # Arguments
+    /// * `env` - The contract environment
+    /// * `creator` - Token creator address (must authorize)
+    /// * `token_index` - Index of the token
+    /// * `grantee` - Address to receive the role
+    /// * `role` - The role to grant
+    ///
+    /// # Returns
+    /// Returns `Ok(())` on success
+    ///
+    /// # Errors
+    /// * `Error::TokenNotFound` - Token index does not exist
+    /// * `Error::Unauthorized` - Caller is not the token creator
+    ///
+    /// # Events
+    /// Emits `role_gr_v1` with token_index, creator, grantee, and role
+    pub fn grant_role(
+        env: Env,
+        creator: Address,
+        token_index: u32,
+        grantee: Address,
+        role: types::Role,
+    ) -> Result<(), Error> {
+        creator.require_auth();
+
+        let token_info =
+            storage::get_token_info(&env, token_index).ok_or(Error::TokenNotFound)?;
+
+        if token_info.creator != creator {
+            return Err(Error::Unauthorized);
+        }
+
+        storage::grant_role(&env, token_index, &grantee, role);
+        events::emit_role_granted(&env, token_index, &creator, &grantee, role);
+        Ok(())
+    }
+
+    /// Revoke a role from an address for a specific token (creator only)
+    ///
+    /// Removes a previously granted role. Idempotent — revoking a role
+    /// that was never granted succeeds without error.
+    ///
+    /// # Arguments
+    /// * `env` - The contract environment
+    /// * `creator` - Token creator address (must authorize)
+    /// * `token_index` - Index of the token
+    /// * `revokee` - Address to lose the role
+    /// * `role` - The role to revoke
+    ///
+    /// # Returns
+    /// Returns `Ok(())` on success
+    ///
+    /// # Errors
+    /// * `Error::TokenNotFound` - Token index does not exist
+    /// * `Error::Unauthorized` - Caller is not the token creator
+    ///
+    /// # Events
+    /// Emits `role_rv_v1` with token_index, creator, revokee, and role
+    pub fn revoke_role(
+        env: Env,
+        creator: Address,
+        token_index: u32,
+        revokee: Address,
+        role: types::Role,
+    ) -> Result<(), Error> {
+        creator.require_auth();
+
+        let token_info =
+            storage::get_token_info(&env, token_index).ok_or(Error::TokenNotFound)?;
+
+        if token_info.creator != creator {
+            return Err(Error::Unauthorized);
+        }
+
+        storage::revoke_role(&env, token_index, &revokee, role);
+        events::emit_role_revoked(&env, token_index, &creator, &revokee, role);
+        Ok(())
+    }
+
+    /// Check whether an address holds a role for a specific token
+    ///
+    /// # Arguments
+    /// * `env` - The contract environment
+    /// * `token_index` - Index of the token
+    /// * `address` - Address to check
+    /// * `role` - The role to check
+    ///
+    /// # Returns
+    /// Returns `true` if the address holds the role, `false` otherwise
+    pub fn has_role(env: Env, token_index: u32, address: Address, role: types::Role) -> bool {
+        storage::has_role(&env, token_index, &address, role)
     }
 
     /// Return a compact stats snapshot for a token
@@ -1657,10 +1779,12 @@ impl TokenFactory {
 
         creator.require_auth();
 
-        // Verify creator owns the token
+        // Verify caller is the token creator or holds the Minter role
         let token_info = storage::get_token_info(&env, token_index).ok_or(Error::TokenNotFound)?;
 
-        if token_info.creator != creator {
+        if token_info.creator != creator
+            && !storage::has_role(&env, token_index, &creator, types::Role::Minter)
+        {
             return Err(Error::Unauthorized);
         }
 
@@ -2633,6 +2757,9 @@ mod proposal_execution_queue_test;
 
 #[cfg(test)]
 mod token_pause_test;
+
+#[cfg(test)]
+mod rbac_test;
 
 
 #[cfg(test)]
