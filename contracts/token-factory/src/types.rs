@@ -164,6 +164,48 @@ pub struct GovernanceConfig {
     pub voting_period: u64,
 }
 
+/// Configuration for dynamic quorum adjustment based on historical participation.
+///
+/// When enabled, the effective quorum for a proposal is computed from the
+/// rolling average of recent participation rates, clamped to [min_quorum_percent,
+/// max_quorum_percent].
+///
+/// # Fields
+/// * `enabled`              – Whether dynamic adjustment is active.
+/// * `min_quorum_percent`   – Floor for the adjusted quorum (0–100).
+/// * `max_quorum_percent`   – Ceiling for the adjusted quorum (0–100, ≥ min).
+/// * `target_participation` – Ideal participation rate (0–100) used as the
+///                            reference point for the adjustment formula.
+/// * `window_size`          – Number of recent proposals to average over (≥ 1).
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct DynamicQuorumConfig {
+    pub enabled: bool,
+    pub min_quorum_percent: u32,
+    pub max_quorum_percent: u32,
+    pub target_participation: u32,
+    pub window_size: u32,
+}
+
+/// Participation snapshot recorded after each proposal concludes.
+///
+/// # Fields
+/// * `proposal_id`       – The proposal this record belongs to.
+/// * `total_votes`       – Votes cast during the proposal.
+/// * `total_eligible`    – Eligible voters at the time of the proposal.
+/// * `participation_bps` – Actual participation in basis points (0–10 000).
+///                         Stored as BPS to avoid floating-point arithmetic.
+/// * `recorded_at`       – Ledger timestamp when the record was written.
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ParticipationRecord {
+    pub proposal_id: u64,
+    pub total_votes: u32,
+    pub total_eligible: u32,
+    pub participation_bps: u32,
+    pub recorded_at: u64,
+}
+
 /// Buyback campaign structure
 #[contracttype]
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -571,6 +613,9 @@ pub enum DataKey {
     ProposalTemplateCount,
     // Contract upgrade
     ContractVersion,
+    // Dynamic quorum
+    DynamicQuorumConfig,
+    ParticipationRecord(u64), // keyed by proposal_id
 }
 
 #[contracttype]
@@ -652,6 +697,10 @@ impl Error {
     pub const CampaignNotPaused: Self = Self(66);
     pub const CampaignCompleted: Self = Self(67);
     pub const CampaignCancelled: Self = Self(68);
+    // Dynamic quorum errors
+    pub const DynamicQuorumDisabled: Self = Self(69);
+    pub const InsufficientParticipationHistory: Self = Self(70);
+    pub const InvalidQuorumBounds: Self = Self(71);
 }
 
 impl From<Error> for soroban_sdk::Error {

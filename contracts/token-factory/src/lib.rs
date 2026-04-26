@@ -56,6 +56,8 @@ mod governance_quorum_property_test;
 #[cfg(test)]
 mod governance_config_auth_property_test;
 #[cfg(test)]
+mod governance_dynamic_quorum_test;
+#[cfg(test)]
 mod payload_validation_fuzz_test;
 
 #[cfg(test)]
@@ -85,9 +87,9 @@ mod stream_claim_differential_test;
 
 use soroban_sdk::{contract, contractimpl, symbol_short, Address, Bytes, BytesN, Env, String, Symbol, Vec};
 use types::{
-    AuctionStatus, BurnAuction, BuybackCampaign, CampaignStatus, ContractMetadata, Error,
-    FactoryState, PaginationCursor, StreamInfo, StreamPage, StreamParams, TokenCreationParams,
-    TokenInfo, TokenStats, Vault, VaultStatus,
+    AuctionStatus, BurnAuction, BuybackCampaign, CampaignStatus, ContractMetadata,
+    DynamicQuorumConfig, Error, FactoryState, PaginationCursor, StreamInfo, StreamPage,
+    StreamParams, TokenCreationParams, TokenInfo, TokenStats, Vault, VaultStatus,
 };
 use crate::milestone_verification::MilestoneVerifier;
 
@@ -2463,6 +2465,62 @@ impl TokenFactory {
         approval_percent: u32,
     ) -> bool {
         governance::is_approval_met(yes_votes, total_votes, approval_percent)
+    }
+
+    /// Configure dynamic quorum adjustment based on participation history.
+    ///
+    /// When enabled, the effective quorum is automatically recalculated after
+    /// each proposal concludes, using a rolling average of recent participation
+    /// rates clamped to [min_quorum_percent, max_quorum_percent].
+    ///
+    /// # Arguments
+    /// * `env`    – The contract environment.
+    /// * `admin`  – Admin address (must authorize).
+    /// * `config` – The dynamic quorum configuration to apply.
+    ///
+    /// # Errors
+    /// * `Error::Unauthorized`        – Caller is not the admin.
+    /// * `Error::InvalidQuorumBounds` – min > max or max > 100.
+    /// * `Error::InvalidParameters`   – window_size is 0 or target > 100.
+    pub fn configure_dynamic_quorum(
+        env: Env,
+        admin: Address,
+        config: types::DynamicQuorumConfig,
+    ) -> Result<(), Error> {
+        governance::configure_dynamic_quorum(&env, &admin, config)
+    }
+
+    /// Get the current dynamic quorum configuration.
+    pub fn get_dynamic_quorum_config(env: Env) -> types::DynamicQuorumConfig {
+        governance::get_dynamic_quorum_config(&env)
+    }
+
+    /// Record participation for a concluded proposal and adjust the quorum.
+    ///
+    /// Should be called once after a proposal's voting period ends.
+    /// If dynamic quorum is disabled, the quorum is unchanged and the current
+    /// value is returned.
+    ///
+    /// # Arguments
+    /// * `env`            – The contract environment.
+    /// * `proposal_id`    – ID of the concluded proposal.
+    /// * `total_votes`    – Votes cast during the proposal.
+    /// * `total_eligible` – Eligible voters at the time of the proposal.
+    ///
+    /// # Returns
+    /// The new effective quorum percent.
+    ///
+    /// # Errors
+    /// * `Error::InvalidParameters`              – total_eligible is zero.
+    /// * `Error::InsufficientParticipationHistory` – No history to average over.
+    /// * `Error::ArithmeticError`                – Overflow in calculation.
+    pub fn record_participation_and_adjust(
+        env: Env,
+        proposal_id: u64,
+        total_votes: u32,
+        total_eligible: u32,
+    ) -> Result<u32, Error> {
+        governance::record_participation_and_adjust(&env, proposal_id, total_votes, total_eligible)
     }
 
     /// Create a new buyback campaign

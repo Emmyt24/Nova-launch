@@ -1,6 +1,8 @@
 use crate::events;
 use crate::storage;
-use crate::types::{Error, GovernanceConfig};
+use crate::types::{
+    DynamicQuorumConfig, Error, GovernanceConfig, ParticipationRecord,
+};
 use soroban_sdk::{Address, Env};
 
 /// Default quorum percentage (30%)
@@ -150,6 +152,186 @@ fn validate_percentages(quorum_percent: u32, approval_percent: u32) -> Result<()
         return Err(Error::InvalidParameters);
     }
 
+    Ok(())
+}
+
+// ── Dynamic quorum ────────────────────────────────────────────────────────────
+
+/// Configure dynamic quorum adjustment.
+///
+/// Only the admin may call this. Setting `enabled = false` disables dynamic
+/// adjustment without erasing the configuration.
+///
+/// # Validation
+/// * `min_quorum_percent` ≤ `max_quorum_percent`
+/// * Both bounds must be ≤ 100
+/// * `target_participation` must be ≤ 100
+/// * `window_size` must be ≥ 1
+///
+/// # Errors
+/// * `Error::Unauthorized`        – Caller is not the admin.
+/// * `Error::InvalidQuorumBounds` – Bounds are invalid.
+/// * `Error::InvalidParameters`   – Other parameter violations.
+pub fn configure_dynamic_quorum(
+    env: &Env,
+    admin: &Address,
+    config: DynamicQuorumConfig,
+) -> Result<(), Error> {
+    admin.require_auth();
+    let stored_admin = storage::get_admin(env);
+    if *admin != stored_admin {
+        return Err(Error::Unauthorized);
+    }
+
+    validate_dynamic_quorum_config(&config)?;
+
+    storage::set_dynamic_quorum_config(env, &config);
+    Ok(())
+}
+
+/// Get the current dynamic quorum configuration.
+pub fn get_dynamic_quorum_config(env: &Env) -> DynamicQuorumConfig {
+    storage::get_dynamic_quorum_config(env)
+}
+
+/// Record participation data for a concluded proposal and, if dynamic quorum
+/// is enabled, recompute and persist the effective quorum.
+///
+/// This should be called once per proposal after voting closes.
+///
+/// # Arguments
+/// * `env`            – Contract environment.
+/// * `proposal_id`    – ID of the concluded proposal.
+/// * `total_votes`    – Votes cast during the proposal.
+/// * `total_eligible` – Eligible voters at the time of the proposal.
+///
+/// # Returns
+/// The new effective quorum percent (unchanged if dynamic quorum is disabled).
+///
+/// # Errors
+/// * `Error::InvalidParameters` – `total_eligible` is zero.
+/// * `Error::ArithmeticError`   – Overflow in participation calculation.
+pub fn record_participation_and_adjust(
+    env: &Env,
+    proposal_id: u64,
+    total_votes: u32,
+    total_eligible: u32,
+) -> Result<u32, Error> {
+    if total_eligible == 0 {
+        return Err(Error::InvalidParameters);
+    }
+
+    // Compute participation in basis points (0–10 000) to preserve precision.
+    let participation_bps = (total_votes as u64)
+        .checked_mul(10_000)
+        .and_then(|v| v.checked_div(total_eligible as u64))
+        .ok_or(Error::ArithmeticError)? as u32;
+
+    let record = ParticipationRecord {
+        proposal_id,
+        total_votes,
+        total_eligible,
+        participation_bps,
+        recorded_at: env.ledger().timestamp(),
+    };
+    storage::set_participation_record(env, proposal_id, &record);
+
+    let dq_config = storage::get_dynamic_quorum_config(env);
+    if !dq_config.enabled {
+        return Ok(storage::get_governance_config(env).quorum_percent);
+    }
+
+    let new_quorum = compute_adjusted_quorum(env, proposal_id, &dq_config)?;
+    let mut gov_config = storage::get_governance_config(env);
+    let old_quorum = gov_config.quorum_percent;
+
+    gov_config.quorum_percent = new_quorum;
+    storage::set_governance_config(env, &gov_config);
+
+    // Compute rolling average for the event payload.
+    let avg_bps = rolling_average_participation_bps(env, proposal_id, dq_config.window_size);
+    events::emit_dynamic_quorum_adjusted(env, proposal_id, old_quorum, new_quorum, avg_bps);
+
+    Ok(new_quorum)
+}
+
+/// Compute the effective quorum percent from recent participation history.
+///
+/// Formula:
+///   avg_participation_percent = rolling_avg_bps / 100   (integer, floor)
+///   adjusted = clamp(avg_participation_percent, min, max)
+///
+/// The intuition: if recent participation has been high, the quorum can be
+/// raised toward `max_quorum_percent`; if participation has been low, it
+/// relaxes toward `min_quorum_percent`.  The `target_participation` field is
+/// reserved for future weighted formulas and is not used in this version.
+///
+/// # Errors
+/// * `Error::InsufficientParticipationHistory` – No records exist yet.
+fn compute_adjusted_quorum(
+    env: &Env,
+    latest_proposal_id: u64,
+    config: &DynamicQuorumConfig,
+) -> Result<u32, Error> {
+    let avg_bps = rolling_average_participation_bps(env, latest_proposal_id, config.window_size);
+    if avg_bps == u32::MAX {
+        // Sentinel: no history available.
+        return Err(Error::InsufficientParticipationHistory);
+    }
+
+    // Convert BPS to percent (floor division).
+    let avg_percent = avg_bps / 100;
+
+    // Clamp to configured bounds.
+    let adjusted = avg_percent.max(config.min_quorum_percent).min(config.max_quorum_percent);
+    Ok(adjusted)
+}
+
+/// Compute the rolling average participation in basis points over the last
+/// `window_size` proposals ending at `latest_proposal_id`.
+///
+/// Returns `u32::MAX` as a sentinel when no records are found.
+fn rolling_average_participation_bps(env: &Env, latest_proposal_id: u64, window_size: u32) -> u32 {
+    let mut sum: u64 = 0;
+    let mut count: u32 = 0;
+
+    // Walk backwards from latest_proposal_id, collecting up to window_size records.
+    let mut id = latest_proposal_id;
+    loop {
+        if let Some(record) = storage::get_participation_record(env, id) {
+            sum = sum.saturating_add(record.participation_bps as u64);
+            count += 1;
+        }
+        if count >= window_size {
+            break;
+        }
+        if id == 0 {
+            break;
+        }
+        id -= 1;
+    }
+
+    if count == 0 {
+        return u32::MAX; // sentinel: no history
+    }
+
+    (sum / count as u64) as u32
+}
+
+/// Validate a `DynamicQuorumConfig` before persisting.
+fn validate_dynamic_quorum_config(config: &DynamicQuorumConfig) -> Result<(), Error> {
+    if config.min_quorum_percent > config.max_quorum_percent {
+        return Err(Error::InvalidQuorumBounds);
+    }
+    if config.max_quorum_percent > 100 {
+        return Err(Error::InvalidQuorumBounds);
+    }
+    if config.target_participation > 100 {
+        return Err(Error::InvalidParameters);
+    }
+    if config.window_size == 0 {
+        return Err(Error::InvalidParameters);
+    }
     Ok(())
 }
 

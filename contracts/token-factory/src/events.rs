@@ -466,6 +466,33 @@ pub fn emit_token_unpaused(env: &Env, token_index: u32, admin: &Address) {
     );
 }
 
+/// Emit dynamic quorum adjusted event
+///
+/// **Event Name**: dyn_qrm
+///
+/// **Topics** (indexed):
+/// - Event name: "dyn_qrm"
+///
+/// **Payload** (non-indexed):
+/// - proposal_id: u64 - The proposal whose participation triggered the adjustment
+/// - old_quorum: u32 - Previous effective quorum percent
+/// - new_quorum: u32 - New effective quorum percent
+/// - avg_participation_bps: u32 - Rolling average participation in basis points
+///
+/// Emitted when the dynamic quorum is recalculated after a proposal concludes.
+pub fn emit_dynamic_quorum_adjusted(
+    env: &Env,
+    proposal_id: u64,
+    old_quorum: u32,
+    new_quorum: u32,
+    avg_participation_bps: u32,
+) {
+    env.events().publish(
+        (symbol_short!("dyn_qrm"),),
+        (proposal_id, old_quorum, new_quorum, avg_participation_bps),
+    );
+}
+
 /// Emit metadata set event
 ///
 /// **Event Name**: meta_set

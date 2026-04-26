@@ -1280,6 +1280,50 @@ pub fn set_governance_config(env: &Env, config: &crate::types::GovernanceConfig)
         .set(&DataKey::GovernanceConfig, config);
 }
 
+// ── Dynamic quorum storage functions ──────────────────────
+
+/// Get dynamic quorum configuration (defaults to disabled).
+pub fn get_dynamic_quorum_config(env: &Env) -> crate::types::DynamicQuorumConfig {
+    env.storage()
+        .instance()
+        .get(&DataKey::DynamicQuorumConfig)
+        .unwrap_or(crate::types::DynamicQuorumConfig {
+            enabled: false,
+            min_quorum_percent: 10,
+            max_quorum_percent: 80,
+            target_participation: 30,
+            window_size: 5,
+        })
+}
+
+/// Persist dynamic quorum configuration.
+pub fn set_dynamic_quorum_config(env: &Env, config: &crate::types::DynamicQuorumConfig) {
+    env.storage()
+        .instance()
+        .set(&DataKey::DynamicQuorumConfig, config);
+}
+
+/// Store a participation record for a concluded proposal.
+pub fn set_participation_record(
+    env: &Env,
+    proposal_id: u64,
+    record: &crate::types::ParticipationRecord,
+) {
+    env.storage()
+        .persistent()
+        .set(&DataKey::ParticipationRecord(proposal_id), record);
+}
+
+/// Retrieve a participation record by proposal ID.
+pub fn get_participation_record(
+    env: &Env,
+    proposal_id: u64,
+) -> Option<crate::types::ParticipationRecord> {
+    env.storage()
+        .persistent()
+        .get(&DataKey::ParticipationRecord(proposal_id))
+}
+
 // ── Milestone Verification (Stub Testing) ────────────────────────────────────────────────────────────────────
 
 /// Set a valid proof for milestone verification testing
