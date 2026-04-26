@@ -7,6 +7,7 @@
 mod campaign_validation;
 mod freeze_functions;
 mod governance;
+mod ipfs_pinning;
 
 mod burn;
 mod differential_engine;
@@ -2121,6 +2122,77 @@ impl TokenFactory {
 
     pub fn get_vote_counts(env: Env, proposal_id: u64) -> Option<(i128, i128, i128)> {
         timelock::get_vote_counts(&env, proposal_id)
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // IPFS Metadata Pinning with Redundancy (Issue #883)
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// Add an IPFS pin record for a token's metadata (creator or admin only).
+    ///
+    /// Provides redundancy by allowing multiple IPFS gateway URIs to be
+    /// registered for the same token metadata content.
+    ///
+    /// # Arguments
+    /// * `env`         – The contract environment.
+    /// * `caller`      – Token creator or admin (must authorize).
+    /// * `token_index` – Index of the token.
+    /// * `uri`         – IPFS URI (max 256 bytes).
+    ///
+    /// # Returns
+    /// The pin index on success.
+    ///
+    /// # Errors
+    /// * `Error::TokenNotFound`     – Token does not exist.
+    /// * `Error::Unauthorized`      – Caller is not creator or admin.
+    /// * `Error::InvalidParameters` – URI invalid or pin limit reached.
+    pub fn add_ipfs_pin(
+        env: Env,
+        caller: Address,
+        token_index: u32,
+        uri: String,
+    ) -> Result<u32, Error> {
+        ipfs_pinning::add_pin(&env, &caller, token_index, uri)
+    }
+
+    /// Deactivate an IPFS pin record (soft-delete, audit trail preserved).
+    ///
+    /// # Arguments
+    /// * `env`         – The contract environment.
+    /// * `caller`      – Token creator or admin (must authorize).
+    /// * `token_index` – Index of the token.
+    /// * `pin_index`   – Index of the pin to deactivate.
+    ///
+    /// # Errors
+    /// * `Error::TokenNotFound`     – Token or pin does not exist.
+    /// * `Error::Unauthorized`      – Caller is not creator or admin.
+    /// * `Error::InvalidParameters` – Pin is already inactive.
+    pub fn deactivate_ipfs_pin(
+        env: Env,
+        caller: Address,
+        token_index: u32,
+        pin_index: u32,
+    ) -> Result<(), Error> {
+        ipfs_pinning::deactivate_pin(&env, &caller, token_index, pin_index)
+    }
+
+    /// Retrieve a specific IPFS pin record.
+    pub fn get_ipfs_pin(
+        env: Env,
+        token_index: u32,
+        pin_index: u32,
+    ) -> Option<ipfs_pinning::IpfsPin> {
+        ipfs_pinning::get_pin(&env, token_index, pin_index)
+    }
+
+    /// Return the total number of pin records for a token (active + inactive).
+    pub fn get_ipfs_pin_count(env: Env, token_index: u32) -> u32 {
+        ipfs_pinning::get_pin_count(&env, token_index)
+    }
+
+    /// Return the number of active pin records for a token.
+    pub fn get_active_ipfs_pin_count(env: Env, token_index: u32) -> u32 {
+        ipfs_pinning::get_active_pin_count(&env, token_index)
     }
 }
 
