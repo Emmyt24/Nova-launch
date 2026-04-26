@@ -1,0 +1,78 @@
+##############################################################################
+# Alert Rules — Webhooks & Background Jobs
+##############################################################################
+
+groups:
+  - name: webhook_alerts
+    interval: 30s
+    rules:
+      # -----------------------------------------------------------------------
+      # High webhook failure rate
+      # -----------------------------------------------------------------------
+      - alert: HighWebhookFailureRate
+        expr: |
+          (
+            sum(rate(webhook_deliveries_total{status="failure"}[10m])) by (event_type)
+            /
+            sum(rate(webhook_deliveries_total[10m])) by (event_type)
+          ) > 0.20
+        for: 5m
+        labels:
+          severity: warning
+          team: backend
+        annotations:
+          summary: "High webhook failure rate for {{ $labels.event_type }}"
+          description: >
+            Webhook failure rate is {{ $value | humanizePercentage }} for
+            event type {{ $labels.event_type }}.
+
+      # -----------------------------------------------------------------------
+      # Webhook retry storm
+      # -----------------------------------------------------------------------
+      - alert: WebhookRetryStorm
+        expr: |
+          sum(rate(webhook_retries_total[5m])) by (event_type) > 10
+        for: 3m
+        labels:
+          severity: warning
+          team: backend
+        annotations:
+          summary: "Webhook retry storm for {{ $labels.event_type }}"
+          description: >
+            More than 10 webhook retries/second for {{ $labels.event_type }}.
+            Downstream endpoint may be down.
+
+      # -----------------------------------------------------------------------
+      # Background job failures
+      # -----------------------------------------------------------------------
+      - alert: BackgroundJobFailures
+        expr: |
+          (
+            sum(rate(job_executions_total{status="failure"}[10m])) by (job_name)
+            /
+            sum(rate(job_executions_total[10m])) by (job_name)
+          ) > 0.10
+        for: 5m
+        labels:
+          severity: warning
+          team: backend
+        annotations:
+          summary: "Background job {{ $labels.job_name }} has high failure rate"
+          description: >
+            Job {{ $labels.job_name }} failure rate is
+            {{ $value | humanizePercentage }}.
+
+      # -----------------------------------------------------------------------
+      # Job queue growing
+      # -----------------------------------------------------------------------
+      - alert: JobQueueGrowing
+        expr: job_queue_size > 1000
+        for: 5m
+        labels:
+          severity: warning
+          team: backend
+        annotations:
+          summary: "Job queue {{ $labels.queue_name }} is growing"
+          description: >
+            Queue {{ $labels.queue_name }} has {{ $value }} pending jobs.
+            Workers may be stalled.

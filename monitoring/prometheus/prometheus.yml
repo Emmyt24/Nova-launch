@@ -1,0 +1,85 @@
+##############################################################################
+# Prometheus Configuration — Nova Launch
+##############################################################################
+
+global:
+  scrape_interval: 15s # How often to scrape targets
+  evaluation_interval: 15s # How often to evaluate rules
+  scrape_timeout: 10s
+  external_labels:
+    cluster: nova-launch
+    env: '{{ default "development" (env "NODE_ENV") }}'
+
+# Alertmanager configuration
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+            - alertmanager:9093
+
+# Load alerting rules
+rule_files:
+  - /etc/prometheus/alerts/*.yml
+
+##############################################################################
+# Scrape Configurations
+##############################################################################
+
+scrape_configs:
+  # --------------------------------------------------------------------------
+  # Prometheus self-monitoring
+  # --------------------------------------------------------------------------
+  - job_name: prometheus
+    static_configs:
+      - targets: ["localhost:9090"]
+
+  # --------------------------------------------------------------------------
+  # Nova Launch Backend API
+  # --------------------------------------------------------------------------
+  - job_name: nova-backend
+    metrics_path: /metrics
+    scrape_interval: 10s
+    static_configs:
+      - targets: ["nova-launch-backend:3001"]
+        labels:
+          service: backend
+          component: api
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+
+  # --------------------------------------------------------------------------
+  # Node Exporter — host OS metrics
+  # --------------------------------------------------------------------------
+  - job_name: node-exporter
+    static_configs:
+      - targets: ["node-exporter:9100"]
+        labels:
+          service: host
+
+  # --------------------------------------------------------------------------
+  # cAdvisor — container metrics
+  # --------------------------------------------------------------------------
+  - job_name: cadvisor
+    scrape_interval: 15s
+    static_configs:
+      - targets: ["cadvisor:8080"]
+        labels:
+          service: containers
+    metric_relabel_configs:
+      # Keep only nova-launch containers to reduce cardinality
+      - source_labels: [container_label_com_docker_compose_project]
+        regex: nova.*
+        action: keep
+      - source_labels: [name]
+        regex: nova.*
+        action: keep
+
+  # --------------------------------------------------------------------------
+  # PostgreSQL (via postgres_exporter if added later)
+  # --------------------------------------------------------------------------
+  # - job_name: postgres
+  #   static_configs:
+  #     - targets: ['postgres-exporter:9187']
+  #       labels:
+  #         service: database

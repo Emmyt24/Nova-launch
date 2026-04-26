@@ -1,0 +1,184 @@
+##############################################################################
+# Dependabot Configuration — Nova Launch
+#
+# Automates dependency updates across all package ecosystems in the monorepo.
+# PRs are opened on a schedule and grouped to reduce noise.
+#
+# Docs: https://docs.github.com/en/code-security/dependabot/dependabot-version-updates
+##############################################################################
+
+version: 2
+
+updates:
+  # --------------------------------------------------------------------------
+  # Backend — Node.js / npm
+  # --------------------------------------------------------------------------
+  - package-ecosystem: npm
+    directory: /backend
+    schedule:
+      interval: weekly
+      day: monday
+      time: "08:00"
+      timezone: UTC
+    open-pull-requests-limit: 10
+    target-branch: main
+    labels:
+      - dependencies
+      - backend
+      - security
+    commit-message:
+      prefix: "chore(deps)"
+      prefix-development: "chore(dev-deps)"
+      include: scope
+    # Group all non-major updates into a single PR to reduce noise
+    groups:
+      backend-minor-patch:
+        applies-to: version-updates
+        update-types:
+          - minor
+          - patch
+      backend-security:
+        applies-to: security-updates
+        patterns:
+          - "*"
+    ignore:
+      # Prisma major versions require manual migration review
+      - dependency-name: "@prisma/*"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "prisma"
+        update-types: ["version-update:semver-major"]
+    reviewers:
+      - Just-Bamford
+    assignees:
+      - Just-Bamford
+
+  # --------------------------------------------------------------------------
+  # Frontend — Node.js / npm
+  # --------------------------------------------------------------------------
+  - package-ecosystem: npm
+    directory: /frontend
+    schedule:
+      interval: weekly
+      day: monday
+      time: "08:00"
+      timezone: UTC
+    open-pull-requests-limit: 10
+    target-branch: main
+    labels:
+      - dependencies
+      - frontend
+      - security
+    commit-message:
+      prefix: "chore(deps)"
+      prefix-development: "chore(dev-deps)"
+      include: scope
+    groups:
+      frontend-minor-patch:
+        applies-to: version-updates
+        update-types:
+          - minor
+          - patch
+      frontend-security:
+        applies-to: security-updates
+        patterns:
+          - "*"
+    ignore:
+      # React major versions require manual upgrade
+      - dependency-name: "react"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "react-dom"
+        update-types: ["version-update:semver-major"]
+    reviewers:
+      - Just-Bamford
+    assignees:
+      - Just-Bamford
+
+  # --------------------------------------------------------------------------
+  # Deployment scripts — Node.js / npm
+  # --------------------------------------------------------------------------
+  - package-ecosystem: npm
+    directory: /scripts/deployment
+    schedule:
+      interval: weekly
+      day: monday
+      time: "08:00"
+      timezone: UTC
+    open-pull-requests-limit: 5
+    target-branch: main
+    labels:
+      - dependencies
+      - scripts
+    commit-message:
+      prefix: "chore(deps)"
+      include: scope
+    groups:
+      scripts-all:
+        applies-to: version-updates
+        update-types:
+          - minor
+          - patch
+    reviewers:
+      - Just-Bamford
+
+  # --------------------------------------------------------------------------
+  # Rust / Cargo — Smart Contracts
+  # --------------------------------------------------------------------------
+  - package-ecosystem: cargo
+    directory: /contracts/token-factory
+    schedule:
+      interval: weekly
+      day: tuesday
+      time: "08:00"
+      timezone: UTC
+    open-pull-requests-limit: 5
+    target-branch: main
+    labels:
+      - dependencies
+      - contracts
+      - rust
+      - security
+    commit-message:
+      prefix: "chore(deps)"
+      include: scope
+    groups:
+      cargo-minor-patch:
+        applies-to: version-updates
+        update-types:
+          - minor
+          - patch
+      cargo-security:
+        applies-to: security-updates
+        patterns:
+          - "*"
+    reviewers:
+      - Just-Bamford
+    assignees:
+      - Just-Bamford
+
+  # --------------------------------------------------------------------------
+  # GitHub Actions
+  # --------------------------------------------------------------------------
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: wednesday
+      time: "08:00"
+      timezone: UTC
+    open-pull-requests-limit: 5
+    target-branch: main
+    labels:
+      - dependencies
+      - github-actions
+      - ci
+    commit-message:
+      prefix: "chore(ci)"
+      include: scope
+    groups:
+      actions-all:
+        applies-to: version-updates
+        update-types:
+          - minor
+          - patch
+    reviewers:
+      - Just-Bamford

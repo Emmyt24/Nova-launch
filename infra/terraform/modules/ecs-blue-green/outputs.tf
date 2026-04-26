@@ -1,0 +1,11 @@
+output "cluster_id"                       { value = aws_ecs_cluster.main.id }
+output "cluster_arn"                      { value = aws_ecs_cluster.main.arn }
+output "backend_blue_service_name"        { value = aws_ecs_service.backend_blue.name }
+output "backend_green_service_name"       { value = aws_ecs_service.backend_green.name }
+output "frontend_blue_service_name"       { value = aws_ecs_service.frontend_blue.name }
+output "frontend_green_service_name"      { value = aws_ecs_service.frontend_green.name }
+output "backend_task_definition_arn"      { value = aws_ecs_task_definition.backend.arn }
+output "frontend_task_definition_arn"     { value = aws_ecs_task_definition.frontend.arn }
+output "backend_security_group_id"        { value = aws_security_group.backend.id }
+output "frontend_security_group_id"       { value = aws_security_group.frontend.id }
+output "task_execution_role_arn"          { value = aws_iam_role.ecs_task_execution.arn }

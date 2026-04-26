@@ -1,0 +1,156 @@
+##############################################################################
+# Alert Rules — Infrastructure (Host, Containers, Database)
+##############################################################################
+
+groups:
+  - name: infrastructure_alerts
+    interval: 30s
+    rules:
+      # -----------------------------------------------------------------------
+      # High CPU usage
+      # -----------------------------------------------------------------------
+      - alert: HighCPUUsage
+        expr: |
+          100 - (avg by (instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 80
+        for: 5m
+        labels:
+          severity: warning
+          team: infra
+        annotations:
+          summary: "High CPU usage on {{ $labels.instance }}"
+          description: >
+            CPU usage is {{ $value | humanize }}% on {{ $labels.instance }}.
+            Threshold: 80%.
+
+      - alert: CriticalCPUUsage
+        expr: |
+          100 - (avg by (instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 95
+        for: 2m
+        labels:
+          severity: critical
+          team: infra
+        annotations:
+          summary: "Critical CPU usage on {{ $labels.instance }}"
+          description: >
+            CPU usage is {{ $value | humanize }}% on {{ $labels.instance }}.
+            Immediate action required.
+
+      # -----------------------------------------------------------------------
+      # High memory usage
+      # -----------------------------------------------------------------------
+      - alert: HighMemoryUsage
+        expr: |
+          (
+            (node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes)
+            / node_memory_MemTotal_bytes
+          ) * 100 > 85
+        for: 5m
+        labels:
+          severity: warning
+          team: infra
+        annotations:
+          summary: "High memory usage on {{ $labels.instance }}"
+          description: >
+            Memory usage is {{ $value | humanize }}% on {{ $labels.instance }}.
+
+      - alert: CriticalMemoryUsage
+        expr: |
+          (
+            (node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes)
+            / node_memory_MemTotal_bytes
+          ) * 100 > 95
+        for: 2m
+        labels:
+          severity: critical
+          team: infra
+        annotations:
+          summary: "Critical memory usage on {{ $labels.instance }}"
+          description: >
+            Memory usage is {{ $value | humanize }}% on {{ $labels.instance }}.
+            OOM risk imminent.
+
+      # -----------------------------------------------------------------------
+      # Disk space
+      # -----------------------------------------------------------------------
+      - alert: LowDiskSpace
+        expr: |
+          (
+            node_filesystem_avail_bytes{fstype!~"tmpfs|fuse.lxcfs|squashfs"}
+            / node_filesystem_size_bytes{fstype!~"tmpfs|fuse.lxcfs|squashfs"}
+          ) * 100 < 20
+        for: 5m
+        labels:
+          severity: warning
+          team: infra
+        annotations:
+          summary: "Low disk space on {{ $labels.instance }} ({{ $labels.mountpoint }})"
+          description: >
+            Only {{ $value | humanize }}% disk space remaining on
+            {{ $labels.mountpoint }}.
+
+      - alert: CriticalDiskSpace
+        expr: |
+          (
+            node_filesystem_avail_bytes{fstype!~"tmpfs|fuse.lxcfs|squashfs"}
+            / node_filesystem_size_bytes{fstype!~"tmpfs|fuse.lxcfs|squashfs"}
+          ) * 100 < 5
+        for: 2m
+        labels:
+          severity: critical
+          team: infra
+        annotations:
+          summary: "Critical disk space on {{ $labels.instance }} ({{ $labels.mountpoint }})"
+          description: >
+            Only {{ $value | humanize }}% disk space remaining. Service may fail.
+
+      # -----------------------------------------------------------------------
+      # Node.js process memory
+      # -----------------------------------------------------------------------
+      - alert: NodeJSHighHeapUsage
+        expr: |
+          (
+            nodejs_heap_size_used_bytes
+            / nodejs_heap_size_total_bytes
+          ) * 100 > 85
+        for: 5m
+        labels:
+          severity: warning
+          team: backend
+        annotations:
+          summary: "Node.js heap usage high on {{ $labels.instance }}"
+          description: >
+            Node.js heap is {{ $value | humanize }}% full. Memory leak suspected.
+
+      # -----------------------------------------------------------------------
+      # Database connection pool
+      # -----------------------------------------------------------------------
+      - alert: DatabaseConnectionPoolExhausted
+        expr: |
+          db_connections_active / (db_connections_active + db_connections_idle) > 0.90
+        for: 3m
+        labels:
+          severity: critical
+          team: backend
+        annotations:
+          summary: "Database connection pool nearly exhausted"
+          description: >
+            {{ $value | humanizePercentage }} of DB connections are active.
+            Pool exhaustion imminent.
+
+      # -----------------------------------------------------------------------
+      # Container restarts
+      # -----------------------------------------------------------------------
+      - alert: ContainerRestarting
+        expr: |
+          rate(container_last_seen{name=~"nova.*"}[5m]) > 0
+          and
+          changes(container_start_time_seconds{name=~"nova.*"}[10m]) > 2
+        for: 0m
+        labels:
+          severity: warning
+          team: infra
+        annotations:
+          summary: "Container {{ $labels.name }} is restarting frequently"
+          description: >
+            Container {{ $labels.name }} has restarted more than twice in the
+            last 10 minutes.

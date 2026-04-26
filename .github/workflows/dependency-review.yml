@@ -1,0 +1,45 @@
+##############################################################################
+# Dependency Review Workflow — Nova Launch
+#
+# Blocks PRs that introduce dependencies with known vulnerabilities.
+# Uses GitHub's built-in dependency review action which compares the
+# dependency graph between the base and head commits.
+#
+# Docs: https://docs.github.com/en/code-security/supply-chain-security/
+#       understanding-your-software-supply-chain/about-dependency-review
+##############################################################################
+
+name: Dependency Review
+
+on:
+  pull_request:
+    branches: [main, develop]
+
+permissions:
+  contents: read
+  pull-requests: write # needed to post review comments
+
+jobs:
+  dependency-review:
+    name: Dependency Review
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Dependency Review
+        uses: actions/dependency-review-action@v4
+        with:
+          # Fail on high and critical vulnerabilities
+          fail-on-severity: high
+          # Block dependencies with incompatible licenses
+          deny-licenses: GPL-2.0, GPL-3.0, AGPL-3.0
+          # Post a summary comment on the PR
+          comment-summary-in-pr: always
+          # Warn (not fail) on packages with no license info
+          warn-only: false
+          # Retry on transient API errors
+          retry-on-snapshot-warnings: true
+          retry-on-snapshot-warnings-timeout: 120

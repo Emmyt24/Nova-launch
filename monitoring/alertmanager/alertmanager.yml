@@ -1,0 +1,135 @@
+##############################################################################
+# Alertmanager Configuration — Nova Launch
+#
+# Routes alerts to the appropriate receiver based on severity and team.
+# Configure SLACK_WEBHOOK_URL and PAGERDUTY_SERVICE_KEY via environment
+# variables or replace the placeholders below.
+##############################################################################
+
+global:
+  resolve_timeout: 5m
+  # SMTP settings (optional — configure for email alerts)
+  # smtp_smarthost: 'smtp.example.com:587'
+  # smtp_from: 'alerts@nova-launch.io'
+  # smtp_auth_username: 'alerts@nova-launch.io'
+  # smtp_auth_password: '<SMTP_PASSWORD>'
+
+# Templates for notification messages
+templates:
+  - "/etc/alertmanager/templates/*.tmpl"
+
+# ---------------------------------------------------------------------------
+# Routing tree
+# ---------------------------------------------------------------------------
+route:
+  group_by: ["alertname", "cluster", "service"]
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 4h
+  receiver: default-receiver
+
+  routes:
+    # Critical alerts → immediate PagerDuty + Slack
+    - match:
+        severity: critical
+      receiver: critical-receiver
+      group_wait: 10s
+      repeat_interval: 1h
+      continue: true
+
+    # Warning alerts → Slack only
+    - match:
+        severity: warning
+      receiver: warning-receiver
+      repeat_interval: 4h
+
+    # Blockchain team alerts
+    - match:
+        team: blockchain
+      receiver: blockchain-receiver
+
+    # Infrastructure alerts
+    - match:
+        team: infra
+      receiver: infra-receiver
+
+# ---------------------------------------------------------------------------
+# Inhibition rules — suppress lower-severity alerts when higher ones fire
+# ---------------------------------------------------------------------------
+inhibit_rules:
+  - source_match:
+      severity: critical
+    target_match:
+      severity: warning
+    equal: ["alertname", "cluster", "service"]
+
+# ---------------------------------------------------------------------------
+# Receivers
+# ---------------------------------------------------------------------------
+receivers:
+  - name: default-receiver
+    slack_configs:
+      - api_url: "${SLACK_WEBHOOK_URL:-https://hooks.slack.com/services/REPLACE_ME}"
+        channel: "#nova-alerts"
+        title: '[{{ .Status | toUpper }}{{ if eq .Status "firing" }}:{{ .Alerts.Firing | len }}{{ end }}] {{ .CommonLabels.alertname }}'
+        text: >-
+          {{ range .Alerts }}
+          *Alert:* {{ .Annotations.summary }}
+          *Description:* {{ .Annotations.description }}
+          *Severity:* {{ .Labels.severity }}
+          *Started:* {{ .StartsAt | since }}
+          {{ end }}
+        send_resolved: true
+
+  - name: critical-receiver
+    slack_configs:
+      - api_url: "${SLACK_WEBHOOK_URL:-https://hooks.slack.com/services/REPLACE_ME}"
+        channel: "#nova-critical"
+        title: "🚨 CRITICAL: {{ .CommonLabels.alertname }}"
+        text: >-
+          {{ range .Alerts }}
+          *Alert:* {{ .Annotations.summary }}
+          *Description:* {{ .Annotations.description }}
+          *Runbook:* {{ .Annotations.runbook_url }}
+          {{ end }}
+        send_resolved: true
+    # Uncomment and configure for PagerDuty:
+    # pagerduty_configs:
+    #   - service_key: '${PAGERDUTY_SERVICE_KEY}'
+    #     description: '{{ .CommonLabels.alertname }}: {{ .CommonAnnotations.summary }}'
+
+  - name: warning-receiver
+    slack_configs:
+      - api_url: "${SLACK_WEBHOOK_URL:-https://hooks.slack.com/services/REPLACE_ME}"
+        channel: "#nova-alerts"
+        title: "⚠️ WARNING: {{ .CommonLabels.alertname }}"
+        text: >-
+          {{ range .Alerts }}
+          *Alert:* {{ .Annotations.summary }}
+          *Description:* {{ .Annotations.description }}
+          {{ end }}
+        send_resolved: true
+
+  - name: blockchain-receiver
+    slack_configs:
+      - api_url: "${SLACK_WEBHOOK_URL:-https://hooks.slack.com/services/REPLACE_ME}"
+        channel: "#nova-blockchain"
+        title: "⛓️ Blockchain Alert: {{ .CommonLabels.alertname }}"
+        text: >-
+          {{ range .Alerts }}
+          *Alert:* {{ .Annotations.summary }}
+          *Description:* {{ .Annotations.description }}
+          {{ end }}
+        send_resolved: true
+
+  - name: infra-receiver
+    slack_configs:
+      - api_url: "${SLACK_WEBHOOK_URL:-https://hooks.slack.com/services/REPLACE_ME}"
+        channel: "#nova-infra"
+        title: "🖥️ Infra Alert: {{ .CommonLabels.alertname }}"
+        text: >-
+          {{ range .Alerts }}
+          *Alert:* {{ .Annotations.summary }}
+          *Description:* {{ .Annotations.description }}
+          {{ end }}
+        send_resolved: true
