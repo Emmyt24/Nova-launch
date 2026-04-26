@@ -188,6 +188,30 @@ mod tests {
     use crate::test_helpers::TestEnv;
     use soroban_sdk::testutils::Address as _;
 
+    fn make_campaign(env: &soroban_sdk::Env, owner: &Address, status: CampaignStatus) -> BuybackCampaign {
+        let dummy = Address::generate(env);
+        BuybackCampaign {
+            id: 1,
+            token_index: 0,
+            owner: owner.clone(),
+            budget: 1_000_000,
+            spent: 0,
+            tokens_bought: 0,
+            execution_count: 0,
+            start_time: env.ledger().timestamp(),
+            end_time: env.ledger().timestamp() + 86400,
+            min_interval: 300,
+            max_slippage_bps: 100,
+            source_token: dummy.clone(),
+            target_token: dummy,
+            status,
+            created_at: env.ledger().timestamp(),
+            updated_at: env.ledger().timestamp(),
+            trigger_price: 0,
+            last_executed_at: 0,
+        }
+    }
+
     #[test]
     fn test_pause_active_campaign() {
         let test_env = TestEnv::new();
@@ -195,27 +219,12 @@ mod tests {
         let admin = &test_env.admin;
 
         env.as_contract(&env.current_contract_address(), || {
-            // Create active campaign
-            let campaign = BuybackCampaign {
-                id: 1,
-                token_index: 0,
-                owner: admin.clone(),
-                budget_allocated: 1_000_000,
-                budget_spent: 0,
-                tokens_burned: 0,
-                burn_count: 0,
-                start_time: env.ledger().timestamp(),
-                end_time: 0,
-                status: CampaignStatus::Active,
-                created_at: env.ledger().timestamp(),
-            };
+            let campaign = make_campaign(env, admin, CampaignStatus::Active);
             storage::set_campaign(env, 1, &campaign);
 
-            // Pause campaign
             let result = pause_campaign(env, admin, 1);
             assert!(result.is_ok());
 
-            // Verify state change
             let updated = storage::get_campaign(env, 1).unwrap();
             assert_eq!(updated.status, CampaignStatus::Paused);
         });
@@ -228,23 +237,9 @@ mod tests {
         let admin = &test_env.admin;
 
         env.as_contract(&env.current_contract_address(), || {
-            // Create paused campaign
-            let campaign = BuybackCampaign {
-                id: 1,
-                token_index: 0,
-                owner: admin.clone(),
-                budget_allocated: 1_000_000,
-                budget_spent: 0,
-                tokens_burned: 0,
-                burn_count: 0,
-                start_time: env.ledger().timestamp(),
-                end_time: 0,
-                status: CampaignStatus::Paused,
-                created_at: env.ledger().timestamp(),
-            };
+            let campaign = make_campaign(env, admin, CampaignStatus::Paused);
             storage::set_campaign(env, 1, &campaign);
 
-            // Attempt to pause again (replay attack)
             let result = pause_campaign(env, admin, 1);
             assert_eq!(result, Err(Error::CampaignAlreadyPaused));
         });
@@ -257,27 +252,12 @@ mod tests {
         let admin = &test_env.admin;
 
         env.as_contract(&env.current_contract_address(), || {
-            // Create paused campaign
-            let campaign = BuybackCampaign {
-                id: 1,
-                token_index: 0,
-                owner: admin.clone(),
-                budget_allocated: 1_000_000,
-                budget_spent: 0,
-                tokens_burned: 0,
-                burn_count: 0,
-                start_time: env.ledger().timestamp(),
-                end_time: 0,
-                status: CampaignStatus::Paused,
-                created_at: env.ledger().timestamp(),
-            };
+            let campaign = make_campaign(env, admin, CampaignStatus::Paused);
             storage::set_campaign(env, 1, &campaign);
 
-            // Resume campaign
             let result = resume_campaign(env, admin, 1);
             assert!(result.is_ok());
 
-            // Verify state change
             let updated = storage::get_campaign(env, 1).unwrap();
             assert_eq!(updated.status, CampaignStatus::Active);
         });
@@ -290,23 +270,9 @@ mod tests {
         let admin = &test_env.admin;
 
         env.as_contract(&env.current_contract_address(), || {
-            // Create active campaign
-            let campaign = BuybackCampaign {
-                id: 1,
-                token_index: 0,
-                owner: admin.clone(),
-                budget_allocated: 1_000_000,
-                budget_spent: 0,
-                tokens_burned: 0,
-                burn_count: 0,
-                start_time: env.ledger().timestamp(),
-                end_time: 0,
-                status: CampaignStatus::Active,
-                created_at: env.ledger().timestamp(),
-            };
+            let campaign = make_campaign(env, admin, CampaignStatus::Active);
             storage::set_campaign(env, 1, &campaign);
 
-            // Attempt to resume (replay attack)
             let result = resume_campaign(env, admin, 1);
             assert_eq!(result, Err(Error::CampaignNotPaused));
         });
@@ -319,19 +285,7 @@ mod tests {
         let admin = &test_env.admin;
 
         env.as_contract(&env.current_contract_address(), || {
-            let campaign = BuybackCampaign {
-                id: 1,
-                token_index: 0,
-                owner: admin.clone(),
-                budget_allocated: 1_000_000,
-                budget_spent: 1_000_000,
-                tokens_burned: 50_000,
-                burn_count: 10,
-                start_time: env.ledger().timestamp(),
-                end_time: 0,
-                status: CampaignStatus::Completed,
-                created_at: env.ledger().timestamp(),
-            };
+            let campaign = make_campaign(env, admin, CampaignStatus::Completed);
             storage::set_campaign(env, 1, &campaign);
 
             let result = pause_campaign(env, admin, 1);
@@ -347,17 +301,13 @@ mod tests {
         let attacker = Address::generate(env);
 
         env.as_contract(&env.current_contract_address(), || {
-            let campaign = BuybackCampaign {
-                id: 1,
-                token_index: 0,
-                owner: admin.clone(),
-                budget_allocated: 1_000_000,
-                budget_spent: 0,
-                tokens_burned: 0,
-                burn_count: 0,
-                start_time: env.ledger().timestamp(),
-                end_time: 0,
-                status: CampaignStatus::Active,
+            let campaign = make_campaign(env, admin, CampaignStatus::Active);
+            storage::set_campaign(env, 1, &campaign);
+
+            let result = pause_campaign(env, &attacker, 1);
+            assert_eq!(result, Err(Error::Unauthorized));
+        });
+    }
                 created_at: env.ledger().timestamp(),
             };
             storage::set_campaign(env, 1, &campaign);

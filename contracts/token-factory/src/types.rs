@@ -57,11 +57,10 @@ pub struct ContractMetadata {
 /// * `initial_supply` - Initial supply at token creation
 /// * `max_supply` - Optional maximum supply cap (None = unlimited)
 /// * `metadata_uri` - Optional IPFS URI for additional metadata
+/// * `metadata_version` - Current metadata version (0 = never set, 1+ = update count)
 /// * `created_at` - Unix timestamp of token creation
 /// * `total_burned` - Cumulative amount of tokens burned
 /// * `burn_count` - Number of burn operations performed
-/// * `metadata_uri` - Optional IPFS URI for additional metadata
-/// * `created_at` - Unix timestamp of token creation
 /// * `clawback_enabled` - Whether admin can burn from any address
 ///
 /// # Examples
@@ -83,10 +82,29 @@ pub struct TokenInfo {
     pub total_burned: i128,
     pub burn_count: u32,
     pub metadata_uri: Option<String>,
+    /// Current metadata version. 0 = metadata never set; increments with each update.
+    pub metadata_version: u32,
     pub created_at: u64,
     pub is_paused: bool,
     pub clawback_enabled: bool,
     pub freeze_enabled: bool,
+}
+
+/// A historical record of a single metadata update.
+///
+/// Stored per (token_index, version) so callers can reconstruct the full
+/// update history for any token.
+///
+/// # Fields
+/// * `uri` - The metadata URI that was set in this version
+/// * `updated_at` - Ledger timestamp when the update was applied
+/// * `updated_by` - Address that performed the update
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct MetadataRecord {
+    pub uri: String,
+    pub updated_at: u64,
+    pub updated_by: Address,
 }
 
 #[contracttype]
@@ -166,6 +184,66 @@ pub struct BuybackCampaign {
     pub status: CampaignStatus,
     pub created_at: u64,
     pub updated_at: u64,
+    /// Optional price trigger: execute only when price is at or below this value (0 = disabled)
+    pub trigger_price: i128,
+    /// Last execution timestamp for interval enforcement
+    pub last_executed_at: u64,
+}
+
+/// Price trigger condition for buyback automation
+///
+/// Defines the condition under which a buyback should be triggered.
+/// When the current price is at or below `trigger_price`, the buyback executes.
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct PriceTrigger {
+    /// Price threshold in stroops; buyback fires when price <= this value
+    pub trigger_price: i128,
+    /// Maximum amount to spend per triggered execution
+    pub max_spend_per_trigger: i128,
+}
+
+/// Governance proposal template for common actions
+///
+/// Templates pre-encode common governance actions so proposers don't
+/// need to manually construct payloads.
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ProposalTemplate {
+    pub id: u32,
+    pub name: String,
+    pub action_type: ActionType,
+    pub description: String,
+    pub created_at: u64,
+}
+
+/// Airdrop campaign with Merkle tree verification
+///
+/// Allows distributing tokens to a predefined set of recipients
+/// verified via a Merkle root.
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct AirdropCampaign {
+    pub id: u64,
+    pub token_index: u32,
+    pub merkle_root: BytesN<32>,
+    pub total_amount: i128,
+    pub claimed_amount: i128,
+    pub start_time: u64,
+    pub end_time: u64,
+    pub owner: Address,
+    pub status: CampaignStatus,
+    pub created_at: u64,
+}
+
+/// Contract version info for upgrade/migration tracking
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ContractVersion {
+    pub major: u32,
+    pub minor: u32,
+    pub patch: u32,
+    pub migrated_at: u64,
 }
 
 /// Campaign status enum
@@ -177,6 +255,78 @@ pub enum CampaignStatus {
     Completed = 2,
     Cancelled = 3,
     Expired = 4,
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Liquidity Mining Types
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Status of a liquidity mining pool
+#[contracttype]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum MiningPoolStatus {
+    /// Pool is accepting stakes and distributing rewards
+    Active = 0,
+    /// Pool is temporarily suspended; no new stakes or reward accrual
+    Paused = 1,
+    /// Pool has ended; no new stakes, but claims are still allowed
+    Ended = 2,
+}
+
+/// A liquidity mining pool that distributes reward tokens to stakers
+///
+/// Rewards are distributed proportionally based on each provider's share
+/// of the total staked amount. Uses a reward-per-token accumulator pattern
+/// for O(1) reward calculation regardless of the number of providers.
+///
+/// # Fields
+/// * `id` - Unique pool identifier
+/// * `reward_token_index` - Index of the token distributed as rewards
+/// * `stake_token_index` - Index of the token providers must stake
+/// * `reward_rate` - Reward tokens distributed per second per staked token (in stroops)
+/// * `start_time` - Unix timestamp when the pool starts
+/// * `end_time` - Unix timestamp when reward accrual stops
+/// * `total_staked` - Current total amount staked across all providers
+/// * `reward_per_token_stored` - Accumulated reward per token (scaled by REWARD_PRECISION)
+/// * `last_update_time` - Timestamp of the last reward checkpoint
+/// * `status` - Current pool lifecycle status
+/// * `created_at` - Unix timestamp when the pool was created
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct LiquidityMiningPool {
+    pub id: u64,
+    pub reward_token_index: u32,
+    pub stake_token_index: u32,
+    pub reward_rate: i128,
+    pub start_time: u64,
+    pub end_time: u64,
+    pub total_staked: i128,
+    pub reward_per_token_stored: i128,
+    pub last_update_time: u64,
+    pub status: MiningPoolStatus,
+    pub created_at: u64,
+}
+
+/// A liquidity provider's stake in a mining pool
+///
+/// Tracks the provider's staked amount and reward checkpoint data.
+/// The `reward_per_token_paid` field is the pool's `reward_per_token_stored`
+/// at the time of the last checkpoint for this provider.
+///
+/// # Fields
+/// * `provider` - Address of the liquidity provider
+/// * `pool_id` - ID of the pool this stake belongs to
+/// * `staked_amount` - Current amount staked by this provider
+/// * `reward_per_token_paid` - Pool's reward_per_token_stored at last checkpoint
+/// * `pending_rewards` - Rewards accrued but not yet claimed
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ProviderStake {
+    pub provider: Address,
+    pub pool_id: u64,
+    pub staked_amount: i128,
+    pub reward_per_token_paid: i128,
+    pub pending_rewards: i128,
 }
 
 /// Individual buyback step
@@ -224,6 +374,29 @@ pub struct Vault {
     pub created_at: u64,
 }
 
+/// Staking Pool configuration and state
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct StakingPool {
+    pub id: u64,
+    pub token_index: u32,
+    pub reward_token_index: u32,
+    pub reward_rate: i128,
+    pub total_staked: i128,
+    pub acc_reward_per_share: i128,
+    pub last_reward_time: u64,
+    pub active: bool,
+    pub creator: Address,
+}
+
+/// Individual user stake state
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct StakeInfo {
+    pub amount: i128,
+    pub reward_debt: i128,
+}
+
 /// Compact read-only snapshot of a token's current state.
 /// Returned by get_token_stats().
 #[contracttype]
@@ -235,6 +408,32 @@ pub struct TokenStats {
     pub is_paused: bool,
     pub clawback_enabled: bool,
     pub freeze_enabled: bool,
+}
+
+/// A single price observation submitted by an authorized oracle source.
+///
+/// # Fields
+/// * `price` - Raw price value (must be > 0)
+/// * `decimals` - Number of decimal places in `price` (e.g. 7 means price / 10^7)
+/// * `timestamp` - Ledger timestamp when the price was recorded
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct PriceData {
+    pub price: i128,
+    pub decimals: u32,
+    pub timestamp: u64,
+}
+
+/// Global oracle configuration stored in instance storage.
+///
+/// # Fields
+/// * `max_age_seconds` - Maximum acceptable age of a price before it is considered stale
+/// * `min_sources` - Minimum number of authorized sources that must have submitted a price
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct OracleConfig {
+    pub max_age_seconds: u64,
+    pub min_sources: u32,
 }
 
 /// Batch fee update structure for Phase 2 optimization
@@ -259,6 +458,62 @@ pub struct TokenStats {
 pub struct FeeUpdate {
     pub base_fee: Option<i128>,
     pub metadata_fee: Option<i128>,
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Burn Auction Types
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Lifecycle status of a burn auction
+///
+/// Auctions start as `Open`, transition to `Settled` when a winning bid is
+/// placed, or to `Cancelled` when cancelled by the admin or after expiry.
+/// Both `Settled` and `Cancelled` are terminal states.
+#[contracttype]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum AuctionStatus {
+    /// Auction is accepting bids
+    Open = 0,
+    /// A winning bid was placed; tokens have been burned
+    Settled = 1,
+    /// Auction was cancelled before settlement
+    Cancelled = 2,
+}
+
+/// A Dutch auction for token price discovery via burn
+///
+/// The price decreases linearly from `start_price` to `reserve_price` over
+/// the auction window. The first bidder to meet the current price wins and
+/// the `burn_amount` of tokens is burned.
+///
+/// # Fields
+/// * `id` - Unique auction identifier
+/// * `token_index` - Index of the token being auctioned for burn
+/// * `burn_amount` - Number of tokens to burn on settlement
+/// * `start_price` - Opening price in stroops (highest)
+/// * `reserve_price` - Minimum price in stroops (floor)
+/// * `start_time` - Unix timestamp when bidding opens
+/// * `end_time` - Unix timestamp when the auction expires
+/// * `winning_bid` - Settlement price (None until settled)
+/// * `winner` - Address of the winning bidder (None until settled)
+/// * `status` - Current auction lifecycle status
+/// * `created_at` - Unix timestamp of auction creation
+/// * `settled_at` - Unix timestamp of settlement (None until settled)
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct BurnAuction {
+    pub id: u64,
+    pub token_index: u32,
+    pub burn_amount: i128,
+    pub start_price: i128,
+    pub reserve_price: i128,
+    pub start_time: u64,
+    pub end_time: u64,
+    pub winning_bid: Option<i128>,
+    pub winner: Option<Address>,
+    pub status: AuctionStatus,
+    pub created_at: u64,
+    pub settled_at: Option<u64>,
 }
 
 /// Storage keys for contract data
@@ -307,6 +562,15 @@ pub enum DataKey {
     CampaignByCreator(Address, u32),
     CreatorCampaignCount(Address),
     ActiveCampaigns,
+    // Airdrop
+    AirdropCampaign(u64),
+    AirdropCampaignCount,
+    AirdropClaimed(u64, Address),
+    // Governance templates
+    ProposalTemplate(u32),
+    ProposalTemplateCount,
+    // Contract upgrade
+    ContractVersion,
 }
 
 #[contracttype]
@@ -368,6 +632,26 @@ impl Error {
     pub const CampaignNotFound: Self = Self(51);
     pub const InvalidBudget: Self = Self(52);
     pub const InsufficientBudget: Self = Self(53);
+    // Buyback price trigger errors
+    pub const PriceTriggerNotMet: Self = Self(54);
+    pub const CampaignExpiredError: Self = Self(55);
+    pub const IntervalNotElapsed: Self = Self(56);
+    // Airdrop errors
+    pub const AirdropNotFound: Self = Self(57);
+    pub const AirdropAlreadyClaimed: Self = Self(58);
+    pub const InvalidMerkleProof: Self = Self(59);
+    pub const AirdropExpired: Self = Self(60);
+    pub const AirdropNotStarted: Self = Self(61);
+    // Governance template errors
+    pub const TemplateNotFound: Self = Self(62);
+    // Upgrade errors
+    pub const UpgradeUnauthorized: Self = Self(63);
+    pub const MigrationFailed: Self = Self(64);
+    // Campaign state errors
+    pub const CampaignAlreadyPaused: Self = Self(65);
+    pub const CampaignNotPaused: Self = Self(66);
+    pub const CampaignCompleted: Self = Self(67);
+    pub const CampaignCancelled: Self = Self(68);
 }
 
 impl From<Error> for soroban_sdk::Error {
@@ -411,6 +695,7 @@ pub enum ActionType {
     PauseContract,
     UnpauseContract,
     PolicyUpdate,
+    ParameterChange,
 }
 
 #[contracttype]
@@ -1112,3 +1397,55 @@ mod tests {
             assert_eq!(decoded, campaign);
         });
     }
+
+// ═══════════════════════════════════════════════════════════════════════
+// Token Fractionalization Types
+// ═══════════════════════════════════════════════════════════════════════
+
+/// Fractionalized asset vault containing locked NFT-like asset
+///
+/// Represents a unique asset that has been locked in the contract
+/// and fractionalized into fungible tokens representing ownership shares.
+///
+/// # Fields
+/// * `id` - Unique vault identifier
+/// * `asset_id` - Unique identifier of the locked asset (e.g., NFT token ID)
+/// * `asset_contract` - Contract address of the original asset
+/// * `owner` - Original owner who fractionalized the asset
+/// * `fractional_token` - Address of the minted fractional tokens
+/// * `total_supply` - Total supply of fractional tokens minted
+/// * `created_at` - Timestamp when asset was fractionalized
+/// * `status` - Current status of the fractionalized asset
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct FractionalVault {
+    pub id: u64,
+    pub asset_id: BytesN<32>,
+    pub asset_contract: Address,
+    pub owner: Address,
+    pub fractional_token: Address,
+    pub total_supply: i128,
+    pub created_at: u64,
+    pub status: FractionalStatus,
+}
+
+/// Status of a fractionalized asset
+#[contracttype]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum FractionalStatus {
+    /// Asset is locked and fractional tokens are in circulation
+    Active,
+    /// Asset has been redeemed and returned to owner
+    Redeemed,
+}
+
+/// Parameters for fractionalizing an asset
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct FractionalizationParams {
+    pub asset_id: BytesN<32>,
+    pub asset_contract: Address,
+    pub total_supply: i128,
+    pub token_name: String,
+    pub token_symbol: String,
+}

@@ -27,6 +27,7 @@ import {
   isRetryableError,
   sleep
 } from "./rate-limiter";
+import { CircuitBreaker } from "../lib/circuitBreaker";
 import {
   assertValidAddress,
   isValidAddress,
@@ -39,6 +40,7 @@ export class StellarService implements OnModuleInit {
   private horizon: StellarSdk.Horizon.Server;
   private soroban: StellarSdk.rpc.Server;
   private readonly rateLimiter: RateLimiter;
+  private readonly circuitBreaker: CircuitBreaker;
 
   constructor(private readonly configService: ConfigService) {
     this.config = {
@@ -79,12 +81,25 @@ export class StellarService implements OnModuleInit {
           this.configService.get<number>("STELLAR_RATE_LIMIT_WINDOW_MS") ??
           DEFAULT_STELLAR_CONFIG.rateLimit.windowMs,
       },
+      circuitBreaker: {
+        failureThreshold:
+          this.configService.get<number>("STELLAR_CIRCUIT_BREAKER_FAILURE_THRESHOLD") ??
+          DEFAULT_STELLAR_CONFIG.circuitBreaker.failureThreshold,
+        successThreshold:
+          this.configService.get<number>("STELLAR_CIRCUIT_BREAKER_SUCCESS_THRESHOLD") ??
+          DEFAULT_STELLAR_CONFIG.circuitBreaker.successThreshold,
+        timeoutMs:
+          this.configService.get<number>("STELLAR_CIRCUIT_BREAKER_TIMEOUT_MS") ??
+          DEFAULT_STELLAR_CONFIG.circuitBreaker.timeoutMs,
+      },
     };
 
     this.rateLimiter = new RateLimiter(
       this.config.rateLimit.maxRequests,
       this.config.rateLimit.windowMs
     );
+
+    this.circuitBreaker = new CircuitBreaker(this.config.circuitBreaker);
   }
 
   onModuleInit(): void {
@@ -439,69 +454,71 @@ export class StellarService implements OnModuleInit {
   }
 
   /**
-   * Wraps an async operation with retry + exponential backoff logic.
+   * Wraps an async operation with circuit breaker and retry + exponential backoff logic.
    * Uses background retry configuration for resilient polling.
    */
   private async withRetry<T>(
     operation: () => Promise<T>,
     operationName: string
   ): Promise<T> {
-    const config = BACKGROUND_RETRY_CONFIG;
-    let lastError: unknown;
+    return this.circuitBreaker.execute(async () => {
+      const config = BACKGROUND_RETRY_CONFIG;
+      let lastError: unknown;
 
-    for (let attempt = 1; attempt <= config.maxAttempts; attempt++) {
-      try {
-        const result = await Promise.race<T>([
-          operation(),
-          new Promise<never>((_, reject) =>
-            setTimeout(
-              () => reject(new StellarTimeoutException(operationName)),
-              this.config.requestTimeout
-            )
-          ),
-        ]);
-        
-        if (attempt > 1) {
-          this.logger.log(
-            `${operationName} succeeded on attempt ${attempt}/${config.maxAttempts}`
-          );
-        }
-        
-        return result;
-      } catch (error) {
-        lastError = error;
-
-        // Check if error is retryable
-        const retryable = isRetryableError(error);
-        
-        if (!retryable || attempt === config.maxAttempts) {
-          if (!retryable) {
-            this.logger.error(
-              `${operationName} failed with terminal error (not retryable)`,
-              error
-            );
-          } else {
-            this.logger.error(
-              `${operationName} failed after ${config.maxAttempts} attempts`,
-              error
+      for (let attempt = 1; attempt <= config.maxAttempts; attempt++) {
+        try {
+          const result = await Promise.race<T>([
+            operation(),
+            new Promise<never>((_, reject) =>
+              setTimeout(
+                () => reject(new StellarTimeoutException(operationName)),
+                this.config.requestTimeout
+              )
+            ),
+          ]);
+          
+          if (attempt > 1) {
+            this.logger.log(
+              `${operationName} succeeded on attempt ${attempt}/${config.maxAttempts}`
             );
           }
-          throw error;
+          
+          return result;
+        } catch (error) {
+          lastError = error;
+
+          // Check if error is retryable
+          const retryable = isRetryableError(error);
+          
+          if (!retryable || attempt === config.maxAttempts) {
+            if (!retryable) {
+              this.logger.error(
+                `${operationName} failed with terminal error (not retryable)`,
+                error
+              );
+            } else {
+              this.logger.error(
+                `${operationName} failed after ${config.maxAttempts} attempts`,
+                error
+              );
+            }
+            throw error;
+          }
+
+          const delay = calculateBackoffDelay(attempt, config);
+          this.logger.warn(
+            `${operationName} failed (attempt ${attempt}/${config.maxAttempts}). ` +
+            `Retrying in ${Math.round(delay)}ms... Error: ${error instanceof Error ? error.message : String(error)}`
+          );
+          await sleep(delay);
         }
-
-        const delay = calculateBackoffDelay(attempt, config);
-        this.logger.warn(
-          `${operationName} failed (attempt ${attempt}/${config.maxAttempts}). ` +
-          `Retrying in ${Math.round(delay)}ms... Error: ${error instanceof Error ? error.message : String(error)}`
-        );
-        await sleep(delay);
       }
-    }
 
-    this.logger.error(
-      `${operationName} failed after ${config.maxAttempts} attempts`
-    );
-    throw lastError;
+      this.logger.error(
+        `${operationName} failed after ${config.maxAttempts} attempts`
+      );
+      throw lastError;
+    });
   }
 
   /**

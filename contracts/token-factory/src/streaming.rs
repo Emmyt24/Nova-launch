@@ -58,10 +58,11 @@ pub fn create_stream(env: &Env, creator: &Address, params: &StreamParams) -> Res
     // Emit event
     events::emit_stream_created(
         env,
-        stream_id,
+        stream_id as u32,
         creator,
         &params.recipient,
         params.total_amount,
+        false, // has_metadata
     );
 
     Ok(stream_id)
@@ -236,15 +237,13 @@ pub fn batch_create_streams(
         return Err(Error::BatchTooLarge);
     }
 
-    // Phase 1: Validate all streams before creating any
-    for stream_params in streams.iter() {
-        validate_stream_params(env, &stream_params)?;
-    }
-
-    // Phase 2: Create all streams (validation passed)
+    // Single pass: Validate and create streams
+    // Soroban natively rolls back if validation fails midway
     let mut stream_ids = Vec::new(env);
 
     for stream_params in streams.iter() {
+        validate_stream_params(env, &stream_params)?;
+        
         let stream_id = storage::get_next_stream_id(env);
 
         let stream = StreamInfo {
@@ -366,7 +365,7 @@ pub fn claim_stream(env: &Env, recipient: &Address, stream_id: u64) -> Result<i1
     }
 
     if stream.paused {
-        return Err(Error::StreamPaused);
+        return Err(Error::TokenPaused);
     }
 
     // Calculate claimable amount
@@ -385,7 +384,7 @@ pub fn claim_stream(env: &Env, recipient: &Address, stream_id: u64) -> Result<i1
     storage::set_stream(env, stream_id, &stream);
 
     // Emit event
-    events::emit_stream_claimed(env, stream_id, recipient, claimable);
+    events::emit_stream_claimed(env, stream_id as u32, recipient, claimable);
 
     Ok(claimable)
 }
@@ -420,7 +419,8 @@ pub fn batch_claim(
 ) -> Result<Vec<i128>, Error> {
     recipient.require_auth();
 
-    // First pass: validate all streams
+    // Phase 1: validate all streams and calculate claimable amounts (1 read per stream)
+    let mut validated_streams = soroban_sdk::Vec::new(env);
     for stream_id in stream_ids.iter() {
         let stream = storage::get_stream(env, stream_id).ok_or(Error::TokenNotFound)?;
 
@@ -433,17 +433,16 @@ pub fn batch_claim(
         if stream.cancelled {
             return Err(Error::InvalidParameters);
         }
-    }
-
-    // Second pass: claim from all eligible streams
-    let mut claimed_amounts = Vec::new(env);
-
-    for stream_id in stream_ids.iter() {
-        let mut stream = storage::get_stream(env, stream_id).unwrap();
 
         // Calculate claimable amount
         let claimable = calculate_claimable(env, &stream)?;
+        validated_streams.push_back((stream_id, stream, claimable));
+    }
 
+    // Phase 2: claim from all eligible streams (mutates and emits events)
+    let mut claimed_amounts = Vec::new(env);
+
+    for (stream_id, mut stream, claimable) in validated_streams.iter() {
         if claimable > 0 {
             // Update claimed amount
             stream.claimed_amount = stream
@@ -454,7 +453,7 @@ pub fn batch_claim(
             storage::set_stream(env, stream_id, &stream);
 
             // Emit event
-            events::emit_stream_claimed(env, stream_id, recipient, claimable);
+            events::emit_stream_claimed(env, stream_id as u32, recipient, claimable);
         }
 
         claimed_amounts.push_back(claimable);
@@ -554,7 +553,8 @@ pub fn cancel_stream(env: &Env, creator: &Address, stream_id: u64) -> Result<(),
     storage::set_stream(env, stream_id, &stream);
 
     // Emit event
-    events::emit_stream_cancelled(env, stream_id, creator);
+    let remaining_amount = stream.total_amount - stream.claimed_amount;
+    events::emit_stream_cancelled(env, stream_id as u32, creator, remaining_amount);
 
     Ok(())
 }
@@ -904,7 +904,7 @@ mod tests {
 
         // 2. Verify claims are blocked
         let claim_res = claim(&env, &contract_id, &recipient, 1);
-        assert_eq!(claim_res, Err(Error::StreamPaused));
+        assert_eq!(claim_res, Err(Error::TokenPaused));
 
         // 3. Verify Authorization (recipient cannot unpause)
         let unpause_res = unpause(&env, &contract_id, &recipient, 1);
@@ -951,7 +951,7 @@ mod tests {
         assert_eq!(result, Err(Error::CliffNotReached));
 
         // Keep numeric mapping assertion in sync with current enum layout.
-        assert_eq!(Error::CliffNotReached as u32, 28);
+        assert_eq!(Error::CliffNotReached.0, 20);
     }
 
     #[test]

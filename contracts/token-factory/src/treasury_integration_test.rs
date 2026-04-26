@@ -376,7 +376,7 @@ proptest! {
             prop_assert_eq!(
                 model_result.is_ok(),
                 impl_result.is_ok(),
-                "model={model_result:?} impl={impl_result:?} amount={amount} cap={cap}"
+                "model={:?} impl={:?} amount={} cap={}", model_result, impl_result, amount, cap
             );
 
             // T10: withdrawn is always non-negative

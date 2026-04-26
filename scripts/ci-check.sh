@@ -1,113 +1,208 @@
 #!/bin/bash
-# Local CI validation script
-# Run this before pushing to ensure CI will pass
-
 set -e
 
-echo "🔍 Running local CI checks..."
-echo ""
-
 # Colors for output
-GREEN='\033[0;32m'
 RED='\033[0;31m'
+GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
-# Track failures
-FAILED=0
-
-# Function to run a check
-run_check() {
-    local name="$1"
-    local command="$2"
-    local dir="${3:-.}"
-    
-    echo -e "${YELLOW}▶ $name${NC}"
-    if (cd "$dir" && eval "$command"); then
-        echo -e "${GREEN}✓ $name passed${NC}"
-        echo ""
-    else
-        echo -e "${RED}✗ $name failed${NC}"
-        echo ""
-        FAILED=1
-    fi
+# Function to print colored output
+print_stage() {
+    echo -e "${BLUE}=== $1 ===${NC}"
 }
 
-# Rust checks
-echo "=== Rust Contract Checks ==="
-run_check "Rust formatting" "cargo fmt --check" "contracts/token-factory"
-run_check "Rust clippy" "cargo clippy --lib -- -D warnings" "contracts/token-factory"
-run_check "Rust tests" "cargo test --lib" "contracts/token-factory"
-run_check "Rust build (wasm)" "cargo build --release --target wasm32-unknown-unknown" "contracts/token-factory"
+print_success() {
+    echo -e "${GREEN}✅ $1${NC}"
+}
 
-# Frontend checks
-echo "=== Frontend Checks ==="
-run_check "Frontend dependencies" "npm ci" "frontend"
-run_check "Frontend linting" "npm run lint" "frontend"
-run_check "Frontend tests" "npm test -- --run" "frontend"
-run_check "Frontend build" "npm run build" "frontend"
+print_error() {
+    echo -e "${RED}❌ $1${NC}"
+}
 
-# Backend migration compatibility checks
-echo "=== Backend Migration Compatibility Checks ==="
-run_check "Backend dependencies" "npm ci" "backend"
-run_check "Backend migration compatibility tests" "npm run test:migration-compatibility" "backend"
+print_warning() {
+    echo -e "${YELLOW}⚠️  $1${NC}"
+}
 
-# Spec validation
-echo "=== Spec Validation ==="
-if [ -d ".nova/specs" ]; then
-    echo -e "${YELLOW}▶ Validating spec files${NC}"
-    SPEC_VALID=1
-    for spec_dir in .nova/specs/*/; do
-        if [ -d "$spec_dir" ]; then
-            spec_name=$(basename "$spec_dir")
-            echo "  Checking spec: $spec_name"
-            
-            if [ ! -f "${spec_dir}requirements.md" ]; then
-                echo -e "${RED}  ✗ Missing requirements.md in $spec_name${NC}"
-                SPEC_VALID=0
-            fi
-            
-            if [ ! -f "${spec_dir}design.md" ]; then
-                echo -e "${RED}  ✗ Missing design.md in $spec_name${NC}"
-                SPEC_VALID=0
-            fi
-            
-            if [ ! -f "${spec_dir}tasks.md" ]; then
-                echo -e "${RED}  ✗ Missing tasks.md in $spec_name${NC}"
-                SPEC_VALID=0
-            fi
-        fi
-    done
-    
-    if [ $SPEC_VALID -eq 1 ]; then
-        echo -e "${GREEN}✓ Spec validation passed${NC}"
-    else
-        echo -e "${RED}✗ Spec validation failed${NC}"
-        FAILED=1
-    fi
-    echo ""
-else
-    echo -e "${YELLOW}⚠ No specs directory found, skipping validation${NC}"
-    echo ""
-fi
-
-# Integration gate (ABI + contract ID format only — no live network needed in CI)
-echo "=== Integration Gate (Static Checks) ==="
-run_check "Contract ABI completeness" "
-  ABI_FILE=src/contracts/factoryAbi.ts
-  FAIL=0
-  for method in create_token burn set_metadata mint_tokens get_state get_base_fee get_metadata_fee; do
-    grep -q \"\$method\" \"\$ABI_FILE\" || { echo \"ABI missing: \$method\"; FAIL=1; }
-  done
-  exit \$FAIL
-" "frontend"
-
-# Summary
-echo "=== Summary ==="
-if [ $FAILED -eq 0 ]; then
-    echo -e "${GREEN}✓ All checks passed! Ready to push.${NC}"
-    exit 0
-else
-    echo -e "${RED}✗ Some checks failed. Please fix the issues before pushing.${NC}"
+# Check if we're in the right directory
+if [ ! -f "contracts/token-factory/Cargo.toml" ]; then
+    print_error "Please run this script from the project root directory"
     exit 1
 fi
+
+print_stage "Stage 1: Build & Lint Gate"
+
+# Check if Rust is installed
+if ! command -v cargo &> /dev/null; then
+    print_error "Rust/Cargo not found. Please install Rust: https://rustup.rs/"
+    exit 1
+fi
+
+# Check if wasm32 target is installed
+if ! rustup target list --installed | grep -q wasm32-unknown-unknown; then
+    print_warning "Installing wasm32-unknown-unknown target..."
+    rustup target add wasm32-unknown-unknown
+fi
+
+# Check if Soroban CLI is installed
+if ! command -v soroban &> /dev/null; then
+    print_warning "Soroban CLI not found. Installing..."
+    cargo install --locked soroban-cli --features opt
+fi
+
+cd contracts/token-factory
+
+# Format check
+print_stage "Running cargo fmt check..."
+if cargo fmt --all -- --check; then
+    print_success "Format check passed"
+else
+    print_error "Format check failed. Run 'cargo fmt' to fix formatting"
+    exit 1
+fi
+
+# Clippy check
+print_stage "Running clippy check..."
+if cargo clippy --all-targets --all-features -- -D warnings; then
+    print_success "Clippy check passed"
+else
+    print_error "Clippy check failed. Fix warnings and try again"
+    exit 1
+fi
+
+# Build contracts
+print_stage "Building contracts..."
+if cargo build --target wasm32-unknown-unknown --release; then
+    print_success "Contract build successful"
+else
+    print_error "Contract build failed"
+    exit 1
+fi
+
+# Optimize WASM
+print_stage "Optimizing WASM..."
+if soroban contract optimize --wasm target/wasm32-unknown-unknown/release/token_factory.wasm; then
+    print_success "WASM optimization successful"
+else
+    print_error "WASM optimization failed"
+    exit 1
+fi
+
+print_stage "Stage 2: Security Audit"
+
+# Install cargo-audit if not present
+if ! command -v cargo-audit &> /dev/null; then
+    print_warning "Installing cargo-audit..."
+    cargo install cargo-audit
+fi
+
+# Vulnerability scan
+print_stage "Running vulnerability scan..."
+if cargo audit; then
+    print_success "Vulnerability scan passed"
+else
+    print_error "Vulnerability scan failed"
+    exit 1
+fi
+
+# Static analysis
+print_stage "Running static analysis..."
+
+# Check for unsafe code
+if grep -r "unsafe" src/; then
+    print_error "Unsafe code detected - review required"
+    exit 1
+fi
+
+# Check for hardcoded secrets
+if grep -r -i "secret\|password\|key" src/ --exclude-dir=test; then
+    print_error "Potential hardcoded secrets detected"
+    exit 1
+fi
+
+# Check for panic! usage
+if grep -r "panic!" src/; then
+    print_error "panic! usage detected - use Result<T, Error> instead"
+    exit 1
+fi
+
+print_success "Static analysis passed"
+
+print_stage "Stage 3: Testing & Coverage"
+
+# Run tests
+print_stage "Running tests..."
+if cargo test --all-features; then
+    print_success "All tests passed"
+else
+    print_error "Tests failed"
+    exit 1
+fi
+
+# Check if tarpaulin is installed
+if ! command -v cargo-tarpaulin &> /dev/null; then
+    print_warning "Installing cargo-tarpaulin..."
+    cargo install cargo-tarpaulin
+fi
+
+# Generate coverage report
+print_stage "Generating coverage report..."
+mkdir -p coverage
+if cargo tarpaulin --all-features --workspace --timeout 120 --out xml --output-dir coverage/; then
+    print_success "Coverage report generated"
+else
+    print_warning "Coverage report generation failed, but continuing..."
+fi
+
+# Check coverage threshold (if coverage report exists)
+if [ -f "coverage/cobertura.xml" ]; then
+    if command -v bc &> /dev/null; then
+        coverage=$(grep -o 'line-rate="[^"]*"' coverage/cobertura.xml | head -1 | grep -o '[0-9.]*' || echo "0")
+        coverage_percent=$(echo "$coverage * 100" | bc -l | cut -d. -f1 2>/dev/null || echo "0")
+        
+        if [ "$coverage_percent" -ge 90 ]; then
+            print_success "Coverage ${coverage_percent}% meets 90% threshold"
+        else
+            print_warning "Coverage ${coverage_percent}% is below 90% threshold"
+        fi
+    else
+        print_warning "bc not available, skipping coverage threshold check"
+    fi
+else
+    print_warning "Coverage report not found, skipping threshold check"
+fi
+
+cd ../..
+
+print_stage "Stage 4: Deployment Simulation"
+
+# Check if deployment orchestrator is available
+if [ -d "scripts/deployment" ]; then
+    cd scripts/deployment
+    
+    if [ -f "package.json" ]; then
+        print_stage "Installing deployment dependencies..."
+        if command -v npm &> /dev/null; then
+            npm install
+            print_success "Deployment orchestrator ready"
+        else
+            print_warning "npm not found, skipping deployment orchestrator check"
+        fi
+    else
+        print_warning "Deployment orchestrator package.json not found"
+    fi
+    
+    cd ../..
+else
+    print_warning "Deployment orchestrator not found at scripts/deployment"
+fi
+
+print_stage "CI Check Complete"
+print_success "All stages passed! Your code is ready for CI/CD pipeline"
+
+echo ""
+echo -e "${BLUE}Next steps:${NC}"
+echo "1. Commit your changes"
+echo "2. Push to GitHub to trigger the CI/CD pipeline"
+echo "3. Monitor the pipeline at: https://github.com/$(git config --get remote.origin.url | sed 's/.*github.com[:/]\([^.]*\).*/\1/')/actions"

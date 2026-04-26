@@ -41,6 +41,7 @@ fn create_token_for_minting(
         total_burned: 0,
         burn_count: 0,
         metadata_uri: None,
+        metadata_version: 0,
         created_at: env.ledger().timestamp(),
         clawback_enabled: false,
     };

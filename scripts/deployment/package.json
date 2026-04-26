@@ -1,0 +1,23 @@
+{
+  "name": "@nova-launch/deployment-orchestrator",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "deploy": "tsx deploy.ts",
+    "verify": "tsx verify.ts",
+    "test": "vitest",
+    "test:coverage": "vitest --coverage"
+  },
+  "dependencies": {
+    "@stellar/stellar-sdk": "^13.3.0",
+    "dotenv": "^16.4.5",
+    "crypto": "^1.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.13",
+    "@vitest/coverage-v8": "^4.0.18",
+    "tsx": "^4.19.2",
+    "typescript": "~5.9.3",
+    "vitest": "^4.0.18"
+  }
+}

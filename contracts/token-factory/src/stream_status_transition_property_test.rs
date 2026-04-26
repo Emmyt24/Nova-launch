@@ -501,7 +501,7 @@ proptest! {
                     prop_assert_eq!(
                         state_after,
                         StreamState::Cancelled,
-                        "step {step}: must remain Cancelled once terminal"
+                        "step {}: must remain Cancelled once terminal", step
                     );
                 }
                 // CLAIMED is terminal as long as claimed_amount == total_amount
@@ -511,7 +511,7 @@ proptest! {
                     prop_assert_eq!(
                         s.claimed_amount,
                         s.total_amount,
-                        "step {step}: claimed_amount must remain at total after CLAIMED"
+                        "step {}: claimed_amount must remain at total after CLAIMED", step
                     );
                 }
             }

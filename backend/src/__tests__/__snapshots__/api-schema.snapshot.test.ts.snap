@@ -1,0 +1,168 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`API Schema Snapshots > Error Response Schema > should maintain error response structure 1`] = `
+{
+  "error": {
+    "code": "INVALID_PARAMS",
+    "details": {
+      "field": "symbol",
+      "reason": "Symbol must be 1-12 characters",
+    },
+    "message": "Token parameters are invalid",
+  },
+  "requestId": "req-123-456",
+  "timestamp": "2024-04-24T08:29:31.459Z",
+}
+`;
+
+exports[`API Schema Snapshots > Error Response Schema > should maintain error response without details 1`] = `
+{
+  "error": {
+    "code": "INTERNAL_ERROR",
+    "message": "An unexpected error occurred",
+  },
+  "requestId": "req-123-456",
+  "timestamp": "2024-04-24T08:29:31.459Z",
+}
+`;
+
+exports[`API Schema Snapshots > Error Response Schema > should maintain validation error response 1`] = `
+{
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "details": {
+      "errors": [
+        {
+          "field": "name",
+          "message": "Name is required",
+        },
+        {
+          "field": "symbol",
+          "message": "Symbol must be 1-12 characters",
+        },
+      ],
+    },
+    "message": "Validation failed",
+  },
+  "requestId": "req-123-456",
+  "timestamp": "2024-04-24T08:29:31.459Z",
+}
+`;
+
+exports[`API Schema Snapshots > Search Response Schema > should maintain empty search response 1`] = `
+{
+  "hasMore": false,
+  "limit": 10,
+  "offset": 0,
+  "tokens": [],
+  "total": 0,
+}
+`;
+
+exports[`API Schema Snapshots > Search Response Schema > should maintain pagination structure 1`] = `
+{
+  "hasMore": true,
+  "limit": 10,
+  "offset": 20,
+  "tokens": [],
+  "total": 100,
+}
+`;
+
+exports[`API Schema Snapshots > Search Response Schema > should maintain search response structure 1`] = `
+{
+  "hasMore": false,
+  "limit": 10,
+  "offset": 0,
+  "tokens": [
+    {
+      "address": "GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAY5V",
+      "createdAt": "2024-04-24T08:29:31.459Z",
+      "creator": "GBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBY5V",
+      "decimals": 7,
+      "name": "Test Token 1",
+      "symbol": "TST1",
+      "totalSupply": "1000000000000",
+    },
+    {
+      "address": "GCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCY5V",
+      "createdAt": "2024-04-24T08:29:31.459Z",
+      "creator": "GBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBY5V",
+      "decimals": 7,
+      "name": "Test Token 2",
+      "symbol": "TST2",
+      "totalSupply": "2000000000000",
+    },
+  ],
+  "total": 2,
+}
+`;
+
+exports[`API Schema Snapshots > Token Response Schema > should maintain token response structure 1`] = `
+{
+  "address": "GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAY5V",
+  "createdAt": "2024-04-24T08:29:31.459Z",
+  "creator": "GBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBY5V",
+  "decimals": 7,
+  "metadata": {
+    "description": "A test token",
+    "imageUrl": "https://example.com/token.png",
+    "uri": "ipfs://QmHash",
+  },
+  "name": "Test Token",
+  "symbol": "TST",
+  "totalSupply": "1000000000000",
+}
+`;
+
+exports[`API Schema Snapshots > Token Response Schema > should maintain token response without metadata 1`] = `
+{
+  "address": "GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAY5V",
+  "createdAt": "2024-04-24T08:29:31.459Z",
+  "creator": "GBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBY5V",
+  "decimals": 7,
+  "name": "Test Token",
+  "symbol": "TST",
+  "totalSupply": "1000000000000",
+}
+`;
+
+exports[`API Schema Snapshots > Transaction Response Schema > should maintain failed transaction response 1`] = `
+{
+  "details": {
+    "error": "InsufficientFee",
+    "errorCode": 1,
+  },
+  "fee": "70000000",
+  "hash": "abc123def456",
+  "status": "failed",
+  "timestamp": "2024-04-24T08:29:31.459Z",
+  "type": "token_deployment",
+}
+`;
+
+exports[`API Schema Snapshots > Transaction Response Schema > should maintain pending transaction response 1`] = `
+{
+  "details": {},
+  "fee": "70000000",
+  "hash": "abc123def456",
+  "status": "pending",
+  "timestamp": "2024-04-24T08:29:31.459Z",
+  "type": "token_deployment",
+}
+`;
+
+exports[`API Schema Snapshots > Transaction Response Schema > should maintain transaction response structure 1`] = `
+{
+  "details": {
+    "tokenAddress": "GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAY5V",
+    "tokenName": "Test Token",
+    "tokenSymbol": "TST",
+  },
+  "fee": "70000000",
+  "hash": "abc123def456",
+  "status": "confirmed",
+  "timestamp": "2024-04-24T08:29:31.459Z",
+  "type": "token_deployment",
+}
+`;
