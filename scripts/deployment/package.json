@@ -4,6 +4,7 @@
   "type": "module",
   "scripts": {
     "deploy": "tsx deploy.ts",
+    "deploy:multi-region": "tsx deployMultiRegion.ts",
     "verify": "tsx verify.ts",
     "test": "vitest",
     "test:coverage": "vitest --coverage"

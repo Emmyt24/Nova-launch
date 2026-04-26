@@ -2,6 +2,7 @@
   "name": "nova-launch-load-tests",
   "version": "1.0.0",
   "description": "Load and stress tests for Nova Launch",
+  "type": "module",
   "scripts": {
     "test:normal": "k6 run scenarios/normal-load.js",
     "test:peak": "k6 run scenarios/peak-load.js",
@@ -9,10 +10,14 @@
     "test:spike": "k6 run scenarios/spike-test.js",
     "test:api": "k6 run scenarios/api-load.js",
     "test:search": "k6 run scenarios/search-load.js",
+    "test:ci": "k6 run --env CI_VUS=10 --env CI_DURATION=60 scenarios/ci-load.js",
     "test:all": "npm run test:normal && npm run test:peak && npm run test:stress",
+    "test:unit": "vitest run",
+    "test:unit:coverage": "vitest run --coverage",
     "report": "node scripts/generate-report.js"
   },
   "devDependencies": {
-    "k6": "^0.0.0"
+    "@vitest/coverage-v8": "^1.6.1",
+    "vitest": "^1.6.1"
   }
 }
