@@ -248,6 +248,46 @@ This script will:
 - Generate admin identity
 - Provide funding instructions
 
+### Docker (Local Development)
+
+The fastest way to run the full stack locally is with Docker Compose.
+
+**Prerequisites:** Docker 24+ and Docker Compose v2.
+
+```bash
+# 1. Copy and configure environment variables
+cp .env.example .env
+# Edit .env — at minimum set JWT_SECRET and ADMIN_JWT_SECRET
+
+# 2. Start all services (postgres, redis, backend, frontend)
+docker compose up --build
+
+# 3. Open the app
+#    Frontend → http://localhost:5173
+#    Backend  → http://localhost:3001
+```
+
+To stop and remove containers:
+
+```bash
+docker compose down
+# Add -v to also remove the postgres volume (wipes database)
+docker compose down -v
+```
+
+**Services started by Docker Compose:**
+
+| Service  | Port | Description |
+|----------|------|-------------|
+| postgres | 5432 | PostgreSQL 16 database |
+| redis    | 6379 | Redis 7 (rate limiter) |
+| backend  | 3001 | Express/Next.js API |
+| frontend | 5173 | React/Vite app (served via nginx) |
+
+> **Note:** `VITE_*` variables are baked into the frontend at build time. If you change them in `.env`, rebuild with `docker compose up --build frontend`.
+
+---
+
 ### Development
 
 #### Frontend Development

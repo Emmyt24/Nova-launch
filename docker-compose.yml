@@ -1,0 +1,86 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: nova-launch-db
+    environment:
+      POSTGRES_DB: nova_launch
+      POSTGRES_USER: ${POSTGRES_USER:-nova_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-nova_password}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backend/src/database/schema.sql:/docker-entrypoint-initdb.d/schema.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-nova_user} -d nova_launch"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: nova-launch-redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: nova-launch-backend
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      NODE_ENV: development
+      PORT: 3001
+      DATABASE_URL: postgresql://${POSTGRES_USER:-nova_user}:${POSTGRES_PASSWORD:-nova_password}@postgres:5432/nova_launch
+      JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-24h}
+      ADMIN_JWT_SECRET: ${ADMIN_JWT_SECRET:-change-me-admin-in-production}
+      ADMIN_JWT_EXPIRES_IN: ${ADMIN_JWT_EXPIRES_IN:-8h}
+      STELLAR_NETWORK: ${STELLAR_NETWORK:-testnet}
+      STELLAR_HORIZON_URL: ${STELLAR_HORIZON_URL:-https://horizon-testnet.stellar.org}
+      FACTORY_CONTRACT_ID: ${FACTORY_CONTRACT_ID:-}
+      REDIS_URL: redis://redis:6379
+      FRONTEND_URL: http://localhost:5173
+    ports:
+      - "3001:3001"
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3001/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:3001/api}
+        VITE_TOKEN_INFO_API_URL: ${VITE_TOKEN_INFO_API_URL:-http://localhost:3001/api/token-info}
+        VITE_LEADERBOARD_API_URL: ${VITE_LEADERBOARD_API_URL:-http://localhost:3001/api/leaderboard}
+        VITE_GOVERNANCE_API_URL: ${VITE_GOVERNANCE_API_URL:-http://localhost:3001/api/governance}
+        VITE_NETWORK: ${VITE_NETWORK:-testnet}
+        VITE_FACTORY_CONTRACT_ID: ${VITE_FACTORY_CONTRACT_ID:-}
+        VITE_IPFS_API_KEY: ${VITE_IPFS_API_KEY:-}
+        VITE_IPFS_API_SECRET: ${VITE_IPFS_API_SECRET:-}
+    container_name: nova-launch-frontend
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "5173:80"
+
+volumes:
+  postgres_data:
