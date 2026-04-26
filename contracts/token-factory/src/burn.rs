@@ -128,7 +128,8 @@ pub fn batch_burn(
         return Err(Error::TokenPaused);
     }
 
-    // Pre-validation pass (all-or-nothing guarantee)
+    // Single pass: validation and mutation combined for gas efficiency
+    // Soroban automatically rolls back state changes if the transaction fails
     let mut total_burn: i128 = 0;
     for i in 0..burns.len() {
         let (ref holder, amount) = burns.get(i).unwrap();
@@ -139,6 +140,10 @@ pub fn batch_burn(
         if balance < amount {
             return Err(Error::InsufficientBalance);
         }
+        
+        let new_balance = balance.checked_sub(amount).ok_or(Error::ArithmeticError)?;
+        storage::set_balance(env, token_index, holder, new_balance);
+        
         total_burn = total_burn
             .checked_add(amount)
             .ok_or(Error::ArithmeticError)?;
@@ -146,14 +151,6 @@ pub fn batch_burn(
 
     if info.total_supply < total_burn {
         return Err(Error::InsufficientBalance);
-    }
-
-    // Mutation pass
-    for i in 0..burns.len() {
-        let (ref holder, amount) = burns.get(i).unwrap();
-        let balance = storage::get_balance(env, token_index, holder);
-        let new_balance = balance.checked_sub(amount).ok_or(Error::ArithmeticError)?;
-        storage::set_balance(env, token_index, holder, new_balance);
     }
 
     let new_supply = info

@@ -1,27 +1,148 @@
 #![no_std]
 
+mod delegation;
+mod events;
 mod storage;
 mod types;
 
 use soroban_sdk::{contract, contractimpl, Address, Env, String};
-use types::{Proposal, ProposalStatus, Vote, VoteError, FinalizationError};
+use types::{
+    DelegationRecord, Error,
+    GovernanceProposal, ProposalStatus, ProposalVote,
+    VoteError, FinalizationError,
+};
 
 #[contract]
 pub struct GovernanceContract;
 
 #[contractimpl]
 impl GovernanceContract {
-    /// Initialize the governance contract with token address
-    pub fn initialize(env: Env, token_address: Address) -> Result<(), VoteError> {
-        if storage::has_token_address(&env) {
-            return Err(VoteError::AlreadyInitialized);
+    pub fn initialize(env: Env, admin: Address, total_supply: i128) -> Result<(), Error> {
+        if storage::has_admin(&env) {
+            return Err(Error::AlreadyInitialized);
         }
-        storage::set_token_address(&env, &token_address);
+        if total_supply <= 0 {
+            return Err(Error::InvalidParameters);
+        }
+        storage::set_admin(&env, &admin);
+        storage::set_total_supply(&env, total_supply);
         storage::set_proposal_count(&env, 0);
         Ok(())
     }
 
-    /// Create a new proposal
+    pub fn delegate(env: Env, delegator: Address, delegatee: Address) -> Result<(), Error> {
+        delegation::delegate(&env, delegator, delegatee)
+    }
+
+    pub fn undelegate(env: Env, delegator: Address) -> Result<(), Error> {
+        delegation::undelegate(&env, delegator)
+    }
+
+    pub fn get_vote_power(env: Env, address: Address) -> i128 {
+        delegation::get_vote_power(&env, &address)
+    }
+
+    pub fn get_delegation(env: Env, delegator: Address) -> Option<DelegationRecord> {
+        delegation::get_delegation(&env, &delegator)
+    }
+
+    pub fn get_balance(env: Env, holder: Address) -> i128 {
+        storage::get_balance(&env, &holder)
+    }
+
+    pub fn take_snapshot(env: Env, address: Address) -> Result<(), Error> {
+        delegation::take_snapshot(&env, &address)
+    }
+
+    pub fn get_snapshot_power(env: Env, address: Address, ledger: u32) -> Result<i128, Error> {
+        delegation::get_snapshot_power(&env, &address, ledger)
+    }
+
+    pub fn set_balance(
+        env: Env,
+        admin: Address,
+        holder: Address,
+        new_balance: i128,
+    ) -> Result<(), Error> {
+        if storage::is_paused(&env) {
+            return Err(Error::ContractPaused);
+        }
+        admin.require_auth();
+        let stored_admin = storage::get_admin(&env);
+        if admin != stored_admin {
+            return Err(Error::Unauthorized);
+        }
+        if new_balance < 0 {
+            return Err(Error::InvalidParameters);
+        }
+        let old_balance = storage::get_balance(&env, &holder);
+        let delta = new_balance
+            .checked_sub(old_balance)
+            .ok_or(Error::ArithmeticError)?;
+        storage::set_balance(&env, &holder, new_balance);
+        if let Some(ref record) = storage::get_delegation(&env, &holder) {
+            let delegatee = record.delegatee.clone();
+            let current_power = storage::get_vote_power(&env, &delegatee);
+            let new_power = current_power
+                .checked_add(delta)
+                .ok_or(Error::ArithmeticError)?;
+            storage::set_vote_power(&env, &delegatee, new_power.max(0));
+        } else {
+            let current_power = storage::get_vote_power(&env, &holder);
+            let new_power = current_power
+                .checked_add(delta)
+                .ok_or(Error::ArithmeticError)?;
+            storage::set_vote_power(&env, &holder, new_power.max(0));
+        }
+        Ok(())
+    }
+
+    pub fn transfer_admin(
+        env: Env,
+        current_admin: Address,
+        new_admin: Address,
+    ) -> Result<(), Error> {
+        current_admin.require_auth();
+        let stored_admin = storage::get_admin(&env);
+        if current_admin != stored_admin {
+            return Err(Error::Unauthorized);
+        }
+        if new_admin == current_admin {
+            return Err(Error::InvalidParameters);
+        }
+        storage::set_admin(&env, &new_admin);
+        events::emit_admin_transfer(&env, &current_admin, &new_admin);
+        Ok(())
+    }
+
+    pub fn pause(env: Env, admin: Address) -> Result<(), Error> {
+        admin.require_auth();
+        let stored_admin = storage::get_admin(&env);
+        if admin != stored_admin {
+            return Err(Error::Unauthorized);
+        }
+        storage::set_paused(&env, true);
+        events::emit_pause_changed(&env, &admin, true);
+        Ok(())
+    }
+
+    pub fn unpause(env: Env, admin: Address) -> Result<(), Error> {
+        admin.require_auth();
+        let stored_admin = storage::get_admin(&env);
+        if admin != stored_admin {
+            return Err(Error::Unauthorized);
+        }
+        storage::set_paused(&env, false);
+        events::emit_pause_changed(&env, &admin, false);
+        Ok(())
+    }
+
+    pub fn is_paused(env: Env) -> bool {
+        storage::is_paused(&env)
+    }
+
+    // Proposals
+
     pub fn create_proposal(
         env: Env,
         creator: Address,
@@ -31,11 +152,9 @@ impl GovernanceContract {
         threshold_percent: u32,
     ) -> u32 {
         creator.require_auth();
-
         let proposal_id = storage::get_proposal_count(&env);
         let voting_end = env.ledger().timestamp() + voting_period;
-
-        let proposal = Proposal {
+        let proposal = GovernanceProposal {
             id: proposal_id,
             creator: creator.clone(),
             description,
@@ -46,14 +165,11 @@ impl GovernanceContract {
             votes_against: 0,
             status: ProposalStatus::Active,
         };
-
         storage::set_proposal(&env, proposal_id, &proposal);
         storage::set_proposal_count(&env, proposal_id + 1);
-
         proposal_id
     }
 
-    /// Cast a vote on a proposal
     pub fn cast_vote(
         env: Env,
         voter: Address,
@@ -61,119 +177,93 @@ impl GovernanceContract {
         in_favor: bool,
     ) -> Result<(), VoteError> {
         voter.require_auth();
-
-        // Check if proposal exists
         let mut proposal = storage::get_proposal(&env, proposal_id)
             .ok_or(VoteError::ProposalNotFound)?;
-
-        // Check if proposal is active
         if proposal.status != ProposalStatus::Active {
             return Err(VoteError::ProposalNotActive);
         }
-
-        // Check if voting period has ended
         if env.ledger().timestamp() > proposal.voting_end {
             return Err(VoteError::VotingPeriodEnded);
         }
-
-        // Check if already voted
         if storage::has_voted(&env, proposal_id, &voter) {
             return Err(VoteError::AlreadyVoted);
         }
-
-        // Get vote weight from token balance
-        let weight = Self::get_vote_weight(&env, &voter)?;
-
-        // Store vote
-        let vote = Vote {
+        let weight = {
+            let vp = storage::get_vote_power(&env, &voter);
+            if vp > 0 {
+                vp
+            } else {
+                let bal = storage::get_balance(&env, &voter);
+                if bal <= 0 {
+                    return Err(VoteError::InsufficientBalance);
+                }
+                bal
+            }
+        };
+        let vote = ProposalVote {
             voter: voter.clone(),
             proposal_id,
             weight,
             in_favor,
         };
         storage::set_vote(&env, proposal_id, &voter, &vote);
-
-        // Update tally
         if in_favor {
-            proposal.votes_for = proposal.votes_for.checked_add(weight)
+            proposal.votes_for = proposal.votes_for
+                .checked_add(weight)
                 .ok_or(VoteError::Overflow)?;
         } else {
-            proposal.votes_against = proposal.votes_against.checked_add(weight)
+            proposal.votes_against = proposal.votes_against
+                .checked_add(weight)
                 .ok_or(VoteError::Overflow)?;
         }
-
         storage::set_proposal(&env, proposal_id, &proposal);
-
         Ok(())
     }
 
-    /// Check if an address has voted on a proposal
     pub fn has_voted(env: Env, proposal_id: u32, voter: Address) -> bool {
         storage::has_voted(&env, proposal_id, &voter)
     }
 
-    /// Get vote weight for an address (token balance)
-    fn get_vote_weight(env: &Env, voter: &Address) -> Result<i128, VoteError> {
-        let token_address = storage::get_token_address(env)
-            .ok_or(VoteError::NotInitialized)?;
-        
-        let balance = storage::query_token_balance(env, &token_address, voter);
-        
-        if balance <= 0 {
-            return Err(VoteError::InsufficientBalance);
-        }
-
-        Ok(balance)
-    }
-
-    /// Finalize a proposal after voting period
-    pub fn finalize_proposal(env: Env, proposal_id: u32) -> Result<ProposalStatus, FinalizationError> {
+    pub fn finalize_proposal(
+        env: Env,
+        proposal_id: u32,
+    ) -> Result<ProposalStatus, FinalizationError> {
         let mut proposal = storage::get_proposal(&env, proposal_id)
             .ok_or(FinalizationError::ProposalNotFound)?;
-
-        // Check if already finalized
         if proposal.status != ProposalStatus::Active {
             return Err(FinalizationError::AlreadyFinalized);
         }
-
-        // Check if voting period has ended
         if env.ledger().timestamp() <= proposal.voting_end {
             return Err(FinalizationError::VotingPeriodNotEnded);
         }
-
-        // Evaluate quorum and threshold
         let total_votes = proposal.votes_for + proposal.votes_against;
-        
         let final_status = if total_votes < proposal.quorum {
             ProposalStatus::Failed
         } else {
-            let threshold_votes = (total_votes * proposal.threshold_percent as i128) / 100;
+            let threshold_votes =
+                (total_votes * proposal.threshold_percent as i128) / 100;
             if proposal.votes_for > threshold_votes {
                 ProposalStatus::Passed
             } else {
                 ProposalStatus::Rejected
             }
         };
-
         proposal.status = final_status.clone();
         storage::set_proposal(&env, proposal_id, &proposal);
-
         Ok(final_status)
     }
 
-    /// Get proposal details
-    pub fn get_proposal(env: Env, proposal_id: u32) -> Option<Proposal> {
+    pub fn get_proposal(env: Env, proposal_id: u32) -> Option<GovernanceProposal> {
         storage::get_proposal(&env, proposal_id)
     }
 
-    /// Get vote details
-    pub fn get_vote(env: Env, proposal_id: u32, voter: Address) -> Option<Vote> {
+    pub fn get_proposal_vote(env: Env, proposal_id: u32, voter: Address) -> Option<ProposalVote> {
         storage::get_vote(&env, proposal_id, &voter)
     }
 }
 
 #[cfg(test)]
-mod test;
+mod governance_test;
 
 #[cfg(test)]
-mod vote_accounting_test;
+mod governance_property_test;

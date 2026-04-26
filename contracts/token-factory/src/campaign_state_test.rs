@@ -17,18 +17,26 @@ use soroban_sdk::testutils::{Address as _, Events};
 use soroban_sdk::Address;
 
 fn create_test_campaign(env: &soroban_sdk::Env, owner: &Address, status: CampaignStatus) -> BuybackCampaign {
+    let dummy_addr = Address::generate(env);
     BuybackCampaign {
         id: 1,
         token_index: 0,
         owner: owner.clone(),
-        budget_allocated: 1_000_000,
-        budget_spent: 0,
-        tokens_burned: 0,
-        burn_count: 0,
+        budget: 1_000_000,
+        spent: 0,
+        tokens_bought: 0,
+        execution_count: 0,
         start_time: env.ledger().timestamp(),
-        end_time: 0,
+        end_time: env.ledger().timestamp() + 86400,
+        min_interval: 300,
+        max_slippage_bps: 100,
+        source_token: dummy_addr.clone(),
+        target_token: dummy_addr,
         status,
         created_at: env.ledger().timestamp(),
+        updated_at: env.ledger().timestamp(),
+        trigger_price: 0,
+        last_executed_at: 0,
     }
 }
 

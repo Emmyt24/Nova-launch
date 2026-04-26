@@ -44,6 +44,7 @@ fn setup_token_with_freeze(
         total_burned: 0,
         burn_count: 0,
         metadata_uri: None,
+        metadata_version: 0,
         created_at: env.ledger().timestamp(),
         clawback_enabled: false,
         freeze_enabled,

@@ -160,6 +160,7 @@ impl GovBenchSetup {
             total_burned: 0,
             burn_count: 0,
             metadata_uri: None,
+        metadata_version: 0,
             created_at: self.env.ledger().timestamp(),
             clawback_enabled: false,
             freeze_enabled: false,

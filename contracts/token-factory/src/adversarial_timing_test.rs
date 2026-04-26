@@ -28,6 +28,7 @@ fn setup_factory(test_env: &TestEnv) {
         total_burned: 0,
         burn_count: 0,
         metadata_uri: None,
+        metadata_version: 0,
         created_at: test_env.env.ledger().timestamp(),
         is_paused: false,
         clawback_enabled: false,

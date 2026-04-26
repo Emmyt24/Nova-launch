@@ -6,6 +6,8 @@ import { nativeToScVal, xdr } from '@stellar/stellar-sdk';
 import type {
   CreateTokensParams,
   SetTokenMetadataParams,
+  UpdateMetadataParams,
+  GetMetadataHistoryParams,
   BurnParams,
   AdminBurnParams,
   MintParams,
@@ -64,6 +66,19 @@ export const mappers = {
     addr(p.admin),
     u32(p.token_index),
     str(p.metadata_uri),
+  ],
+
+  /** update_metadata(admin, token_index, new_metadata_uri) */
+  updateMetadata: (p: UpdateMetadataParams): xdr.ScVal[] => [
+    addr(p.admin),
+    u32(p.token_index),
+    str(p.new_metadata_uri),
+  ],
+
+  /** get_metadata_history(token_index, version) */
+  getMetadataHistory: (p: GetMetadataHistoryParams): xdr.ScVal[] => [
+    u32(p.token_index),
+    u32(p.version),
   ],
 
   /** burn(caller, token_index, amount) */

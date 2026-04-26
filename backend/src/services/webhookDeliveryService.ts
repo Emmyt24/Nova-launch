@@ -7,12 +7,22 @@ import {
 } from "../types/webhook";
 import webhookService from "./webhookService";
 import { IntegrationMetrics } from "../monitoring/metrics/prometheus-config";
+import { CircuitBreaker } from "../lib/circuitBreaker";
 
 const TIMEOUT_MS = parseInt(process.env.WEBHOOK_TIMEOUT_MS || "5000");
 const MAX_RETRIES = parseInt(process.env.WEBHOOK_MAX_RETRIES || "3");
 const RETRY_DELAY_MS = parseInt(process.env.WEBHOOK_RETRY_DELAY_MS || "1000");
 
 export class WebhookDeliveryService {
+  private circuitBreaker: CircuitBreaker;
+
+  constructor() {
+    this.circuitBreaker = new CircuitBreaker({
+      failureThreshold: parseInt(process.env.WEBHOOK_CIRCUIT_BREAKER_FAILURE_THRESHOLD || "5"),
+      successThreshold: parseInt(process.env.WEBHOOK_CIRCUIT_BREAKER_SUCCESS_THRESHOLD || "2"),
+      timeoutMs: parseInt(process.env.WEBHOOK_CIRCUIT_BREAKER_TIMEOUT_MS || "60000"),
+    });
+  }
   /**
    * Trigger webhooks for an event
    */
@@ -41,7 +51,7 @@ export class WebhookDeliveryService {
   }
 
   /**
-   * Deliver webhook to a single subscription with retry logic
+   * Deliver webhook to a single subscription with circuit breaker and retry logic
    * @internal
    */
   async deliverWebhook(
@@ -65,86 +75,88 @@ export class WebhookDeliveryService {
     const txHash = (data as unknown as Record<string, unknown>).transactionHash as string | undefined;
     if (txHash) extraHeaders['X-Tx-Hash'] = txHash;
 
-    let lastError: string | null = null;
-    let statusCode: number | null = null;
-    let success = false;
-    let attempts = 0;
-    const startMs = Date.now();
+    return this.circuitBreaker.execute(async () => {
+      let lastError: string | null = null;
+      let statusCode: number | null = null;
+      let success = false;
+      let attempts = 0;
+      const startMs = Date.now();
 
-    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
-      attempts = attempt;
-      try {
-        console.log(
-          JSON.stringify({ event: 'webhook.attempt', correlationId: cid, url: subscription.url, attempt, maxRetries: MAX_RETRIES, ...(txHash && { txHash }) })
-        );
+      for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+        attempts = attempt;
+        try {
+          console.log(
+            JSON.stringify({ event: 'webhook.attempt', correlationId: cid, url: subscription.url, attempt, maxRetries: MAX_RETRIES, ...(txHash && { txHash }) })
+          );
 
-        const response = await axios.post(subscription.url, payload, {
-          timeout: TIMEOUT_MS,
-          headers: {
-            "Content-Type": "application/json",
-            "X-Webhook-Signature": payload.signature,
-            "X-Webhook-Event": event,
-            "User-Agent": "Nova-Launch-Webhook/1.0",
-            ...extraHeaders,
-          },
-          validateStatus: (status) => status >= 200 && status < 300,
-        });
+          const response = await axios.post(subscription.url, payload, {
+            timeout: TIMEOUT_MS,
+            headers: {
+              "Content-Type": "application/json",
+              "X-Webhook-Signature": payload.signature,
+              "X-Webhook-Event": event,
+              "User-Agent": "Nova-Launch-Webhook/1.0",
+              ...extraHeaders,
+            },
+            validateStatus: (status) => status >= 200 && status < 300,
+          });
 
-        statusCode = response.status;
-        success = true;
-        lastError = null;
+          statusCode = response.status;
+          success = true;
+          lastError = null;
 
-        console.log(
-          JSON.stringify({ event: 'webhook.delivered', correlationId: cid, url: subscription.url, statusCode, ...(txHash && { txHash }) })
-        );
+          console.log(
+            JSON.stringify({ event: 'webhook.delivered', correlationId: cid, url: subscription.url, statusCode, ...(txHash && { txHash }) })
+          );
 
-        // Update last triggered timestamp
-        await webhookService.updateLastTriggered(subscription.id);
+          // Update last triggered timestamp
+          await webhookService.updateLastTriggered(subscription.id);
 
-        break; // Success, exit retry loop
-      } catch (error) {
-        const axiosError = error as AxiosError;
-        statusCode = axiosError.response?.status || null;
-        lastError = axiosError.message;
+          break; // Success, exit retry loop
+        } catch (error) {
+          const axiosError = error as AxiosError;
+          statusCode = axiosError.response?.status || null;
+          lastError = axiosError.message;
 
-        console.error(
-          JSON.stringify({ event: 'webhook.failed', correlationId: cid, url: subscription.url, attempt, statusCode, error: lastError, ...(txHash && { txHash }) })
-        );
+          console.error(
+            JSON.stringify({ event: 'webhook.failed', correlationId: cid, url: subscription.url, attempt, statusCode, error: lastError, ...(txHash && { txHash }) })
+          );
 
-        // 4xx errors are non-retryable — stop immediately
-        if (statusCode !== null && statusCode >= 400 && statusCode < 500) {
-          break;
-        }
+          // 4xx errors are non-retryable — stop immediately
+          if (statusCode !== null && statusCode >= 400 && statusCode < 500) {
+            break;
+          }
 
-        // Wait before retrying (exponential backoff)
-        if (attempt < MAX_RETRIES) {
-          await this.delay(RETRY_DELAY_MS * Math.pow(2, attempt - 1));
+          // Wait before retrying (exponential backoff)
+          if (attempt < MAX_RETRIES) {
+            await this.delay(RETRY_DELAY_MS * Math.pow(2, attempt - 1));
+          }
         }
       }
-    }
 
-    // Emit delivery metrics
-    const durationMs = Date.now() - startMs;
-    const retries = attempts - 1;
-    const outcome = success ? 'success' : (attempts >= MAX_RETRIES ? 'exhausted' : 'failed');
-    IntegrationMetrics.recordWebhookDelivery(event, outcome, durationMs, retries);
+      // Emit delivery metrics
+      const durationMs = Date.now() - startMs;
+      const retries = attempts - 1;
+      const outcome = success ? 'success' : (attempts >= MAX_RETRIES ? 'exhausted' : 'failed');
+      IntegrationMetrics.recordWebhookDelivery(event, outcome, durationMs, retries);
 
-    // Log the delivery attempt
-    await webhookService.logDelivery(
-      subscription.id,
-      event,
-      payload,
-      statusCode,
-      success,
-      attempts,
-      lastError
-    );
-
-    if (!success) {
-      console.warn(
-        JSON.stringify({ event: 'webhook.exhausted', correlationId: cid, subscriptionId: subscription.id, attempts: MAX_RETRIES, ...(txHash && { txHash }) })
+      // Log the delivery attempt
+      await webhookService.logDelivery(
+        subscription.id,
+        event,
+        payload,
+        statusCode,
+        success,
+        attempts,
+        lastError
       );
-    }
+
+      if (!success) {
+        console.warn(
+          JSON.stringify({ event: 'webhook.exhausted', correlationId: cid, subscriptionId: subscription.id, attempts: MAX_RETRIES, ...(txHash && { txHash }) })
+        );
+      }
+    });
   }
 
   /**

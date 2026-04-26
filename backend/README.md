@@ -11,7 +11,27 @@ Backend API for the Nova Launch admin dashboard with protected endpoints for pla
 - 👤 User management (ban, role changes)
 - 📝 Comprehensive audit logging
 - 📤 Data export functionality
+- � Multi-channel notification service support
 - 🔒 Rate limiting and security headers
+
+## Notification Service
+
+The backend includes a multi-channel notification service that supports:
+
+- `WEBHOOK` - dispatches notifications through existing webhook subscriptions
+- `EMAIL` - sends email notifications through a configurable provider endpoint
+- `SMS` - sends SMS notifications through a configurable provider endpoint
+
+Configuration is optional for email and SMS. When a channel is not configured, delivery fails safely and other channels continue.
+
+### Environment variables
+
+| Environment variable | Description |
+|---|---|
+| `NOTIFICATION_EMAIL_API_URL` | HTTP endpoint used to send email notifications |
+| `NOTIFICATION_EMAIL_API_KEY` | Optional bearer token for email provider |
+| `NOTIFICATION_SMS_API_URL` | HTTP endpoint used to send SMS notifications |
+| `NOTIFICATION_SMS_API_KEY` | Optional bearer token for SMS provider |
 
 ## Tech Stack
 

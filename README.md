@@ -248,6 +248,46 @@ This script will:
 - Generate admin identity
 - Provide funding instructions
 
+### Docker (Local Development)
+
+The fastest way to run the full stack locally is with Docker Compose.
+
+**Prerequisites:** Docker 24+ and Docker Compose v2.
+
+```bash
+# 1. Copy and configure environment variables
+cp .env.example .env
+# Edit .env — at minimum set JWT_SECRET and ADMIN_JWT_SECRET
+
+# 2. Start all services (postgres, redis, backend, frontend)
+docker compose up --build
+
+# 3. Open the app
+#    Frontend → http://localhost:5173
+#    Backend  → http://localhost:3001
+```
+
+To stop and remove containers:
+
+```bash
+docker compose down
+# Add -v to also remove the postgres volume (wipes database)
+docker compose down -v
+```
+
+**Services started by Docker Compose:**
+
+| Service  | Port | Description |
+|----------|------|-------------|
+| postgres | 5432 | PostgreSQL 16 database |
+| redis    | 6379 | Redis 7 (rate limiter) |
+| backend  | 3001 | Express/Next.js API |
+| frontend | 5173 | React/Vite app (served via nginx) |
+
+> **Note:** `VITE_*` variables are baked into the frontend at build time. If you change them in `.env`, rebuild with `docker compose up --build frontend`.
+
+---
+
 ### Development
 
 #### Frontend Development
@@ -418,6 +458,51 @@ pub fn set_metadata(
 ) -> Result<(), Error>
 ```
 
+##### `update_metadata`
+Update the metadata URI for a token with full version tracking. Each call increments the on-chain version counter and records a permanent history entry.
+
+```rust
+pub fn update_metadata(
+    env: Env,
+    admin: Address,
+    token_index: u32,
+    new_metadata_uri: String,
+) -> Result<u32, Error>
+```
+
+**Parameters:**
+- `admin`: Token creator address (must authorize)
+- `token_index`: Index of the token to update
+- `new_metadata_uri`: New IPFS URI (e.g., `"ipfs://QmNewHash..."`)
+
+**Returns:** The new version number (starts at 2 after the first update).
+
+**Errors:**
+- `MetadataNotSet` (54) — metadata was never set; call `set_token_metadata` first
+- `Unauthorized` — caller is not the token creator
+- `TokenNotFound` — token index does not exist
+- `ContractPaused` — contract is paused
+
+**Events:** Emits `meta_upd` with token address, admin, new URI, and version.
+
+##### `get_metadata_history`
+Retrieve a historical metadata record for a specific version.
+
+```rust
+pub fn get_metadata_history(
+    env: Env,
+    token_index: u32,
+    version: u32,
+) -> Option<MetadataRecord>
+```
+
+**Returns:** `Some(MetadataRecord)` if the version exists, `None` otherwise.
+
+`MetadataRecord` fields:
+- `uri: String` — the metadata URI at that version
+- `updated_at: u64` — ledger timestamp of the update
+- `updated_by: Address` — address that performed the update
+
 ##### `mint_tokens`
 Mint additional tokens (admin only).
 
@@ -547,6 +632,7 @@ pub fn get_token_info(
 | 7 | `BurnAmountExceedsBalance` | Burn amount exceeds token balance |
 | 8 | `BurnNotEnabled` | Burn functionality not enabled |
 | 9 | `InvalidBurnAmount` | Burn amount is zero or negative |
+| 54 | `MetadataNotSet` | Metadata has never been set; call `set_token_metadata` first |
 
 ##### Vault Error Codes
 
@@ -846,6 +932,8 @@ Enable pre-commit hooks to catch issues before committing:
 ```bash
 git config core.hooksPath .githooks
 ```
+
+The hook checks Rust formatting, frontend/backend lint, type-checking, Prettier formatting, secret detection, and conventional commit message format — scoped to staged files only for speed.
 
 For more details, see [CI/CD Guide](CI_CD_GUIDE.md).
 

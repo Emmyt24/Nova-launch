@@ -280,7 +280,7 @@ proptest! {
         prop_assert_eq!(
             result,
             Err(ClaimError::CliffNotReached),
-            "partial vault must still be time-locked: now={now} unlock_time={unlock_time}"
+            "partial vault must still be time-locked: now={now} unlock_time={}", unlock_time
         );
     }
 

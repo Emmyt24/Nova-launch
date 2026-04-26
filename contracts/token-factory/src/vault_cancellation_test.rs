@@ -35,6 +35,7 @@ fn setup() -> (Env, Address, Address, Address, Address, Address) {
         total_burned: 0,
         burn_count: 0,
         metadata_uri: None,
+        metadata_version: 0,
         created_at: 0,
         is_paused: false,
         clawback_enabled: false,

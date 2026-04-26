@@ -52,6 +52,7 @@ export enum ErrorCode {
   IPFS_ERROR = "IPFS_ERROR",
   WEBHOOK_DELIVERY_FAILED = "WEBHOOK_DELIVERY_FAILED",
   EXTERNAL_SERVICE_ERROR = "EXTERNAL_SERVICE_ERROR",
+  CIRCUIT_BREAKER_OPEN = "CIRCUIT_BREAKER_OPEN",
 }
 
 // ---------------------------------------------------------------------------
@@ -91,6 +92,7 @@ export const ERROR_HTTP_STATUS: Record<ErrorCode, number> = {
   [ErrorCode.IPFS_ERROR]: 502,
   [ErrorCode.WEBHOOK_DELIVERY_FAILED]: 502,
   [ErrorCode.EXTERNAL_SERVICE_ERROR]: 502,
+  [ErrorCode.CIRCUIT_BREAKER_OPEN]: 503,
 };
 
 // ---------------------------------------------------------------------------

@@ -40,6 +40,7 @@ fn setup_token(
         decimals: 7,
         total_supply: 1_000_000_0000000, // 1M tokens
         metadata_uri: None,
+        metadata_version: 0,
         created_at: env.ledger().timestamp(),
         total_burned: 0,
         burn_count: 0,

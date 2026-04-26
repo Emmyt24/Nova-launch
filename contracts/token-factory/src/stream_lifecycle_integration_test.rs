@@ -1,10 +1,11 @@
 #[cfg(test)]
+extern crate std;
 mod stream_lifecycle_integration_tests {
     use crate::streaming;
     use crate::storage;
     use crate::types::{Error, StreamParams};
     use crate::events;
-    use soroban_sdk::{testutils::{Address as _, Ledger}, vec, Address, Env, Symbol};
+    use soroban_sdk::{testutils::{Address as _, Ledger, Events}, vec, Address, Env, Symbol, IntoVal, TryFromVal};
 
     fn setup() -> (Env, Address, Address, Address) {
         let env = Env::default();
@@ -31,6 +32,7 @@ mod stream_lifecycle_integration_tests {
             total_burned: 0,
             burn_count: 0,
             metadata_uri: None,
+        metadata_version: 0,
             created_at: env.ledger().timestamp(),
             is_paused: false,
             clawback_enabled: false,
@@ -138,16 +140,16 @@ mod stream_lifecycle_integration_tests {
         assert_eq!(events.len(), initial_events + 5);
         
         // Verify event types in correct order
-        let event_symbols: Vec<Symbol> = events.iter()
+        let event_symbols: std::vec::Vec<Symbol> = events.iter()
             .skip(initial_events as usize)
-            .map(|event| event.topics[0])
+            .map(|event| Symbol::try_from_val(&env, &event.1.get(0).unwrap()).unwrap())
             .collect();
         
-        assert_eq!(event_symbols.get(0), Some(&symbol_short!("strm_crt")));  // Stream created
-        assert_eq!(event_symbols.get(1), Some(&symbol_short!("strm_clm")));  // First claim
-        assert_eq!(event_symbols.get(2), Some(&symbol_short!("pause_v1")));  // Contract paused
-        assert_eq!(event_symbols.get(3), Some(&symbol_short!("unpaus_v1"))); // Contract unpaused
-        assert_eq!(event_symbols.get(4), Some(&symbol_short!("strm_clm")));  // Second claim
+        assert_eq!(event_symbols.get(0), Some(&soroban_sdk::symbol_short!("strm_crt")));  // Stream created
+        assert_eq!(event_symbols.get(1), Some(&soroban_sdk::symbol_short!("strm_clm")));  // First claim
+        assert_eq!(event_symbols.get(2), Some(&soroban_sdk::symbol_short!("pause_v1")));  // Contract paused
+        assert_eq!(event_symbols.get(3), Some(&soroban_sdk::symbol_short!("unpaus_v1"))); // Contract unpaused
+        assert_eq!(event_symbols.get(4), Some(&soroban_sdk::symbol_short!("strm_clm")));  // Second claim
     }
 
     #[test]
@@ -197,13 +199,13 @@ mod stream_lifecycle_integration_tests {
         assert_eq!(events.len(), initial_events + 2);
         
         // Verify event types in correct order
-        let event_symbols: Vec<Symbol> = events.iter()
+        let event_symbols: std::vec::Vec<Symbol> = events.iter()
             .skip(initial_events as usize)
-            .map(|event| event.topics[0])
+            .map(|event| Symbol::try_from_val(&env, &event.1.get(0).unwrap()).unwrap())
             .collect();
         
-        assert_eq!(event_symbols.get(0), Some(&symbol_short!("strm_crt")));  // Stream created
-        assert_eq!(event_symbols.get(1), Some(&symbol_short!("strm_cnl")));  // Stream cancelled
+        assert_eq!(event_symbols.get(0), Some(&soroban_sdk::symbol_short!("strm_crt")));  // Stream created
+        assert_eq!(event_symbols.get(1), Some(&soroban_sdk::symbol_short!("strm_cnl")));  // Stream cancelled
     }
 
     #[test]
@@ -349,8 +351,8 @@ mod stream_lifecycle_integration_tests {
         });
 
         // BATCH CLAIM
-        let claimed_amounts = streaming::batch_claim(&env, &recipient, &stream_ids.slice(0, 1)).unwrap();
-        assert_eq!(claimed_amounts.get(0), Some(&500)); // 50% of 1000
+        let claimed_amounts = streaming::batch_claim(&env, &recipient, &stream_ids.slice(0..1)).unwrap();
+        assert_eq!(claimed_amounts.get(0), Some(500)); // 50% of 1000
 
         // Verify invariants for first stream
         let stream1 = storage::get_stream(&env, stream_ids.get(0).unwrap()).unwrap();
@@ -425,8 +427,8 @@ mod stream_lifecycle_integration_tests {
 
         // COLLECT AND VALIDATE ALL EVENTS
         let events = env.events().all();
-        let event_symbols: Vec<Symbol> = events.iter()
-            .map(|event| event.topics[0])
+        let event_symbols: std::vec::Vec<Symbol> = events.iter()
+            .map(|event| Symbol::try_from_val(&env, &event.1.get(0).unwrap()).unwrap())
             .collect();
 
         // Expected event sequence:
@@ -436,11 +438,11 @@ mod stream_lifecycle_integration_tests {
         // 4. Stream claimed
         // 5. Stream cancelled
 
-        assert_eq!(event_symbols.get(0), Some(&symbol_short!("strm_crt")));
-        assert_eq!(event_symbols.get(1), Some(&symbol_short!("pause_v1")));
-        assert_eq!(event_symbols.get(2), Some(&symbol_short!("unpaus_v1")));
-        assert_eq!(event_symbols.get(3), Some(&symbol_short!("strm_clm")));
-        assert_eq!(event_symbols.get(4), Some(&symbol_short!("strm_cnl")));
+        assert_eq!(event_symbols.get(0), Some(&soroban_sdk::symbol_short!("strm_crt")));
+        assert_eq!(event_symbols.get(1), Some(&soroban_sdk::symbol_short!("pause_v1")));
+        assert_eq!(event_symbols.get(2), Some(&soroban_sdk::symbol_short!("unpaus_v1")));
+        assert_eq!(event_symbols.get(3), Some(&soroban_sdk::symbol_short!("strm_clm")));
+        assert_eq!(event_symbols.get(4), Some(&soroban_sdk::symbol_short!("strm_cnl")));
 
         // Verify final stream state
         let stream = storage::get_stream(&env, stream_id).unwrap();
@@ -609,10 +611,7 @@ mod stream_lifecycle_integration_tests {
             );
         }
     }
-}
 
     // Helper function to get symbol_short for testing
-    fn symbol_short(s: &str) -> soroban_sdk::Symbol {
-        soroban_sdk::symbol_short!(s)
-    }
+    // Using macro directly where needed instead of function wrapper
 }

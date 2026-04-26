@@ -422,6 +422,50 @@ pub fn emit_governance_updated(env: &Env, quorum_percent: u32, approval_percent:
     );
 }
 
+/// Emit token paused event (v1)
+///
+/// **Schema Version**: 1
+/// **Event Name**: tok_paus
+///
+/// **Topics** (indexed):
+/// - Event name: "tok_paus"
+/// - token_index: u32 - The token index
+///
+/// **Payload** (non-indexed):
+/// - admin: Address - The admin who paused the token
+///
+/// **Schema Stability**: This schema is immutable. Any changes require a new version.
+///
+/// Emitted when a specific token is paused via `pause_token`
+pub fn emit_token_paused(env: &Env, token_index: u32, admin: &Address) {
+    env.events().publish(
+        (symbol_short!("tok_paus"), token_index),
+        (admin,),
+    );
+}
+
+/// Emit token unpaused event (v1)
+///
+/// **Schema Version**: 1
+/// **Event Name**: tok_unpaus
+///
+/// **Topics** (indexed):
+/// - Event name: "tok_unpaus"
+/// - token_index: u32 - The token index
+///
+/// **Payload** (non-indexed):
+/// - admin: Address - The admin who unpaused the token
+///
+/// **Schema Stability**: This schema is immutable. Any changes require a new version.
+///
+/// Emitted when a specific token is unpaused via `unpause_token`
+pub fn emit_token_unpaused(env: &Env, token_index: u32, admin: &Address) {
+    env.events().publish(
+        (symbol_short!("tok_unpas"), token_index),
+        (admin,),
+    );
+}
+
 /// Emit metadata set event
 ///
 /// **Event Name**: meta_set
@@ -444,6 +488,36 @@ pub fn emit_metadata_set(
     env.events().publish(
         (symbol_short!("meta_set"), token_address.clone()),
         (admin.clone(), metadata_uri.clone()),
+    );
+}
+
+/// Emit metadata updated event (v1)
+///
+/// **Schema Version**: 1
+/// **Event Name**: meta_upd
+///
+/// **Topics** (indexed):
+/// - Event name: "meta_upd"
+/// - token_address: Address - The token address
+///
+/// **Payload** (non-indexed):
+/// - admin: Address - The admin who updated the metadata
+/// - metadata_uri: String - The new metadata URI
+/// - version: u32 - The new metadata version number
+///
+/// **Schema Stability**: This schema is immutable. Any changes require a new version.
+///
+/// Emitted when token metadata is updated via `update_metadata`
+pub fn emit_metadata_updated(
+    env: &Env,
+    token_address: &Address,
+    admin: &Address,
+    metadata_uri: &String,
+    version: u32,
+) {
+    env.events().publish(
+        (symbol_short!("meta_upd"), token_address.clone()),
+        (admin.clone(), metadata_uri.clone(), version),
     );
 }
 
@@ -669,6 +743,35 @@ pub fn emit_proposal_executed(
     );
 }
 
+/// Emit queue entry added event
+///
+/// Published when a proposal is added to the priority execution queue.
+pub fn emit_queue_entry_added(
+    env: &Env,
+    proposal_id: u64,
+    priority: crate::types::ProposalPriority,
+    eta: u64,
+) {
+    env.events().publish(
+        (symbol_short!("q_add"), proposal_id),
+        (priority as u32, eta),
+    );
+}
+
+/// Emit queue entry removed event
+///
+/// Published when a proposal is dequeued (executed or cancelled).
+pub fn emit_queue_entry_removed(
+    env: &Env,
+    proposal_id: u64,
+    priority: crate::types::ProposalPriority,
+) {
+    env.events().publish(
+        (symbol_short!("q_rem"), proposal_id),
+        (priority as u32,),
+    );
+}
+
 /// Emit vault created event
 ///
 /// Published when a new vault allocation is created
@@ -829,4 +932,53 @@ pub fn emit_campaign_cancelled(
         (symbol_short!("cmp_cnl"), campaign_id),
         (cancelled_by, budget_remaining),
     );
+}
+/// Emit asset fractionalized event
+pub fn emit_asset_fractionalized(
+    env: &Env,
+    vault_id: u64,
+    asset_id: &BytesN<32>,
+    asset_contract: &Address,
+    owner: &Address,
+    fractional_token: &Address,
+    total_supply: i128,
+) {
+    let topics = (
+        symbol_short!("frac_v1"),
+        vault_id,
+        asset_id.clone(),
+        owner.clone(),
+    );
+    
+    let data = (
+        asset_contract.clone(),
+        fractional_token.clone(),
+        total_supply,
+    );
+    
+    env.events().publish(topics, data);
+}
+
+/// Emit asset redeemed event
+pub fn emit_asset_redeemed(
+    env: &Env,
+    vault_id: u64,
+    asset_id: &BytesN<32>,
+    asset_contract: &Address,
+    redeemer: &Address,
+    total_supply: i128,
+) {
+    let topics = (
+        symbol_short!("redeem_v1"),
+        vault_id,
+        asset_id.clone(),
+        redeemer.clone(),
+    );
+    
+    let data = (
+        asset_contract.clone(),
+        total_supply,
+    );
+    
+    env.events().publish(topics, data);
 }

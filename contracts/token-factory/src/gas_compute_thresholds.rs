@@ -19,21 +19,21 @@
 //!
 
 extern crate std;
-//! ## Threshold Update Policy
-//!
-//! Thresholds may ONLY be raised via a PR that includes ALL of the following:
-//!   1. Benchmark output proving the new measured values
-//!      (`cargo test gas_compute -- --nocapture`)
-//!   2. A written explanation of why the cost increased
-//!   3. Sign-off from a maintainer with merge approval
-//!
-//! Thresholds must NEVER be raised speculatively.
-//! Lower them whenever optimizations land.
-//!
-//! ## Running
-//! ```
-//! cargo test -p token-factory gas_compute -- --nocapture
-//! ```
+// ## Threshold Update Policy
+//
+// Thresholds may ONLY be raised via a PR that includes ALL of the following:
+//   1. Benchmark output proving the new measured values
+//      (`cargo test gas_compute -- --nocapture`)
+//   2. A written explanation of why the cost increased
+//   3. Sign-off from a maintainer with merge approval
+//
+// Thresholds must NEVER be raised speculatively.
+// Lower them whenever optimizations land.
+//
+// ## Running
+// ```
+// cargo test -p token-factory gas_compute -- --nocapture
+// ```
 
 use soroban_sdk::{testutils::Address as _, Address, Env, String};
 use crate::{TokenFactory, TokenFactoryClient};

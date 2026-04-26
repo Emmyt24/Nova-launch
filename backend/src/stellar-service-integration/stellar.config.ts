@@ -14,6 +14,11 @@ export interface StellarConfig {
     maxRequests: number;
     windowMs: number;
   };
+  circuitBreaker: {
+    failureThreshold: number;
+    successThreshold: number;
+    timeoutMs: number;
+  };
 }
 
 export const DEFAULT_STELLAR_CONFIG: StellarConfig = {
@@ -31,5 +36,10 @@ export const DEFAULT_STELLAR_CONFIG: StellarConfig = {
   rateLimit: {
     maxRequests: 100,
     windowMs: 60000,
+  },
+  circuitBreaker: {
+    failureThreshold: 5,
+    successThreshold: 2,
+    timeoutMs: 60000, // 1 minute
   },
 };

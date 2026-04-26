@@ -33,8 +33,17 @@ export interface TokenInfo {
     totalSupply: string;
     creator: string;
     metadataUri?: string;
+    /** Current metadata version. 0 = never set; increments with each update_metadata call. */
+    metadataVersion?: number;
     deployedAt: number;
     transactionHash: string;
+}
+
+/** A single historical metadata record returned by get_metadata_history. */
+export interface MetadataRecord {
+    uri: string;
+    updatedAt: number;
+    updatedBy: string;
 }
 
 export interface TokenMetadata {
