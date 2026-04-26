@@ -327,6 +327,32 @@ pub struct TokenStats {
     pub freeze_enabled: bool,
 }
 
+/// A single price observation submitted by an authorized oracle source.
+///
+/// # Fields
+/// * `price` - Raw price value (must be > 0)
+/// * `decimals` - Number of decimal places in `price` (e.g. 7 means price / 10^7)
+/// * `timestamp` - Ledger timestamp when the price was recorded
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct PriceData {
+    pub price: i128,
+    pub decimals: u32,
+    pub timestamp: u64,
+}
+
+/// Global oracle configuration stored in instance storage.
+///
+/// # Fields
+/// * `max_age_seconds` - Maximum acceptable age of a price before it is considered stale
+/// * `min_sources` - Minimum number of authorized sources that must have submitted a price
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct OracleConfig {
+    pub max_age_seconds: u64,
+    pub min_sources: u32,
+}
+
 /// Batch fee update structure for Phase 2 optimization
 ///
 /// Allows updating both fees in a single operation, providing
@@ -425,8 +451,12 @@ pub enum DataKey {
     CampaignByCreator(Address, u32),
     CreatorCampaignCount(Address),
     ActiveCampaigns,
-    /// Reentrancy lock flag — set to `true` while a guarded function is executing.
-    ReentrancyLock,
+    /// Latest price data submitted by an authorized oracle source.
+    OraclePrice(Address),
+    /// Whether an address is an authorized oracle price submitter.
+    OracleAuthorized(Address),
+    /// Global oracle configuration (max_age_seconds, min_sources).
+    OracleConfig,
 }
 
 #[contracttype]
@@ -488,8 +518,14 @@ impl Error {
     pub const CampaignNotFound: Self = Self(51);
     pub const InvalidBudget: Self = Self(52);
     pub const InsufficientBudget: Self = Self(53);
-    /// Reentrant call detected — a guarded function was called while already executing.
-    pub const ReentrancyGuard: Self = Self(54);
+    /// No price data found for the requested oracle address.
+    pub const OracleNotFound: Self = Self(55);
+    /// The most recent price is older than `max_age_seconds`.
+    pub const OraclePriceStale: Self = Self(56);
+    /// Caller is not an authorized oracle source.
+    pub const OracleUnauthorized: Self = Self(57);
+    /// Submitted price value is zero or negative.
+    pub const OraclePriceInvalid: Self = Self(58);
 }
 
 impl From<Error> for soroban_sdk::Error {

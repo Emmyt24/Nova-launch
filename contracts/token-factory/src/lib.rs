@@ -14,6 +14,7 @@ mod event_versions;
 mod events;
 mod liquidity_mining;
 mod milestone_verification;
+mod oracle;
 #[cfg(all(test, feature = "legacy-tests"))]
 mod milestone_verification_test;
 #[cfg(all(test, feature = "legacy-tests"))]
@@ -68,9 +69,9 @@ mod vault_funding_overflow_property_test; // Property 73
 #[cfg(test)]
 mod vault_concurrent_claims_chaos_test;
 
-// Flash loan / reentrancy protection tests
+// Oracle integration tests
 #[cfg(test)]
-mod flash_loan_protection_test;
+mod oracle_integration_test;
 
 // Temporarily disabled due to pre-existing compilation errors
 // #[cfg(test)]
@@ -84,9 +85,9 @@ mod flash_loan_protection_test;
 
 use soroban_sdk::{contract, contractimpl, symbol_short, Address, Bytes, BytesN, Env, String, Vec};
 use types::{
-    BuybackCampaign, CampaignStatus, ContractMetadata, Error, FactoryState, LiquidityMiningPool,
-    MiningPoolStatus, PaginationCursor, ProviderStake, StreamInfo, StreamPage, StreamParams,
-    TokenCreationParams, TokenInfo, TokenStats, Vault, VaultStatus,
+    BuybackCampaign, CampaignStatus, ContractMetadata, Error, FactoryState, OracleConfig,
+    PaginationCursor, PriceData, StreamInfo, StreamPage, StreamParams, TokenCreationParams,
+    TokenInfo, TokenStats, Vault, VaultStatus,
 };
 use crate::milestone_verification::MilestoneVerifier;
 
@@ -2656,133 +2657,89 @@ impl TokenFactory {
         timelock::get_vote_counts(&env, proposal_id)
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // Liquidity Mining Program
-    // ─────────────────────────────────────────────────────────────────────────
+    // ═══════════════════════════════════════════════════════════════════════
+    // Oracle Functions — External Price Feeds
+    // ═══════════════════════════════════════════════════════════════════════
 
-    /// Create a new liquidity mining pool
-    ///
-    /// Initializes a pool that distributes `reward_token_index` tokens to
-    /// providers who stake `stake_token_index` tokens. Only the admin can
-    /// create pools.
+    /// Configure the oracle parameters (admin only).
     ///
     /// # Arguments
-    /// * `admin` - Admin address (must authorize)
-    /// * `reward_token_index` - Token index for reward distribution
-    /// * `stake_token_index` - Token index that providers stake
-    /// * `reward_rate` - Rewards per second per staked token (in stroops)
-    /// * `start_time` - Unix timestamp when the pool opens
-    /// * `end_time` - Unix timestamp when reward accrual stops
+    /// * `admin` - Contract admin address (must authorize).
+    /// * `max_age_seconds` - Prices older than this are considered stale (must be > 0).
+    /// * `min_sources` - Minimum authorized sources required (informational).
     ///
-    /// # Returns
-    /// Returns the new pool ID
-    pub fn create_mining_pool(
+    /// # Errors
+    /// * `Error::Unauthorized` - Caller is not the admin.
+    /// * `Error::InvalidParameters` - `max_age_seconds` is zero.
+    pub fn configure_oracle(
         env: Env,
         admin: Address,
-        reward_token_index: u32,
-        stake_token_index: u32,
-        reward_rate: i128,
-        start_time: u64,
-        end_time: u64,
-    ) -> Result<u64, Error> {
-        liquidity_mining::create_mining_pool(
-            &env,
-            &admin,
-            reward_token_index,
-            stake_token_index,
-            reward_rate,
-            start_time,
-            end_time,
-        )
-    }
-
-    /// Stake tokens into a liquidity mining pool to earn rewards
-    ///
-    /// # Arguments
-    /// * `provider` - Address staking tokens (must authorize)
-    /// * `pool_id` - ID of the pool to stake into
-    /// * `amount` - Amount of stake tokens to deposit
-    pub fn stake(env: Env, provider: Address, pool_id: u64, amount: i128) -> Result<(), Error> {
-        liquidity_mining::stake(&env, &provider, pool_id, amount)
-    }
-
-    /// Unstake tokens from a liquidity mining pool
-    ///
-    /// Pending rewards are preserved but not automatically claimed.
-    /// Call `claim_rewards` to collect them.
-    ///
-    /// # Arguments
-    /// * `provider` - Address unstaking tokens (must authorize)
-    /// * `pool_id` - ID of the pool to unstake from
-    /// * `amount` - Amount of stake tokens to withdraw
-    pub fn unstake(env: Env, provider: Address, pool_id: u64, amount: i128) -> Result<(), Error> {
-        liquidity_mining::unstake(&env, &provider, pool_id, amount)
-    }
-
-    /// Claim accumulated rewards from a liquidity mining pool
-    ///
-    /// # Arguments
-    /// * `provider` - Address claiming rewards (must authorize)
-    /// * `pool_id` - ID of the pool to claim from
-    ///
-    /// # Returns
-    /// Returns the amount of reward tokens claimed
-    pub fn claim_rewards(env: Env, provider: Address, pool_id: u64) -> Result<i128, Error> {
-        liquidity_mining::claim_rewards(&env, &provider, pool_id)
-    }
-
-    /// Pause an active liquidity mining pool (admin only)
-    pub fn pause_mining_pool(env: Env, admin: Address, pool_id: u64) -> Result<(), Error> {
-        liquidity_mining::pause_mining_pool(&env, &admin, pool_id)
-    }
-
-    /// Resume a paused liquidity mining pool (admin only)
-    pub fn resume_mining_pool(env: Env, admin: Address, pool_id: u64) -> Result<(), Error> {
-        liquidity_mining::resume_mining_pool(&env, &admin, pool_id)
-    }
-
-    /// End a liquidity mining pool before its scheduled end_time (admin only)
-    pub fn end_mining_pool(env: Env, admin: Address, pool_id: u64) -> Result<(), Error> {
-        liquidity_mining::end_mining_pool(&env, &admin, pool_id)
-    }
-
-    /// Update the reward rate for an active pool (admin only)
-    ///
-    /// # Arguments
-    /// * `admin` - Admin address (must authorize)
-    /// * `pool_id` - ID of the pool to update
-    /// * `new_reward_rate` - New reward rate per second per staked token
-    pub fn update_reward_rate(
-        env: Env,
-        admin: Address,
-        pool_id: u64,
-        new_reward_rate: i128,
+        max_age_seconds: u64,
+        min_sources: u32,
     ) -> Result<(), Error> {
-        liquidity_mining::update_reward_rate(&env, &admin, pool_id, new_reward_rate)
+        oracle::configure_oracle(&env, &admin, max_age_seconds, min_sources)
     }
 
-    /// Get a liquidity mining pool by ID
-    pub fn get_mining_pool(env: Env, pool_id: u64) -> Option<LiquidityMiningPool> {
-        liquidity_mining::get_mining_pool(&env, pool_id)
-    }
-
-    /// Get a provider's stake info for a pool
-    pub fn get_provider_stake(env: Env, pool_id: u64, provider: Address) -> Option<ProviderStake> {
-        liquidity_mining::get_provider_stake(&env, pool_id, &provider)
-    }
-
-    /// Get the current claimable rewards for a provider
-    pub fn get_claimable_rewards(
+    /// Authorize or deauthorize an oracle price source (admin only).
+    ///
+    /// # Arguments
+    /// * `admin` - Contract admin address (must authorize).
+    /// * `source` - Oracle source address to update.
+    /// * `authorized` - `true` to authorize, `false` to revoke.
+    ///
+    /// # Errors
+    /// * `Error::Unauthorized` - Caller is not the admin.
+    pub fn set_oracle_authorized(
         env: Env,
-        pool_id: u64,
-        provider: Address,
-    ) -> Result<i128, Error> {
-        liquidity_mining::get_claimable_rewards(&env, pool_id, &provider)
+        admin: Address,
+        source: Address,
+        authorized: bool,
+    ) -> Result<(), Error> {
+        oracle::set_oracle_authorized(&env, &admin, &source, authorized)
     }
 
-    /// Get the total number of liquidity mining pools
-    pub fn get_mining_pool_count(env: Env) -> u64 {
-        liquidity_mining::get_mining_pool_count(&env)
+    /// Submit a new price observation (authorized oracle sources only).
+    ///
+    /// # Arguments
+    /// * `source` - Authorized oracle source address (must authorize).
+    /// * `price` - Raw price value (must be > 0).
+    /// * `decimals` - Decimal places for `price`.
+    ///
+    /// # Errors
+    /// * `Error::OracleUnauthorized` - `source` is not authorized.
+    /// * `Error::OraclePriceInvalid` - `price` is zero or negative.
+    pub fn submit_price(
+        env: Env,
+        source: Address,
+        price: i128,
+        decimals: u32,
+    ) -> Result<(), Error> {
+        oracle::submit_price(&env, &source, price, decimals)
+    }
+
+    /// Retrieve and validate the latest price from `source`.
+    ///
+    /// # Arguments
+    /// * `source` - Oracle source address whose price to read.
+    ///
+    /// # Returns
+    /// The latest `PriceData` if present and within the staleness window.
+    ///
+    /// # Errors
+    /// * `Error::OracleNotFound` - No price submitted by `source`.
+    /// * `Error::OraclePriceStale` - Price is older than `max_age_seconds`.
+    pub fn get_oracle_price(env: Env, source: Address) -> Result<PriceData, Error> {
+        oracle::get_price(&env, &source)
+    }
+
+    /// Return the current oracle configuration.
+    pub fn get_oracle_config(env: Env) -> OracleConfig {
+        oracle::get_config(&env)
+    }
+
+    /// Return whether `source` is an authorized oracle.
+    pub fn is_oracle_authorized(env: Env, source: Address) -> bool {
+        oracle::is_authorized(&env, &source)
     }
 }
 
