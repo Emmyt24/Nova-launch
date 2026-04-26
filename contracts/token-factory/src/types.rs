@@ -166,6 +166,66 @@ pub struct BuybackCampaign {
     pub status: CampaignStatus,
     pub created_at: u64,
     pub updated_at: u64,
+    /// Optional price trigger: execute only when price is at or below this value (0 = disabled)
+    pub trigger_price: i128,
+    /// Last execution timestamp for interval enforcement
+    pub last_executed_at: u64,
+}
+
+/// Price trigger condition for buyback automation
+///
+/// Defines the condition under which a buyback should be triggered.
+/// When the current price is at or below `trigger_price`, the buyback executes.
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct PriceTrigger {
+    /// Price threshold in stroops; buyback fires when price <= this value
+    pub trigger_price: i128,
+    /// Maximum amount to spend per triggered execution
+    pub max_spend_per_trigger: i128,
+}
+
+/// Governance proposal template for common actions
+///
+/// Templates pre-encode common governance actions so proposers don't
+/// need to manually construct payloads.
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ProposalTemplate {
+    pub id: u32,
+    pub name: String,
+    pub action_type: ActionType,
+    pub description: String,
+    pub created_at: u64,
+}
+
+/// Airdrop campaign with Merkle tree verification
+///
+/// Allows distributing tokens to a predefined set of recipients
+/// verified via a Merkle root.
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct AirdropCampaign {
+    pub id: u64,
+    pub token_index: u32,
+    pub merkle_root: BytesN<32>,
+    pub total_amount: i128,
+    pub claimed_amount: i128,
+    pub start_time: u64,
+    pub end_time: u64,
+    pub owner: Address,
+    pub status: CampaignStatus,
+    pub created_at: u64,
+}
+
+/// Contract version info for upgrade/migration tracking
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ContractVersion {
+    pub major: u32,
+    pub minor: u32,
+    pub patch: u32,
+    pub migrated_at: u64,
 }
 
 /// Campaign status enum
@@ -307,6 +367,15 @@ pub enum DataKey {
     CampaignByCreator(Address, u32),
     CreatorCampaignCount(Address),
     ActiveCampaigns,
+    // Airdrop
+    AirdropCampaign(u64),
+    AirdropCampaignCount,
+    AirdropClaimed(u64, Address),
+    // Governance templates
+    ProposalTemplate(u32),
+    ProposalTemplateCount,
+    // Contract upgrade
+    ContractVersion,
 }
 
 #[contracttype]
@@ -368,6 +437,26 @@ impl Error {
     pub const CampaignNotFound: Self = Self(51);
     pub const InvalidBudget: Self = Self(52);
     pub const InsufficientBudget: Self = Self(53);
+    // Buyback price trigger errors
+    pub const PriceTriggerNotMet: Self = Self(54);
+    pub const CampaignExpiredError: Self = Self(55);
+    pub const IntervalNotElapsed: Self = Self(56);
+    // Airdrop errors
+    pub const AirdropNotFound: Self = Self(57);
+    pub const AirdropAlreadyClaimed: Self = Self(58);
+    pub const InvalidMerkleProof: Self = Self(59);
+    pub const AirdropExpired: Self = Self(60);
+    pub const AirdropNotStarted: Self = Self(61);
+    // Governance template errors
+    pub const TemplateNotFound: Self = Self(62);
+    // Upgrade errors
+    pub const UpgradeUnauthorized: Self = Self(63);
+    pub const MigrationFailed: Self = Self(64);
+    // Campaign state errors
+    pub const CampaignAlreadyPaused: Self = Self(65);
+    pub const CampaignNotPaused: Self = Self(66);
+    pub const CampaignCompleted: Self = Self(67);
+    pub const CampaignCancelled: Self = Self(68);
 }
 
 impl From<Error> for soroban_sdk::Error {
@@ -411,6 +500,7 @@ pub enum ActionType {
     PauseContract,
     UnpauseContract,
     PolicyUpdate,
+    ParameterChange,
 }
 
 #[contracttype]
