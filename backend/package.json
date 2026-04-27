@@ -25,7 +25,7 @@
     "docs:generate": "tsx scripts/generate-openapi.ts"
   },
   "dependencies": {
-    "@asteasolutions/zod-to-openapi": "^7.3.4",
+    "@asteasolutions/zod-to-openapi": "^8.5.0",
     "@prisma/adapter-pg": "^7.5.0",
     "@prisma/client": "^5.22.0",
     "axios": "^1.13.5",
