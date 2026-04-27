@@ -1009,3 +1009,50 @@ pub fn emit_asset_redeemed(
     
     env.events().publish(topics, data);
 }
+
+/// Emit batch settle (batch mint) event.
+///
+/// Published when `batch_settle` successfully mints tokens to multiple recipients.
+pub fn emit_batch_settle(
+    env: &Env,
+    token_index: u32,
+    creator: &Address,
+    recipient_count: u32,
+    total_minted: i128,
+) {
+    env.events().publish(
+        (symbol_short!("bch_stl"),),
+        (token_index, creator, recipient_count, total_minted),
+    );
+}
+
+/// Emit deployment recorded event.
+pub fn emit_deployment_recorded(
+    env: &Env,
+    history_index: u64,
+    token_index: u32,
+    creator: &Address,
+) {
+    env.events().publish(
+        (symbol_short!("dep_rec"),),
+        (history_index, token_index, creator),
+    );
+}
+
+/// Emit history pruned event.
+pub fn emit_history_pruned(env: &Env, admin: &Address, before_index: u64, pruned: u32) {
+    env.events()
+        .publish((symbol_short!("hist_prn"),), (admin, before_index, pruned));
+}
+
+/// Emit referral registered event.
+pub fn emit_referral_registered(env: &Env, referee: &Address, referrer: &Address) {
+    env.events()
+        .publish((symbol_short!("ref_reg"),), (referee, referrer));
+}
+
+/// Emit referral commission paid event.
+pub fn emit_commission_paid(env: &Env, referrer: &Address, token_index: u32, amount: i128) {
+    env.events()
+        .publish((symbol_short!("com_paid"),), (referrer, token_index, amount));
+}

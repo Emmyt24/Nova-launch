@@ -11,8 +11,11 @@ mod campaign_validation;
 mod compliance_reporting;
 mod freeze_functions;
 mod governance;
+mod game_history;
 mod ipfs_pinning;
+mod referral;
 
+mod batch_operations;
 mod burn;
 mod burn_auction;
 mod differential_engine;
@@ -631,8 +634,153 @@ impl TokenFactory {
         storage::get_token_info_by_address(&env, &token_address).ok_or(Error::TokenNotFound)
     }
 
-    /// * `symbol` - Token symbol
-    /// * `decimals` - Number of decimal places
+    // ── Game / Deployment History ─────────────────────────────────────────
+
+    /// Return the total number of deployment history records.
+    pub fn history_count(env: Env) -> u64 {
+        game_history::history_count(&env)
+    }
+
+    /// Retrieve a single deployment history record by its history index.
+    ///
+    /// Returns `None` if the index is out of range or has been pruned.
+    pub fn get_history_record(
+        env: Env,
+        history_index: u64,
+    ) -> Option<game_history::DeploymentRecord> {
+        game_history::get_history_record(&env, history_index)
+    }
+
+    /// Query deployment history for a specific creator address.
+    ///
+    /// Returns up to `limit` records (max 100) starting from `offset`.
+    ///
+    /// # Errors
+    /// `InvalidParameters` – `limit` is 0 or > 100.
+    pub fn query_by_creator(
+        env: Env,
+        creator: Address,
+        offset: u64,
+        limit: u32,
+    ) -> Result<Vec<game_history::DeploymentRecord>, Error> {
+        game_history::query_by_creator(&env, &creator, offset, limit)
+    }
+
+    /// Query deployment history within a ledger timestamp range `[from, to]`.
+    ///
+    /// Returns up to `limit` records (max 100).
+    ///
+    /// # Errors
+    /// `InvalidParameters` – `from > to`, `limit` is 0, or `limit > 100`.
+    pub fn query_by_time_range(
+        env: Env,
+        from: u64,
+        to: u64,
+        limit: u32,
+    ) -> Result<Vec<game_history::DeploymentRecord>, Error> {
+        game_history::query_by_time_range(&env, from, to, limit)
+    }
+
+    /// Replay history up to `up_to_index` and return a cumulative snapshot.
+    ///
+    /// Useful for auditing: the snapshot's `token_count` and
+    /// `cumulative_supply` should match the live factory state at that point.
+    ///
+    /// # Errors
+    /// `InvalidParameters` – `up_to_index` is beyond the current history count.
+    pub fn replay(env: Env, up_to_index: u64) -> Result<game_history::HistorySnapshot, Error> {
+        game_history::replay(&env, up_to_index)
+    }
+
+    /// Prune history records with index < `before_index` (admin only).
+    ///
+    /// Removes records from persistent storage to reclaim ledger space.
+    /// The history count is NOT decremented.
+    ///
+    /// # Returns
+    /// Number of records pruned.
+    ///
+    /// # Errors
+    /// `Unauthorized` – Caller is not the factory admin.
+    /// `InvalidParameters` – `before_index` is 0 or exceeds the history count.
+    pub fn prune_history(
+        env: Env,
+        admin: Address,
+        before_index: u64,
+    ) -> Result<u32, Error> {
+        game_history::prune_history(&env, &admin, before_index)
+    }
+
+    // ── Referral / Affiliate System ───────────────────────────────────────
+
+    /// Register a referral relationship.
+    ///
+    /// `referee` is the new user; `referrer` is the existing user who brought
+    /// them. A referee can only register once and cannot refer themselves.
+    ///
+    /// # Errors
+    /// `InvalidParameters` – self-referral or already registered.
+    pub fn register_referral(
+        env: Env,
+        referee: Address,
+        referrer: Address,
+    ) -> Result<(), Error> {
+        referee.require_auth();
+        referral::register_referral(&env, &referee, &referrer)
+    }
+
+    /// Return the referral info for a given referee address.
+    pub fn get_referral(
+        env: Env,
+        referee: Address,
+    ) -> Option<referral::ReferralInfo> {
+        referral::get_referral(&env, &referee)
+    }
+
+    /// Return the total commission earned (but not yet paid out) by a referrer.
+    pub fn get_referral_earned(env: Env, referrer: Address) -> i128 {
+        referral::get_earned(&env, &referrer)
+    }
+
+    /// Return the current commission rate in basis points.
+    pub fn get_commission_rate(env: Env) -> u32 {
+        referral::get_commission_rate_bps(&env)
+    }
+
+    /// Update the referral commission rate (admin only).
+    ///
+    /// # Arguments
+    /// * `admin`    – Factory admin (must auth).
+    /// * `rate_bps` – New rate in basis points; max `MAX_COMMISSION_BPS` (2000).
+    ///
+    /// # Errors
+    /// `Unauthorized` – Caller is not the factory admin.
+    /// `InvalidParameters` – `rate_bps > 2000`.
+    pub fn set_commission_rate(
+        env: Env,
+        admin: Address,
+        rate_bps: u32,
+    ) -> Result<(), Error> {
+        referral::set_commission_rate_bps(&env, &admin, rate_bps)
+    }
+
+    /// Pay out accumulated commission to a referrer (admin only).
+    ///
+    /// Resets the referrer's earned balance to zero.
+    ///
+    /// # Returns
+    /// Amount paid out.
+    ///
+    /// # Errors
+    /// `Unauthorized` – Caller is not the factory admin.
+    /// `InvalidParameters` – Referrer has no earned commission.
+    pub fn payout_commission(
+        env: Env,
+        admin: Address,
+        referrer: Address,
+    ) -> Result<i128, Error> {
+        referral::payout_commission(&env, &admin, &referrer)
+    }
     /// * `initial_supply` - Initial token supply
     /// * `fee_payment` - Fee amount (must be >= base_fee)
     /// Toggle clawback capability for a token (creator only)
@@ -955,6 +1103,59 @@ impl TokenFactory {
         // Flash loan / reentrancy protection
         storage::acquire_reentrancy_lock(&env)?;
         let result = token_creation::batch_create_tokens(&env, creator, tokens, total_fee_payment);
+        storage::release_reentrancy_lock(&env);
+        result
+    }
+
+    /// Batch-create tokens with storage optimisation and atomicity guarantees.
+    ///
+    /// Validates all parameters before writing any state. Returns the indices of
+    /// the newly created tokens. Max batch size: `batch_operations::MAX_BATCH_SIZE`.
+    ///
+    /// # Arguments
+    /// * `creator`           – Token creator (must auth).
+    /// * `tokens`            – Creation params for each token.
+    /// * `total_fee_payment` – Combined fee for the whole batch.
+    ///
+    /// # Errors
+    /// `ContractPaused`, `BatchTooLarge`, `InvalidParameters`,
+    /// `InsufficientFee`, `InvalidTokenParams`.
+    pub fn batch_reveal(
+        env: Env,
+        creator: Address,
+        tokens: Vec<TokenCreationParams>,
+        total_fee_payment: i128,
+    ) -> Result<Vec<u32>, Error> {
+        storage::acquire_reentrancy_lock(&env)?;
+        let result = batch_operations::batch_reveal(&env, creator, tokens, total_fee_payment);
+        storage::release_reentrancy_lock(&env);
+        result
+    }
+
+    /// Batch-mint tokens to multiple recipients atomically.
+    ///
+    /// All amounts are validated and the max-supply check is performed against
+    /// the aggregate total before any balance is updated.
+    ///
+    /// # Arguments
+    /// * `creator`      – Token creator (must auth).
+    /// * `token_index`  – Index of the token to mint.
+    /// * `recipients`   – `(address, amount)` pairs; max `MAX_BATCH_SIZE`.
+    ///
+    /// # Returns
+    /// Total amount minted.
+    ///
+    /// # Errors
+    /// `ContractPaused`, `TokenNotFound`, `Unauthorized`, `TokenPaused`,
+    /// `BatchTooLarge`, `InvalidParameters`, `MaxSupplyExceeded`.
+    pub fn batch_settle(
+        env: Env,
+        creator: Address,
+        token_index: u32,
+        recipients: Vec<(Address, i128)>,
+    ) -> Result<i128, Error> {
+        storage::acquire_reentrancy_lock(&env)?;
+        let result = batch_operations::batch_settle(&env, creator, token_index, recipients);
         storage::release_reentrancy_lock(&env);
         result
     }

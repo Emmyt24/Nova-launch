@@ -104,6 +104,9 @@ pub fn create_token_internal(
         params.initial_supply,
     );
 
+    // Record deployment in history log.
+    crate::game_history::record_deployment(env, token_index, &token_info);
+
     Ok(token_address)
 }
 
@@ -147,6 +150,9 @@ pub fn create_token(
 
     // Create token
     let token_address = create_token_internal(env, &creator, &params, token_index)?;
+
+    // Credit referral commission if the creator has a registered referrer.
+    crate::referral::credit_commission(env, &creator, token_index, fee_payment);
 
     // Transfer fee to treasury (placeholder - in production would use actual token transfer)
     // let treasury = storage::get_treasury(env);
