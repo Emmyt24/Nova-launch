@@ -616,6 +616,13 @@ pub enum DataKey {
     // Dynamic quorum
     DynamicQuorumConfig,
     ParticipationRecord(u64), // keyed by proposal_id
+    // Game / deployment history
+    HistoryCount,
+    HistoryRecord(u64),
+    // Referral system
+    ReferralInfo(Address),
+    ReferralCommissionRate,
+    ReferralTotalEarned(Address),
 }
 
 #[contracttype]

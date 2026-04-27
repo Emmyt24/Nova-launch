@@ -1009,3 +1009,15 @@ pub fn emit_asset_redeemed(
     
     env.events().publish(topics, data);
 }
+
+/// Emit referral registered event.
+pub fn emit_referral_registered(env: &Env, referee: &Address, referrer: &Address) {
+    env.events()
+        .publish((symbol_short!("ref_reg"),), (referee, referrer));
+}
+
+/// Emit referral commission paid event.
+pub fn emit_commission_paid(env: &Env, referrer: &Address, token_index: u32, amount: i128) {
+    env.events()
+        .publish((symbol_short!("com_paid"),), (referrer, token_index, amount));
+}
