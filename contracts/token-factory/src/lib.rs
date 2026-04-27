@@ -50,6 +50,9 @@ mod validation;
 // mod campaign_state_test;
 
 #[cfg(test)]
+mod arithmetic_boundary_tests;
+
+#[cfg(test)]
 mod campaign_event_idempotency_test;
 
 #[cfg(test)]
