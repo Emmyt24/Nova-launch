@@ -7,6 +7,7 @@ import { corsOptions } from "./config/cors";
 import { validateEnv } from "./config/env";
 import { runStartupValidation } from "./config/startupValidation";
 import adminRoutes from "./routes/admin";
+import analyticsRoutes from "./routes/analytics";
 import leaderboardRoutes from "./routes/leaderboard";
 import tokenRoutes from "./routes/tokens";
 import dividendRoutes from "./routes/dividends";
@@ -58,6 +59,7 @@ const limiter = rateLimit({
 });
 
 app.use("/api/admin", limiter);
+app.use("/api/analytics", limiter);
 app.use("/api/leaderboard", limiter);
 app.use("/api/tokens", limiter);
 app.use("/api/dividends", limiter);
@@ -76,6 +78,7 @@ Database.initialize();
 
 // Routes
 app.use("/api/admin", adminRoutes);
+app.use("/api/analytics", analyticsRoutes);
 app.use("/api/leaderboard", leaderboardRoutes);
 app.use("/api/tokens", tokenRoutes);
 app.use("/api/dividends", dividendRoutes);
