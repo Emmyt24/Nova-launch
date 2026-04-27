@@ -1,0 +1,100 @@
+##############################################################################
+# Alert Rules — API / HTTP Layer
+##############################################################################
+
+groups:
+  - name: api_alerts
+    interval: 30s
+    rules:
+      # -----------------------------------------------------------------------
+      # High error rate
+      # -----------------------------------------------------------------------
+      - alert: HighErrorRate
+        expr: |
+          (
+            sum(rate(http_requests_total{status_code=~"5.."}[5m])) by (service)
+            /
+            sum(rate(http_requests_total[5m])) by (service)
+          ) > 0.05
+        for: 2m
+        labels:
+          severity: critical
+          team: backend
+        annotations:
+          summary: "High HTTP 5xx error rate on {{ $labels.service }}"
+          description: >
+            Error rate is {{ $value | humanizePercentage }} over the last 5 minutes
+            (threshold: 5%). Investigate application logs immediately.
+          runbook_url: "https://github.com/Emmyt24/nova-launch/docs/runbooks/high-error-rate.md"
+
+      # -----------------------------------------------------------------------
+      # Elevated 4xx rate (possible abuse / misconfigured client)
+      # -----------------------------------------------------------------------
+      - alert: Elevated4xxRate
+        expr: |
+          (
+            sum(rate(http_requests_total{status_code=~"4.."}[5m])) by (service)
+            /
+            sum(rate(http_requests_total[5m])) by (service)
+          ) > 0.20
+        for: 5m
+        labels:
+          severity: warning
+          team: backend
+        annotations:
+          summary: "Elevated HTTP 4xx rate on {{ $labels.service }}"
+          description: >
+            4xx rate is {{ $value | humanizePercentage }} over the last 5 minutes.
+            May indicate client misconfiguration or abuse.
+
+      # -----------------------------------------------------------------------
+      # Slow API responses
+      # -----------------------------------------------------------------------
+      - alert: SlowAPIResponses
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(http_request_duration_seconds_bucket[5m])) by (le, route)
+          ) > 2
+        for: 5m
+        labels:
+          severity: warning
+          team: backend
+        annotations:
+          summary: "Slow API responses on route {{ $labels.route }}"
+          description: >
+            P95 latency is {{ $value | humanizeDuration }} on route {{ $labels.route }}.
+            Threshold: 2 seconds.
+
+      # -----------------------------------------------------------------------
+      # Very slow API responses (SLA breach)
+      # -----------------------------------------------------------------------
+      - alert: CriticalAPILatency
+        expr: |
+          histogram_quantile(0.99,
+            sum(rate(http_request_duration_seconds_bucket[5m])) by (le, route)
+          ) > 10
+        for: 2m
+        labels:
+          severity: critical
+          team: backend
+        annotations:
+          summary: "Critical API latency on route {{ $labels.route }}"
+          description: >
+            P99 latency is {{ $value | humanizeDuration }} on route {{ $labels.route }}.
+            SLA breach threshold: 10 seconds.
+
+      # -----------------------------------------------------------------------
+      # Backend service down
+      # -----------------------------------------------------------------------
+      - alert: BackendDown
+        expr: up{job="nova-backend"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          team: backend
+        annotations:
+          summary: "Nova Launch backend is down"
+          description: >
+            The backend API ({{ $labels.instance }}) has been unreachable for
+            more than 1 minute.
+          runbook_url: "https://github.com/Emmyt24/nova-launch/docs/runbooks/backend-down.md"

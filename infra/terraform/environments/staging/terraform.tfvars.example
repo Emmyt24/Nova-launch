@@ -1,0 +1,30 @@
+##############################################################################
+# Staging — terraform.tfvars.example
+#
+# Copy to terraform.tfvars and fill in real values.
+# NEVER commit terraform.tfvars to version control.
+##############################################################################
+
+aws_region     = "us-east-1"
+aws_account_id = "123456789012"
+
+# Secrets — use strong random values in real deployments
+jwt_secret          = "REPLACE_WITH_MIN_32_CHAR_SECRET"
+admin_jwt_secret    = "REPLACE_WITH_MIN_32_CHAR_ADMIN_SECRET"
+db_password         = "REPLACE_WITH_MIN_16_CHAR_DB_PASSWORD"
+redis_auth_token    = ""
+factory_contract_id = ""
+ipfs_api_key        = ""
+ipfs_api_secret     = ""
+
+# ACM certificate for staging domain
+acm_certificate_arn = "arn:aws:acm:us-east-1:123456789012:certificate/REPLACE"
+
+# Container image tags
+backend_image_tag  = "latest"
+frontend_image_tag = "latest"
+
+# Stellar
+stellar_network     = "testnet"
+stellar_horizon_url = "https://horizon-testnet.stellar.org"
+frontend_url        = "https://staging.nova-launch.io"

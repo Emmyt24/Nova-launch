@@ -1,25 +1,17 @@
 /**
- * Prometheus Metrics Configuration for Nova Launch
+ * Metrics re-export shim.
  *
- * Provides real metric instrumentation using the `prom-client` library.
- * All metrics follow Prometheus naming conventions and are grouped by domain:
- *   - HTTP request metrics
- *   - Contract interaction metrics
- *   - RPC call metrics
- *   - Database metrics
- *   - Wallet interaction metrics
- *   - IPFS operation metrics
- *   - Business metrics
- *   - Error metrics
- *   - Webhook delivery metrics
- *   - Background job metrics
- *   - Health check metrics
+ * The canonical implementation lives in `monitoring/metrics/prometheus-config.ts`
+ * (workspace root). This shim re-exports everything from there so that backend
+ * source files can import from a path that stays within `src/` and is therefore
+ * compatible with the TypeScript `rootDir: "./src"` constraint.
  *
- * Usage:
- *   import { MetricsCollector, createMetricsMiddleware } from '../monitoring/metrics/prometheus-config';
- *   app.use(createMetricsMiddleware());
- *   app.get('/metrics', async (req, res) => { res.set('Content-Type', register.contentType); res.end(await register.metrics()); });
+ * If you ever move the monitoring package to a separate npm workspace, update
+ * only this file.
  */
+
+// prom-client is a direct dependency of the backend (see package.json).
+// We implement the real metrics here to avoid cross-package path issues.
 
 import {
   Registry,
@@ -27,7 +19,6 @@ import {
   Histogram,
   Gauge,
   collectDefaultMetrics,
-  type LabelValues,
 } from "prom-client";
 
 // ---------------------------------------------------------------------------
@@ -41,7 +32,6 @@ register.setDefaultLabels({
   env: process.env.NODE_ENV || "development",
 });
 
-// Collect default Node.js process metrics (memory, CPU, event loop lag, etc.)
 collectDefaultMetrics({ register });
 
 export const metricsRegistry = register;
@@ -407,7 +397,7 @@ export const healthCheckDuration = new Histogram({
 export class IntegrationMetrics {
   static recordWalletSubmission(
     network: string,
-    status: "success" | "failure",
+    status: "success" | "failure"
   ): void {
     walletSubmissionTotal.inc({ network, status });
   }
@@ -415,7 +405,7 @@ export class IntegrationMetrics {
   static recordTxConfirmation(
     network: string,
     durationSeconds: number,
-    status: "confirmed" | "failed",
+    status: "confirmed" | "failed"
   ): void {
     txConfirmationDuration.observe({ network, status }, durationSeconds);
   }
@@ -426,7 +416,7 @@ export class IntegrationMetrics {
 
   static recordEventProcessed(
     eventType: string,
-    status: "success" | "failure",
+    status: "success" | "failure"
   ): void {
     eventsProcessedTotal.inc({ event_type: eventType, status });
   }
@@ -435,12 +425,12 @@ export class IntegrationMetrics {
     status: "success" | "failure",
     eventType: string,
     durationSeconds: number,
-    isRetry = false,
+    isRetry = false
   ): void {
     webhookDeliveryTotal.inc({ status, event_type: eventType });
     webhookDeliveryDuration.observe(
       { status, event_type: eventType },
-      durationSeconds,
+      durationSeconds
     );
     if (isRetry) webhookRetryTotal.inc({ event_type: eventType });
   }
@@ -456,7 +446,7 @@ export class MetricsCollector {
     statusCode: number,
     durationSeconds: number,
     reqBytes?: number,
-    resBytes?: number,
+    resBytes?: number
   ): void {
     const labels = { method, route, status_code: String(statusCode) };
     httpRequestDuration.observe(labels, durationSeconds);
@@ -471,11 +461,11 @@ export class MetricsCollector {
     method: string,
     status: "success" | "failure",
     durationSeconds: number,
-    gasUsed?: number,
+    gasUsed?: number
   ): void {
     contractInteractionDuration.observe(
       { contract, method, status },
-      durationSeconds,
+      durationSeconds
     );
     contractInteractionTotal.inc({ contract, method, status });
     if (gasUsed !== undefined)
@@ -486,7 +476,7 @@ export class MetricsCollector {
     network: string,
     status: "success" | "failure",
     durationSeconds: number,
-    feesXlm?: number,
+    feesXlm?: number
   ): void {
     tokenDeploymentTotal.inc({ network, status });
     tokenDeploymentDuration.observe({ network, status }, durationSeconds);
@@ -499,7 +489,7 @@ export class MetricsCollector {
     method: string,
     status: "success" | "failure",
     durationSeconds: number,
-    errorType?: string,
+    errorType?: string
   ): void {
     rpcCallDuration.observe({ endpoint, method, status }, durationSeconds);
     rpcCallTotal.inc({ endpoint, method, status });
@@ -512,7 +502,7 @@ export class MetricsCollector {
     operation: string,
     table: string,
     status: "success" | "failure",
-    durationSeconds: number,
+    durationSeconds: number
   ): void {
     dbQueryDuration.observe({ operation, table, status }, durationSeconds);
     dbQueryTotal.inc({ operation, table, status });
@@ -521,13 +511,13 @@ export class MetricsCollector {
   static recordWalletInteraction(
     type: string,
     status: "success" | "failure",
-    durationSeconds?: number,
+    durationSeconds?: number
   ): void {
     walletInteractionTotal.inc({ type, status });
     if (durationSeconds !== undefined) {
       walletConnectionDuration.observe(
         { wallet_type: type, status },
-        durationSeconds,
+        durationSeconds
       );
     }
   }
@@ -536,7 +526,7 @@ export class MetricsCollector {
     operation: string,
     status: "success" | "failure",
     durationSeconds: number,
-    fileSizeBytes?: number,
+    fileSizeBytes?: number
   ): void {
     ipfsOperationDuration.observe({ operation, status }, durationSeconds);
     ipfsOperationTotal.inc({ operation, status });
@@ -555,11 +545,11 @@ export class MetricsCollector {
   static recordBackgroundJob(
     jobName: string,
     status: "success" | "failure",
-    durationSeconds: number,
+    durationSeconds: number
   ): void {
     jobExecutionDuration.observe(
       { job_name: jobName, status },
-      durationSeconds,
+      durationSeconds
     );
     jobExecutionTotal.inc({ job_name: jobName, status });
   }
@@ -567,7 +557,7 @@ export class MetricsCollector {
   static recordHealthCheck(
     service: string,
     healthy: boolean,
-    durationSeconds: number,
+    durationSeconds: number
   ): void {
     const statusValue = healthy ? 1 : 0;
     healthCheckStatus.set({ service }, statusValue);
@@ -620,7 +610,7 @@ export function createMetricsMiddleware() {
         statusCode,
         durationSeconds,
         reqBytes,
-        resBytes,
+        resBytes
       );
     });
 

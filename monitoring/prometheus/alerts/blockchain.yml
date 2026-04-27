@@ -1,0 +1,118 @@
+##############################################################################
+# Alert Rules — Stellar / Blockchain Layer
+##############################################################################
+
+groups:
+  - name: blockchain_alerts
+    interval: 30s
+    rules:
+      # -----------------------------------------------------------------------
+      # High RPC error rate
+      # -----------------------------------------------------------------------
+      - alert: HighRPCErrorRate
+        expr: |
+          (
+            sum(rate(rpc_errors_total[5m])) by (endpoint)
+            /
+            sum(rate(rpc_calls_total[5m])) by (endpoint)
+          ) > 0.10
+        for: 3m
+        labels:
+          severity: critical
+          team: blockchain
+        annotations:
+          summary: "High RPC error rate on {{ $labels.endpoint }}"
+          description: >
+            RPC error rate is {{ $value | humanizePercentage }} on endpoint
+            {{ $labels.endpoint }}. Stellar network may be degraded.
+
+      # -----------------------------------------------------------------------
+      # Slow RPC calls
+      # -----------------------------------------------------------------------
+      - alert: SlowRPCCalls
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(rpc_call_duration_seconds_bucket[5m])) by (le, endpoint)
+          ) > 5
+        for: 5m
+        labels:
+          severity: warning
+          team: blockchain
+        annotations:
+          summary: "Slow RPC calls to {{ $labels.endpoint }}"
+          description: >
+            P95 RPC latency is {{ $value | humanizeDuration }} on {{ $labels.endpoint }}.
+
+      # -----------------------------------------------------------------------
+      # High event ingestion lag
+      # -----------------------------------------------------------------------
+      - alert: HighEventIngestionLag
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(event_ingestion_lag_seconds_bucket[5m])) by (le, event_type)
+          ) > 30
+        for: 5m
+        labels:
+          severity: warning
+          team: blockchain
+        annotations:
+          summary: "High event ingestion lag for {{ $labels.event_type }}"
+          description: >
+            P95 ingestion lag is {{ $value | humanizeDuration }} for event type
+            {{ $labels.event_type }}. Events may be delayed.
+
+      # -----------------------------------------------------------------------
+      # Critical event ingestion lag
+      # -----------------------------------------------------------------------
+      - alert: CriticalEventIngestionLag
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(event_ingestion_lag_seconds_bucket[5m])) by (le, event_type)
+          ) > 120
+        for: 3m
+        labels:
+          severity: critical
+          team: blockchain
+        annotations:
+          summary: "Critical event ingestion lag for {{ $labels.event_type }}"
+          description: >
+            P95 ingestion lag exceeds 2 minutes for {{ $labels.event_type }}.
+            Blockchain event pipeline may be stalled.
+
+      # -----------------------------------------------------------------------
+      # Token deployment failures
+      # -----------------------------------------------------------------------
+      - alert: TokenDeploymentFailures
+        expr: |
+          (
+            sum(rate(token_deployments_total{status="failure"}[10m])) by (network)
+            /
+            sum(rate(token_deployments_total[10m])) by (network)
+          ) > 0.10
+        for: 5m
+        labels:
+          severity: critical
+          team: blockchain
+        annotations:
+          summary: "High token deployment failure rate on {{ $labels.network }}"
+          description: >
+            Token deployment failure rate is {{ $value | humanizePercentage }}
+            on {{ $labels.network }}. Contract or network issue suspected.
+
+      # -----------------------------------------------------------------------
+      # Slow transaction confirmation
+      # -----------------------------------------------------------------------
+      - alert: SlowTransactionConfirmation
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(tx_confirmation_duration_seconds_bucket[10m])) by (le, network)
+          ) > 60
+        for: 5m
+        labels:
+          severity: warning
+          team: blockchain
+        annotations:
+          summary: "Slow transaction confirmation on {{ $labels.network }}"
+          description: >
+            P95 confirmation time is {{ $value | humanizeDuration }} on
+            {{ $labels.network }}. Network congestion suspected.

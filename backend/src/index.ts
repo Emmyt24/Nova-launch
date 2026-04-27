@@ -22,6 +22,7 @@ import openApiRouter from "./lib/openapi/router";
 import { Database } from "./config/database";
 import { successResponse, errorResponse } from "./utils/response";
 import { requestLoggingMiddleware } from "./middleware/request-logging.middleware";
+import { createMetricsMiddleware, metricsRegistry } from "./lib/metrics";
 import stellarEventListener from "./services/stellarEventListener";
 import websocketService from "./services/websocket";
 
@@ -36,6 +37,9 @@ const PORT = env.PORT;
 
 // Request logging middleware (first to capture all requests)
 app.use(requestLoggingMiddleware);
+
+// Prometheus metrics middleware — records HTTP request duration and counts
+app.use(createMetricsMiddleware());
 
 // Security middleware
 app.use(helmet());
@@ -91,16 +95,47 @@ app.get("/health/live", (_req, res) => {
 // Health check — readiness (are all dependencies reachable?)
 app.get("/health/ready", async (_req, res) => {
   const result = await healthService.checkHealth();
-  const httpStatus = result.status === "healthy" ? 200 : result.status === "degraded" ? 207 : 503;
+  const httpStatus =
+    result.status === "healthy"
+      ? 200
+      : result.status === "degraded"
+        ? 207
+        : 503;
   res.status(httpStatus).json(successResponse(result));
 });
 
 // Legacy /health — kept for backwards compatibility, maps to readiness
 app.get("/health", async (_req, res) => {
   const result = await healthService.checkHealth();
-  const httpStatus = result.status === "healthy" ? 200 : result.status === "degraded" ? 207 : 503;
+  const httpStatus =
+    result.status === "healthy"
+      ? 200
+      : result.status === "degraded"
+        ? 207
+        : 503;
   res.status(httpStatus).json(successResponse(result));
 });
+
+/**
+ * GET /metrics
+ * Prometheus metrics endpoint — scraped by Prometheus every 15 s.
+ *
+ * Security: restrict to internal network in production (e.g. via nginx
+ * allow/deny or a network policy). The endpoint is intentionally unauthenticated
+ * so Prometheus can scrape it without credentials.
+ *
+ * Disable by setting METRICS_ENABLED=false.
+ */
+if (process.env.METRICS_ENABLED !== "false") {
+  app.get("/metrics", async (_req, res) => {
+    try {
+      res.set("Content-Type", metricsRegistry.contentType);
+      res.end(await metricsRegistry.metrics());
+    } catch (err) {
+      res.status(500).end(String(err));
+    }
+  });
+}
 
 // Error handling middleware — uses AppError framework for typed, consistent responses
 app.use(

@@ -1,0 +1,28 @@
+##############################################################################
+# Snyk Policy File — Nova Launch
+#
+# Controls which vulnerabilities are ignored and for how long.
+# All ignores must include a reason and expiry date.
+#
+# Docs: https://docs.snyk.io/snyk-cli/test-for-vulnerabilities/the-.snyk-file
+##############################################################################
+
+version: v1.25.0
+
+# Patch configuration — allow Snyk to apply patches where available
+patch: {}
+
+# Ignore rules — add entries here only after security team review.
+# Format:
+#   <vuln-id>:
+#     - <package-path>:
+#         reason: <justification>
+#         expires: <ISO-8601 date>
+ignore: {}
+
+# Language settings
+language-settings:
+  javascript:
+    # Scan both production and dev dependencies
+    # Dev deps are scanned to catch supply-chain attacks in build tooling
+    dev: true
