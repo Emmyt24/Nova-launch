@@ -13,6 +13,7 @@ mod freeze_functions;
 mod governance;
 mod ipfs_pinning;
 
+mod batch_operations;
 mod burn;
 mod burn_auction;
 mod differential_engine;
@@ -955,6 +956,59 @@ impl TokenFactory {
         // Flash loan / reentrancy protection
         storage::acquire_reentrancy_lock(&env)?;
         let result = token_creation::batch_create_tokens(&env, creator, tokens, total_fee_payment);
+        storage::release_reentrancy_lock(&env);
+        result
+    }
+
+    /// Batch-create tokens with storage optimisation and atomicity guarantees.
+    ///
+    /// Validates all parameters before writing any state. Returns the indices of
+    /// the newly created tokens. Max batch size: `batch_operations::MAX_BATCH_SIZE`.
+    ///
+    /// # Arguments
+    /// * `creator`           – Token creator (must auth).
+    /// * `tokens`            – Creation params for each token.
+    /// * `total_fee_payment` – Combined fee for the whole batch.
+    ///
+    /// # Errors
+    /// `ContractPaused`, `BatchTooLarge`, `InvalidParameters`,
+    /// `InsufficientFee`, `InvalidTokenParams`.
+    pub fn batch_reveal(
+        env: Env,
+        creator: Address,
+        tokens: Vec<TokenCreationParams>,
+        total_fee_payment: i128,
+    ) -> Result<Vec<u32>, Error> {
+        storage::acquire_reentrancy_lock(&env)?;
+        let result = batch_operations::batch_reveal(&env, creator, tokens, total_fee_payment);
+        storage::release_reentrancy_lock(&env);
+        result
+    }
+
+    /// Batch-mint tokens to multiple recipients atomically.
+    ///
+    /// All amounts are validated and the max-supply check is performed against
+    /// the aggregate total before any balance is updated.
+    ///
+    /// # Arguments
+    /// * `creator`      – Token creator (must auth).
+    /// * `token_index`  – Index of the token to mint.
+    /// * `recipients`   – `(address, amount)` pairs; max `MAX_BATCH_SIZE`.
+    ///
+    /// # Returns
+    /// Total amount minted.
+    ///
+    /// # Errors
+    /// `ContractPaused`, `TokenNotFound`, `Unauthorized`, `TokenPaused`,
+    /// `BatchTooLarge`, `InvalidParameters`, `MaxSupplyExceeded`.
+    pub fn batch_settle(
+        env: Env,
+        creator: Address,
+        token_index: u32,
+        recipients: Vec<(Address, i128)>,
+    ) -> Result<i128, Error> {
+        storage::acquire_reentrancy_lock(&env)?;
+        let result = batch_operations::batch_settle(&env, creator, token_index, recipients);
         storage::release_reentrancy_lock(&env);
         result
     }

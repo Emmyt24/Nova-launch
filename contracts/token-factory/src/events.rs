@@ -1009,3 +1009,19 @@ pub fn emit_asset_redeemed(
     
     env.events().publish(topics, data);
 }
+
+/// Emit batch settle (batch mint) event.
+///
+/// Published when `batch_settle` successfully mints tokens to multiple recipients.
+pub fn emit_batch_settle(
+    env: &Env,
+    token_index: u32,
+    creator: &Address,
+    recipient_count: u32,
+    total_minted: i128,
+) {
+    env.events().publish(
+        (symbol_short!("bch_stl"),),
+        (token_index, creator, recipient_count, total_minted),
+    );
+}
