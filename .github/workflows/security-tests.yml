@@ -162,7 +162,7 @@ jobs:
           echo "See [THREAT_MODEL_RISK_MATRIX.md](backend/THREAT_MODEL_RISK_MATRIX.md) for details." >> security-report.md
 
       - name: Upload Report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: security-test-report
           path: security-report.md

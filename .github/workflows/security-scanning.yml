@@ -79,7 +79,7 @@ jobs:
 
       - name: Upload audit report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: npm-audit-backend
           path: backend/npm-audit-backend.json
@@ -114,7 +114,7 @@ jobs:
 
       - name: Upload audit report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: npm-audit-frontend
           path: frontend/npm-audit-frontend.json
@@ -166,7 +166,7 @@ jobs:
 
       - name: Upload Snyk SARIF artifact
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: snyk-backend-sarif
           path: snyk-backend.sarif
@@ -215,7 +215,7 @@ jobs:
 
       - name: Upload Snyk SARIF artifact
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: snyk-frontend-sarif
           path: snyk-frontend.sarif
@@ -258,7 +258,7 @@ jobs:
 
       - name: Upload Snyk SARIF artifact
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: snyk-contracts-sarif
           path: snyk-contracts.sarif
@@ -300,7 +300,7 @@ jobs:
 
       - name: Upload cargo audit report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: cargo-audit-report
           path: contracts/token-factory/cargo-audit.json
@@ -399,7 +399,7 @@ jobs:
 
       - name: Upload Trivy SARIF artifact
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: trivy-backend-sarif
           path: trivy-backend.sarif
