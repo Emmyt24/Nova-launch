@@ -17,6 +17,7 @@ import streamRoutes from "./routes/streams";
 import vaultRoutes from "./routes/vaults";
 import versionRoutes from "./routes/version";
 import searchRoutes from "./routes/search";
+import exportRoutes from "./routes/export";
 import graphqlRouter from "./graphql";
 import openApiRouter from "./lib/openapi/router";
 import { Database } from "./config/database";
@@ -81,6 +82,7 @@ app.use("/api/streams", streamRoutes);
 app.use("/api/vaults", vaultRoutes);
 app.use("/api/version", versionRoutes);
 app.use("/api/search", searchRoutes);
+app.use("/api/export", exportRoutes);
 app.use("/api/graphql", graphqlRouter);
 app.use("/api/docs", openApiRouter);
 
