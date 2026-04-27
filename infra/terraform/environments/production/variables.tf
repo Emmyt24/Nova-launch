@@ -13,3 +13,4 @@ variable "frontend_image_tag"  { type = string; default = "latest" }
 variable "stellar_network"     { type = string; default = "mainnet" }
 variable "stellar_horizon_url" { type = string; default = "https://horizon.stellar.org" }
 variable "frontend_url"        { type = string; default = "https://nova-launch.io" }
+variable "alarm_email"         { type = string; default = "" }

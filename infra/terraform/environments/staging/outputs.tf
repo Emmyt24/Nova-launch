@@ -5,3 +5,5 @@ output "rds_endpoint"              { value = module.rds.endpoint }
 output "redis_endpoint"            { value = module.elasticache.endpoint }
 output "ecs_cluster_id"            { value = module.ecs.cluster_id }
 output "nat_public_ips"            { value = module.networking.nat_public_ips }
+output "waf_web_acl_arn"           { value = module.waf.web_acl_arn }
+output "monitoring_sns_topic_arn"  { value = module.monitoring.sns_topic_arn }

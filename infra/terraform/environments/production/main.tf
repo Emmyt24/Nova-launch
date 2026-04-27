@@ -159,6 +159,44 @@ module "alb" {
   tags = local.common_tags
 }
 
+module "waf" {
+  source = "../../modules/waf"
+
+  project     = local.project
+  environment = local.environment
+  aws_region  = var.aws_region
+
+  alb_arn                          = module.alb.alb_arn
+  rate_limit_requests              = 2000
+  log_retention_days               = 90
+  blocked_requests_alarm_threshold = 500
+
+  tags = local.common_tags
+}
+
+module "monitoring" {
+  source = "../../modules/monitoring"
+
+  project     = local.project
+  environment = local.environment
+  aws_region  = var.aws_region
+
+  alarm_email = var.alarm_email
+
+  alb_arn_suffix           = module.alb.alb_arn_suffix
+  ecs_cluster_name         = module.ecs.cluster_id
+  ecs_backend_service_name = module.ecs.backend_service_name
+  rds_instance_id          = module.rds.instance_id
+  redis_cluster_id         = module.elasticache.cluster_id
+  backend_log_group_name   = "/ecs/${local.project}/${local.environment}/backend"
+  rds_log_group_name       = "/aws/rds/instance/${local.project}-${local.environment}-postgres/postgresql"
+
+  error_rate_threshold      = 5
+  latency_threshold_seconds = 1.5
+
+  tags = local.common_tags
+}
+
 module "ecs" {
   source = "../../modules/ecs"
 

@@ -26,4 +26,6 @@ variable "redis_url"           { type = string }
 variable "jwt_secret_arn"          { type = string }
 variable "admin_jwt_secret_arn"    { type = string }
 variable "factory_contract_id_arn" { type = string }
+variable "backend_min_count"   { type = number; default = 1 }
+variable "backend_max_count"   { type = number; default = 10 }
 variable "tags" { type = map(string); default = {} }

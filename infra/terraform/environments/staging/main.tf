@@ -186,6 +186,51 @@ module "alb" {
 }
 
 # ---------------------------------------------------------------------------
+# WAF
+# ---------------------------------------------------------------------------
+
+module "waf" {
+  source = "../../modules/waf"
+
+  project     = local.project
+  environment = local.environment
+  aws_region  = var.aws_region
+
+  alb_arn                          = module.alb.alb_arn
+  rate_limit_requests              = 5000 # More permissive in staging
+  log_retention_days               = 7
+  blocked_requests_alarm_threshold = 2000
+
+  tags = local.common_tags
+}
+
+# ---------------------------------------------------------------------------
+# Monitoring
+# ---------------------------------------------------------------------------
+
+module "monitoring" {
+  source = "../../modules/monitoring"
+
+  project     = local.project
+  environment = local.environment
+  aws_region  = var.aws_region
+
+  alarm_email = var.alarm_email
+
+  alb_arn_suffix           = module.alb.alb_arn_suffix
+  ecs_cluster_name         = module.ecs.cluster_id
+  ecs_backend_service_name = module.ecs.backend_service_name
+  rds_instance_id          = module.rds.instance_id
+  redis_cluster_id         = module.elasticache.cluster_id
+  backend_log_group_name   = "/ecs/${local.project}/${local.environment}/backend"
+
+  error_rate_threshold      = 20 # More lenient in staging
+  latency_threshold_seconds = 3.0
+
+  tags = local.common_tags
+}
+
+# ---------------------------------------------------------------------------
 # ECS Fargate
 # ---------------------------------------------------------------------------
 

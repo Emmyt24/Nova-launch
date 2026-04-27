@@ -422,3 +422,80 @@ resource "aws_ecs_service" "frontend_green" {
 
   tags = merge(var.tags, { Name = "${local.name_prefix}-frontend-green", Slot = "green" })
 }
+
+# ---------------------------------------------------------------------------
+# Auto Scaling — Backend Blue/Green
+#
+# Both slots share the same scaling target so the deploy script can scale
+# the active slot up and the inactive slot down without Terraform involvement.
+# ---------------------------------------------------------------------------
+
+resource "aws_appautoscaling_target" "backend_blue" {
+  max_capacity       = var.backend_max_count
+  min_capacity       = var.backend_min_count
+  resource_id        = "service/${aws_ecs_cluster.main.name}/${aws_ecs_service.backend_blue.name}"
+  scalable_dimension = "ecs:service:DesiredCount"
+  service_namespace  = "ecs"
+}
+
+resource "aws_appautoscaling_target" "backend_green" {
+  max_capacity       = var.backend_max_count
+  min_capacity       = 0 # Green starts at 0; min is 0 when inactive
+  resource_id        = "service/${aws_ecs_cluster.main.name}/${aws_ecs_service.backend_green.name}"
+  scalable_dimension = "ecs:service:DesiredCount"
+  service_namespace  = "ecs"
+}
+
+# Scale out when CPU > 70% (blue slot)
+resource "aws_appautoscaling_policy" "backend_blue_cpu" {
+  name               = "${local.name_prefix}-backend-blue-cpu-scaling"
+  policy_type        = "TargetTrackingScaling"
+  resource_id        = aws_appautoscaling_target.backend_blue.resource_id
+  scalable_dimension = aws_appautoscaling_target.backend_blue.scalable_dimension
+  service_namespace  = aws_appautoscaling_target.backend_blue.service_namespace
+
+  target_tracking_scaling_policy_configuration {
+    predefined_metric_specification {
+      predefined_metric_type = "ECSServiceAverageCPUUtilization"
+    }
+    target_value       = 70.0
+    scale_in_cooldown  = 300
+    scale_out_cooldown = 60
+  }
+}
+
+# Scale out when CPU > 70% (green slot)
+resource "aws_appautoscaling_policy" "backend_green_cpu" {
+  name               = "${local.name_prefix}-backend-green-cpu-scaling"
+  policy_type        = "TargetTrackingScaling"
+  resource_id        = aws_appautoscaling_target.backend_green.resource_id
+  scalable_dimension = aws_appautoscaling_target.backend_green.scalable_dimension
+  service_namespace  = aws_appautoscaling_target.backend_green.service_namespace
+
+  target_tracking_scaling_policy_configuration {
+    predefined_metric_specification {
+      predefined_metric_type = "ECSServiceAverageCPUUtilization"
+    }
+    target_value       = 70.0
+    scale_in_cooldown  = 300
+    scale_out_cooldown = 60
+  }
+}
+
+# Scale out when memory > 80% (blue slot)
+resource "aws_appautoscaling_policy" "backend_blue_memory" {
+  name               = "${local.name_prefix}-backend-blue-memory-scaling"
+  policy_type        = "TargetTrackingScaling"
+  resource_id        = aws_appautoscaling_target.backend_blue.resource_id
+  scalable_dimension = aws_appautoscaling_target.backend_blue.scalable_dimension
+  service_namespace  = aws_appautoscaling_target.backend_blue.service_namespace
+
+  target_tracking_scaling_policy_configuration {
+    predefined_metric_specification {
+      predefined_metric_type = "ECSServiceAverageMemoryUtilization"
+    }
+    target_value       = 80.0
+    scale_in_cooldown  = 300
+    scale_out_cooldown = 60
+  }
+}
