@@ -23,6 +23,7 @@ import openApiRouter from "./lib/openapi/router";
 import { Database } from "./config/database";
 import { successResponse, errorResponse } from "./utils/response";
 import { requestLoggingMiddleware } from "./middleware/request-logging.middleware";
+import { createTimeoutMiddleware } from "./middleware/timeout";
 import { createMetricsMiddleware, metricsRegistry } from "./lib/metrics";
 import stellarEventListener from "./services/stellarEventListener";
 import websocketService from "./services/websocket";
@@ -38,6 +39,9 @@ const PORT = env.PORT;
 
 // Request logging middleware (first to capture all requests)
 app.use(requestLoggingMiddleware);
+
+// Request timeout — responds 503 if a handler takes too long
+app.use(createTimeoutMiddleware());
 
 // Prometheus metrics middleware — records HTTP request duration and counts
 app.use(createMetricsMiddleware());
