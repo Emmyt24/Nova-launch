@@ -65,6 +65,10 @@ mod governance_config_auth_property_test;
 mod governance_dynamic_quorum_test;
 #[cfg(test)]
 mod payload_validation_fuzz_test;
+#[cfg(test)]
+mod event_tests;
+#[cfg(test)]
+mod rbac_test;
 
 #[cfg(test)]
 // mod buyback_integration_test;
