@@ -1,5 +1,18 @@
 # Nova Launch Documentation
 
+---
+
+## Database Backup & Point-in-Time Recovery
+
+- **[DATABASE_BACKUP_PITR.md](./DATABASE_BACKUP_PITR.md)**
+  - Architecture overview (base backups + WAL archiving)
+  - Script usage: `backup-db.sh` and `restore-db.sh`
+  - REST API reference (`/api/admin/backup/*`)
+  - Step-by-step recovery procedure
+  - Security notes and environment variables
+
+---
+
 ## Token Burn Documentation
 
 ### Primary Specification
