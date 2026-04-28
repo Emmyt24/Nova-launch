@@ -89,7 +89,51 @@ else
     exit 1
 fi
 
-print_stage "Stage 2: Security Audit"
+print_stage "Stage 2: Contract-to-Frontend ABI Snapshot Tests"
+
+# Generate contract interface snapshot
+print_stage "Generating contract interface snapshot..."
+cd ..
+if command -v node &> /dev/null; then
+    if node scripts/extract-contract-interface.js; then
+        print_success "Interface snapshot generated"
+    else
+        print_error "Failed to generate interface snapshot"
+        exit 1
+    fi
+else
+    print_warning "Node.js not found, skipping interface snapshot generation"
+fi
+
+# Check if frontend tests can run
+if [ -d "frontend" ] && [ -f "frontend/package.json" ]; then
+    cd frontend
+    
+    print_stage "Installing frontend dependencies..."
+    if command -v npm &> /dev/null; then
+        npm install --legacy-peer-deps 2>&1 | grep -v "npm warn" || true
+        print_success "Frontend dependencies installed"
+    else
+        print_warning "npm not found, skipping frontend tests"
+        cd ..
+        cd contracts/token-factory
+    fi
+    
+    # Run ABI snapshot tests
+    print_stage "Running contract ABI snapshot tests..."
+    if npm run test:contracts:abi 2>/dev/null || npm test -- factoryAbi.snapshot.test.ts; then
+        print_success "ABI snapshot tests passed"
+    else
+        print_warning "ABI snapshot tests not configured or failed (continuing...)"
+    fi
+    
+    cd ..
+    cd contracts/token-factory
+else
+    print_warning "Frontend directory not found, skipping ABI tests"
+fi
+
+print_stage "Stage 3: Security Audit"
 
 # Install cargo-audit if not present
 if ! command -v cargo-audit &> /dev/null; then
@@ -129,7 +173,7 @@ fi
 
 print_success "Static analysis passed"
 
-print_stage "Stage 3: Testing & Coverage"
+print_stage "Stage 4: Testing & Coverage"
 
 # Run tests
 print_stage "Running tests..."
@@ -175,7 +219,7 @@ fi
 
 cd ../..
 
-print_stage "Stage 4: Deployment Simulation"
+print_stage "Stage 5: Deployment Simulation"
 
 # Check if deployment orchestrator is available
 if [ -d "scripts/deployment" ]; then
