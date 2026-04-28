@@ -186,6 +186,13 @@ pub fn configure_dynamic_quorum(
     validate_dynamic_quorum_config(&config)?;
 
     storage::set_dynamic_quorum_config(env, &config);
+    events::emit_dynamic_quorum_configured(
+        env,
+        admin,
+        config.enabled,
+        config.min_quorum_percent,
+        config.max_quorum_percent,
+    );
     Ok(())
 }
 

@@ -1057,127 +1057,122 @@ pub fn emit_commission_paid(env: &Env, referrer: &Address, token_index: u32, amo
         .publish((symbol_short!("com_paid"),), (referrer, token_index, amount));
 }
 
-/// Emit role granted event.
+/// Emit role granted event (v1)
+///
+/// **Schema Version**: 1
+/// **Event Name**: role_gr_v1
+///
+/// **Topics** (indexed):
+/// - Event name: "role_gr_v1"
+/// - token_index: u32 - The token this role applies to
+///
+/// **Payload** (non-indexed):
+/// - creator: Address - The token creator granting the role
+/// - grantee: Address - The address receiving the role
+/// - role: Role - The role being granted
+///
+/// **Schema Stability**: This schema is immutable. Any changes require a new version.
 pub fn emit_role_granted(
-    env: &soroban_sdk::Env,
+    env: &Env,
     token_index: u32,
-    creator: &soroban_sdk::Address,
-    grantee: &soroban_sdk::Address,
+    creator: &Address,
+    grantee: &Address,
     role: crate::types::Role,
 ) {
-    use soroban_sdk::symbol_short;
-    env.events()
-        .publish((symbol_short!("role_gr"),), (token_index, creator, grantee, role as u32));
+    env.events().publish(
+        (symbol_short!("role_gr_v1"), token_index),
+        (creator.clone(), grantee.clone(), role),
+    );
 }
 
-/// Emit role revoked event.
+/// Emit role revoked event (v1)
+///
+/// **Schema Version**: 1
+/// **Event Name**: role_rv_v1
+///
+/// **Topics** (indexed):
+/// - Event name: "role_rv_v1"
+/// - token_index: u32 - The token this role applies to
+///
+/// **Payload** (non-indexed):
+/// - creator: Address - The token creator revoking the role
+/// - revokee: Address - The address losing the role
+/// - role: Role - The role being revoked
+///
+/// **Schema Stability**: This schema is immutable. Any changes require a new version.
 pub fn emit_role_revoked(
-    env: &soroban_sdk::Env,
+    env: &Env,
     token_index: u32,
-    creator: &soroban_sdk::Address,
-    revokee: &soroban_sdk::Address,
+    creator: &Address,
+    revokee: &Address,
     role: crate::types::Role,
 ) {
-    use soroban_sdk::symbol_short;
-    env.events()
-        .publish((symbol_short!("role_rv"),), (token_index, creator, revokee, role as u32));
-}
-
-/// Emit multi-sig proposal created event.
-pub fn emit_multisig_proposed(
-    env: &soroban_sdk::Env,
-    proposal_id: u64,
-    proposer: &soroban_sdk::Address,
-) {
-    use soroban_sdk::symbol_short;
-    env.events()
-        .publish((symbol_short!("ms_prop"),), (proposal_id, proposer));
-}
-
-/// Emit multi-sig approval event.
-pub fn emit_multisig_approved(
-    env: &soroban_sdk::Env,
-    proposal_id: u64,
-    approver: &soroban_sdk::Address,
-    approval_count: u32,
-) {
-    use soroban_sdk::symbol_short;
-    env.events()
-        .publish((symbol_short!("ms_appr"),), (proposal_id, approver, approval_count));
-}
-
-/// Emit multi-sig executed event.
-pub fn emit_multisig_executed(
-    env: &soroban_sdk::Env,
-    proposal_id: u64,
-    executor: &soroban_sdk::Address,
-) {
-    use soroban_sdk::symbol_short;
-    env.events()
-        .publish((symbol_short!("ms_exec"),), (proposal_id, executor));
-}
-
-/// Emit multi-sig cancelled event.
-pub fn emit_multisig_cancelled(
-    env: &soroban_sdk::Env,
-    proposal_id: u64,
-    canceller: &soroban_sdk::Address,
-) {
-    use soroban_sdk::symbol_short;
-    env.events()
-        .publish((symbol_short!("ms_cncl"),), (proposal_id, canceller));
-}
-
-/// Emit multi-sig configured event.
-pub fn emit_multisig_configured(
-    env: &soroban_sdk::Env,
-    admin: &soroban_sdk::Address,
-    threshold: u32,
-    signer_count: u32,
-) {
-    use soroban_sdk::symbol_short;
-    env.events()
-        .publish((symbol_short!("ms_cfg"),), (admin, threshold, signer_count));
-}
-
-/// Emit burn schedule created event.
-pub fn emit_burn_schedule_created(
-    env: &soroban_sdk::Env,
-    schedule_id: u64,
-    token_index: u32,
-    creator: &soroban_sdk::Address,
-    amount: i128,
-    unlock_time: u64,
-) {
-    use soroban_sdk::symbol_short;
     env.events().publish(
-        (symbol_short!("bs_crt"),),
-        (schedule_id, token_index, creator, amount, unlock_time),
+        (symbol_short!("role_rv_v1"), token_index),
+        (creator.clone(), revokee.clone(), role),
     );
 }
 
-/// Emit burn schedule executed event.
-pub fn emit_burn_schedule_executed(
-    env: &soroban_sdk::Env,
-    schedule_id: u64,
-    token_index: u32,
-    executor: &soroban_sdk::Address,
-    amount: i128,
-) {
-    use soroban_sdk::symbol_short;
-    env.events().publish(
-        (symbol_short!("bs_exec"),),
-        (schedule_id, token_index, executor, amount),
-    );
+/// Emit commission rate updated event (v1)
+///
+/// **Schema Version**: 1
+/// **Event Name**: com_rt_v1
+///
+/// **Topics** (indexed):
+/// - Event name: "com_rt_v1"
+///
+/// **Payload** (non-indexed):
+/// - admin: Address - The admin who updated the rate
+/// - rate_bps: u32 - New commission rate in basis points
+///
+/// **Schema Stability**: This schema is immutable. Any changes require a new version.
+pub fn emit_commission_rate_updated(env: &Env, admin: &Address, rate_bps: u32) {
+    env.events()
+        .publish((symbol_short!("com_rt_v1"),), (admin.clone(), rate_bps));
 }
 
-/// Emit burn schedule cancelled event.
-pub fn emit_burn_schedule_cancelled(
-    env: &soroban_sdk::Env,
-    schedule_id: u64,
-    canceller: &soroban_sdk::Address,
-) {
-    use soroban_sdk::symbol_short;
+/// Emit treasury policy initialized event (v1)
+///
+/// **Schema Version**: 1
+/// **Event Name**: trs_ini_v1
+///
+/// **Topics** (indexed):
+/// - Event name: "trs_ini_v1"
+///
+/// **Payload** (non-indexed):
+/// - daily_cap: i128 - The daily withdrawal cap in stroops
+/// - allowlist_enabled: bool - Whether the allowlist is active
+///
+/// **Schema Stability**: This schema is immutable. Any changes require a new version.
+pub fn emit_treasury_policy_initialized(env: &Env, daily_cap: i128, allowlist_enabled: bool) {
     env.events()
-        .publish((symbol_short!("bs_cncl"),), (schedule_id, canceller));
+        .publish((symbol_short!("trs_ini_v1"),), (daily_cap, allowlist_enabled));
+}
+
+/// Emit dynamic quorum configured event (v1)
+///
+/// **Schema Version**: 1
+/// **Event Name**: dq_cfg_v1
+///
+/// **Topics** (indexed):
+/// - Event name: "dq_cfg_v1"
+///
+/// **Payload** (non-indexed):
+/// - admin: Address - The admin who configured dynamic quorum
+/// - enabled: bool - Whether dynamic quorum is enabled
+/// - min_quorum_percent: u32 - Minimum quorum floor
+/// - max_quorum_percent: u32 - Maximum quorum ceiling
+///
+/// **Schema Stability**: This schema is immutable. Any changes require a new version.
+pub fn emit_dynamic_quorum_configured(
+    env: &Env,
+    admin: &Address,
+    enabled: bool,
+    min_quorum_percent: u32,
+    max_quorum_percent: u32,
+) {
+    env.events().publish(
+        (symbol_short!("dq_cfg_v1"),),
+        (admin.clone(), enabled, min_quorum_percent, max_quorum_percent),
+    );
 }

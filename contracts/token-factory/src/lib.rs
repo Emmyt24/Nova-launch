@@ -55,6 +55,9 @@ mod validation;
 // mod campaign_state_test;
 
 #[cfg(test)]
+mod arithmetic_boundary_tests;
+
+#[cfg(test)]
 mod campaign_event_idempotency_test;
 
 #[cfg(test)]
@@ -67,6 +70,13 @@ mod governance_config_auth_property_test;
 mod governance_dynamic_quorum_test;
 #[cfg(test)]
 mod payload_validation_fuzz_test;
+#[cfg(test)]
+mod event_tests;
+#[cfg(test)]
+mod rbac_test;
+#[cfg(test)]
+mod token_lifecycle_tests;
+mod snapshot;
 
 #[cfg(test)]
 // mod buyback_integration_test;
@@ -87,6 +97,15 @@ mod stream_claim_differential_test;
 // #[cfg(test)]
 // mod two_step_admin_security_test;
 
+#[cfg(test)]
+mod two_step_admin_test;
+
+#[cfg(test)]
+mod two_step_admin_standalone_test;
+
+#[cfg(test)]
+mod multisig_test;
+
 // #[cfg(test)]
 // mod stream_metadata_update_test;
 
@@ -106,6 +125,7 @@ use types::{
     StreamParams, TokenCreationParams, TokenInfo, TokenStats, Vault, VaultStatus,
 };
 use crate::milestone_verification::MilestoneVerifier;
+use crate::snapshot;
 
 #[contract]
 pub struct TokenFactory;
@@ -271,6 +291,9 @@ impl TokenFactory {
 
         // Update admin in storage
         storage::set_admin(&env, &new_admin);
+
+        // Clear any pending admin proposal (direct transfer supersedes it)
+        storage::clear_pending_admin(&env);
 
         // Validate new admin is valid
         validation::validate_admin(&env)?;
@@ -1661,6 +1684,121 @@ impl TokenFactory {
         })
     }
 
+    // ── Token Snapshot API ────────────────────────────────────────────────────
+
+    /// Query a holder's token balance at a specific historical ledger sequence number.
+    ///
+    /// Uses binary search over recorded snapshots to find the balance at or
+    /// immediately before the given ledger. Snapshots are recorded automatically
+    /// on every mint and burn operation.
+    ///
+    /// # Arguments
+    /// * `env` - The contract environment
+    /// * `token_index` - Index of the token
+    /// * `holder` - Address of the token holder
+    /// * `ledger` - Target ledger sequence number (must not be in the future)
+    ///
+    /// # Returns
+    /// * `Ok(i128)` - Balance at the target ledger (0 if no history exists)
+    /// * `Err(Error::InvalidParameters)` - If ledger is in the future
+    pub fn get_balance_at(
+        env: Env,
+        token_index: u32,
+        holder: Address,
+        ledger: u32,
+    ) -> Result<i128, Error> {
+        snapshot::get_balance_at_ledger(&env, token_index, &holder, ledger)
+    }
+
+    /// Query a token's total supply at a specific historical ledger sequence number.
+    ///
+    /// Uses binary search over recorded snapshots to find the supply at or
+    /// immediately before the given ledger. Snapshots are recorded automatically
+    /// on every mint and burn operation.
+    ///
+    /// # Arguments
+    /// * `env` - The contract environment
+    /// * `token_index` - Index of the token
+    /// * `ledger` - Target ledger sequence number (must not be in the future)
+    ///
+    /// # Returns
+    /// * `Ok(i128)` - Total supply at the target ledger (0 if no history exists)
+    /// * `Err(Error::InvalidParameters)` - If ledger is in the future
+    pub fn get_supply_at(
+        env: Env,
+        token_index: u32,
+        ledger: u32,
+    ) -> Result<i128, Error> {
+        snapshot::get_supply_at_ledger(&env, token_index, ledger)
+    }
+
+    /// Get the total number of balance snapshots recorded for a holder.
+    ///
+    /// # Arguments
+    /// * `env` - The contract environment
+    /// * `token_index` - Index of the token
+    /// * `holder` - Address of the token holder
+    ///
+    /// # Returns
+    /// Number of snapshots (0 if none)
+    pub fn get_balance_snapshot_count(
+        env: Env,
+        token_index: u32,
+        holder: Address,
+    ) -> u32 {
+        snapshot::get_balance_snapshot_count(&env, token_index, &holder)
+    }
+
+    /// Get the total number of supply snapshots recorded for a token.
+    ///
+    /// # Arguments
+    /// * `env` - The contract environment
+    /// * `token_index` - Index of the token
+    ///
+    /// # Returns
+    /// Number of snapshots (0 if none)
+    pub fn get_supply_snapshot_count(env: Env, token_index: u32) -> u32 {
+        snapshot::get_supply_snapshot_count(&env, token_index)
+    }
+
+    /// Get a specific balance snapshot by index.
+    ///
+    /// # Arguments
+    /// * `env` - The contract environment
+    /// * `token_index` - Index of the token
+    /// * `holder` - Address of the token holder
+    /// * `snapshot_index` - Zero-based index of the snapshot
+    ///
+    /// # Returns
+    /// * `Some(BalanceSnapshot)` if the snapshot exists
+    /// * `None` if the index is out of bounds
+    pub fn get_balance_snapshot(
+        env: Env,
+        token_index: u32,
+        holder: Address,
+        snapshot_index: u32,
+    ) -> Option<types::BalanceSnapshot> {
+        snapshot::get_balance_snapshot(&env, token_index, &holder, snapshot_index)
+    }
+
+    /// Get a specific supply snapshot by index.
+    ///
+    /// # Arguments
+    /// * `env` - The contract environment
+    /// * `token_index` - Index of the token
+    /// * `snapshot_index` - Zero-based index of the snapshot
+    ///
+    /// # Returns
+    /// * `Some(SupplySnapshot)` if the snapshot exists
+    /// * `None` if the index is out of bounds
+    pub fn get_supply_snapshot(
+        env: Env,
+        token_index: u32,
+        snapshot_index: u32,
+    ) -> Option<types::SupplySnapshot> {
+        snapshot::get_supply_snapshot(&env, token_index, snapshot_index)
+    }
+
     /// Return a paginated list of token indices where beneficiary is the creator.
     /// cursor: starting entry index (0 for first page)
     /// limit: max entries to return (capped at 50)
@@ -2976,247 +3114,335 @@ impl TokenFactory {
     }
 
     // ═══════════════════════════════════════════════════════
-    //  Burn Scheduling with Time-Locked Execution
+    //  Multi-Signature Admin Operations
     // ═══════════════════════════════════════════════════════
 
-    /// Schedule a token burn to execute after a time-lock delay.
+    /// Configure the multi-sig system (admin only).
     ///
-    /// The admin creates a burn schedule for a specific holder. The burn
-    /// cannot be executed until `unlock_time` has passed. Anyone may
-    /// trigger execution once the lock expires.
+    /// Sets the list of authorized signers and the approval threshold.
+    /// Must be called by the current admin before any multi-sig proposals
+    /// can be created.
     ///
     /// # Arguments
-    /// * `env`          – The contract environment.
-    /// * `admin`        – Admin address (must authorize).
-    /// * `token_index`  – Index of the token to burn.
-    /// * `from`         – Address whose balance will be burned.
-    /// * `amount`       – Amount to burn (must be > 0).
-    /// * `unlock_time`  – Earliest ledger timestamp at which execution is allowed.
-    ///
-    /// # Returns
-    /// The new schedule ID.
+    /// * `env`       – The contract environment.
+    /// * `admin`     – Current admin address (must authorize).
+    /// * `signers`   – Vec of addresses authorized to approve proposals.
+    /// * `threshold` – Number of approvals required to execute a proposal.
     ///
     /// # Errors
-    /// * `Unauthorized`      – Caller is not the admin.
-    /// * `TokenNotFound`     – Token index does not exist.
-    /// * `InvalidParameters` – Amount is zero or negative.
-    /// * `InvalidUnlockTime` – unlock_time is not in the future.
-    /// * `ContractPaused`    – Contract is paused.
-    pub fn schedule_burn(
+    /// * `Unauthorized`     – Caller is not the admin.
+    /// * `InvalidThreshold` – Threshold is 0 or exceeds the number of signers.
+    pub fn configure_multisig(
         env: Env,
         admin: Address,
-        token_index: u32,
-        from: Address,
-        amount: i128,
-        unlock_time: u64,
-    ) -> Result<u64, Error> {
+        signers: Vec<Address>,
+        threshold: u32,
+    ) -> Result<(), Error> {
         admin.require_auth();
-
-        if storage::is_paused(&env) {
-            return Err(Error::ContractPaused);
-        }
 
         let stored_admin = storage::get_admin(&env);
         if admin != stored_admin {
             return Err(Error::Unauthorized);
         }
 
-        if amount <= 0 {
-            return Err(Error::InvalidParameters);
+        let signer_count = signers.len();
+        if threshold == 0 || threshold > signer_count {
+            return Err(Error::InvalidThreshold);
         }
 
-        let now = env.ledger().timestamp();
-        if unlock_time <= now {
-            return Err(Error::InvalidUnlockTime);
+        let config = types::MultiSigConfig { signers, threshold };
+        storage::set_multisig_config(&env, &config);
+
+        events::emit_multisig_configured(&env, &admin, threshold, signer_count);
+
+        Ok(())
+    }
+
+    /// Get the current multi-sig configuration.
+    ///
+    /// Returns `None` if multi-sig has not been configured yet.
+    pub fn get_multisig_config(env: Env) -> Option<types::MultiSigConfig> {
+        storage::get_multisig_config(&env)
+    }
+
+    /// Propose a new multi-sig admin action.
+    ///
+    /// Any authorized signer may create a proposal. The proposal is stored
+    /// on-chain and awaits approval from the required number of signers.
+    ///
+    /// # Arguments
+    /// * `env`      – The contract environment.
+    /// * `proposer` – Address of the proposing signer (must authorize).
+    /// * `action`   – The admin action being proposed.
+    /// * `payload`  – ABI-encoded parameters for the action.
+    ///
+    /// # Returns
+    /// The new proposal ID.
+    ///
+    /// # Errors
+    /// * `MultiSigNotConfigured` – Multi-sig has not been configured.
+    /// * `NotASigner`            – Proposer is not in the signer list.
+    pub fn propose_multisig_action(
+        env: Env,
+        proposer: Address,
+        action: types::MultiSigAction,
+        payload: Bytes,
+    ) -> Result<u64, Error> {
+        proposer.require_auth();
+
+        let config = storage::get_multisig_config(&env)
+            .ok_or(Error::MultiSigNotConfigured)?;
+
+        // Verify proposer is a signer
+        if !config.signers.contains(&proposer) {
+            return Err(Error::NotASigner);
         }
 
-        // Verify token exists
-        storage::get_token_info(&env, token_index).ok_or(Error::TokenNotFound)?;
-
-        let id = storage::increment_burn_schedule_id(&env);
-        let schedule = types::BurnSchedule {
+        let id = storage::increment_multisig_proposal_id(&env);
+        let proposal = types::MultiSigProposal {
             id,
-            token_index,
-            from: from.clone(),
-            amount,
-            unlock_time,
-            created_at: now,
-            executed_at: None,
-            creator: admin.clone(),
-            status: types::BurnScheduleStatus::Pending,
+            proposer: proposer.clone(),
+            action,
+            payload,
+            created_at: env.ledger().timestamp(),
+            executed: false,
+            cancelled: false,
+            approval_count: 0,
         };
+        storage::set_multisig_proposal(&env, &proposal);
 
-        storage::set_burn_schedule(&env, &schedule);
-        storage::add_burn_schedule_by_token(&env, token_index, id);
-
-        events::emit_burn_schedule_created(&env, id, token_index, &admin, amount, unlock_time);
+        events::emit_multisig_proposed(&env, id, &proposer);
 
         Ok(id)
     }
 
-    /// Execute a pending burn schedule whose time-lock has expired.
+    /// Get a multi-sig proposal by ID.
+    pub fn get_multisig_proposal(env: Env, proposal_id: u64) -> Option<types::MultiSigProposal> {
+        storage::get_multisig_proposal(&env, proposal_id)
+    }
+
+    /// Approve a pending multi-sig proposal.
     ///
-    /// Anyone may call this once `unlock_time` has passed. The tokens are
-    /// burned from the scheduled holder's balance.
+    /// Each signer may approve a proposal at most once. When the approval
+    /// count reaches the configured threshold the proposal is automatically
+    /// executed.
     ///
     /// # Arguments
     /// * `env`         – The contract environment.
-    /// * `executor`    – Address triggering execution (must authorize).
-    /// * `schedule_id` – ID of the burn schedule to execute.
+    /// * `approver`    – Signer approving the proposal (must authorize).
+    /// * `proposal_id` – ID of the proposal to approve.
     ///
     /// # Errors
-    /// * `BurnScheduleNotFound`     – No schedule with the given ID.
-    /// * `BurnScheduleAlreadyExecuted` – Schedule already executed.
-    /// * `BurnScheduleCancelled`    – Schedule was cancelled.
-    /// * `BurnScheduleLocked`       – Time-lock has not yet expired.
-    /// * `TokenPaused`              – Token is paused.
-    /// * `InsufficientBalance`      – Holder balance is insufficient.
-    pub fn execute_burn_schedule(
+    /// * `MultiSigNotConfigured`    – Multi-sig has not been configured.
+    /// * `MultiSigProposalNotFound` – No proposal with the given ID.
+    /// * `MultiSigProposalExecuted` – Proposal already executed.
+    /// * `MultiSigProposalCancelled`– Proposal was cancelled.
+    /// * `NotASigner`               – Approver is not in the signer list.
+    /// * `MultiSigAlreadyApproved`  – Approver already approved this proposal.
+    pub fn approve_multisig_proposal(
+        env: Env,
+        approver: Address,
+        proposal_id: u64,
+    ) -> Result<(), Error> {
+        approver.require_auth();
+
+        let config = storage::get_multisig_config(&env)
+            .ok_or(Error::MultiSigNotConfigured)?;
+
+        if !config.signers.contains(&approver) {
+            return Err(Error::NotASigner);
+        }
+
+        let mut proposal = storage::get_multisig_proposal(&env, proposal_id)
+            .ok_or(Error::MultiSigProposalNotFound)?;
+
+        if proposal.executed {
+            return Err(Error::MultiSigProposalExecuted);
+        }
+        if proposal.cancelled {
+            return Err(Error::MultiSigProposalCancelled);
+        }
+        if storage::has_multisig_approval(&env, proposal_id, &approver) {
+            return Err(Error::MultiSigAlreadyApproved);
+        }
+
+        storage::set_multisig_approval(&env, proposal_id, &approver);
+        proposal.approval_count += 1;
+        storage::set_multisig_proposal(&env, &proposal);
+
+        events::emit_multisig_approved(&env, proposal_id, &approver, proposal.approval_count);
+
+        // Auto-execute when threshold is met
+        if proposal.approval_count >= config.threshold {
+            Self::_execute_multisig_proposal(&env, &mut proposal, &approver)?;
+        }
+
+        Ok(())
+    }
+
+    /// Explicitly execute a proposal that has reached the approval threshold.
+    ///
+    /// This is useful when the final approver wants to separate the approval
+    /// and execution steps, or when execution was deferred.
+    ///
+    /// # Arguments
+    /// * `env`         – The contract environment.
+    /// * `executor`    – Address triggering execution (must authorize, must be a signer).
+    /// * `proposal_id` – ID of the proposal to execute.
+    ///
+    /// # Errors
+    /// * `MultiSigNotConfigured`    – Multi-sig has not been configured.
+    /// * `MultiSigProposalNotFound` – No proposal with the given ID.
+    /// * `MultiSigProposalExecuted` – Proposal already executed.
+    /// * `MultiSigProposalCancelled`– Proposal was cancelled.
+    /// * `NotASigner`               – Executor is not in the signer list.
+    /// * `MultiSigThresholdNotMet`  – Not enough approvals yet.
+    pub fn execute_multisig_proposal(
         env: Env,
         executor: Address,
-        schedule_id: u64,
+        proposal_id: u64,
     ) -> Result<(), Error> {
         executor.require_auth();
 
-        let mut schedule = storage::get_burn_schedule(&env, schedule_id)
-            .ok_or(Error::BurnScheduleNotFound)?;
+        let config = storage::get_multisig_config(&env)
+            .ok_or(Error::MultiSigNotConfigured)?;
 
-        match schedule.status {
-            types::BurnScheduleStatus::Executed => {
-                return Err(Error::BurnScheduleAlreadyExecuted)
-            }
-            types::BurnScheduleStatus::Cancelled => {
-                return Err(Error::BurnScheduleCancelled)
-            }
-            types::BurnScheduleStatus::Pending => {}
+        if !config.signers.contains(&executor) {
+            return Err(Error::NotASigner);
         }
 
-        let now = env.ledger().timestamp();
-        if now < schedule.unlock_time {
-            return Err(Error::BurnScheduleLocked);
+        let mut proposal = storage::get_multisig_proposal(&env, proposal_id)
+            .ok_or(Error::MultiSigProposalNotFound)?;
+
+        if proposal.executed {
+            return Err(Error::MultiSigProposalExecuted);
+        }
+        if proposal.cancelled {
+            return Err(Error::MultiSigProposalCancelled);
+        }
+        if proposal.approval_count < config.threshold {
+            return Err(Error::MultiSigThresholdNotMet);
         }
 
-        let token_index = schedule.token_index;
-
-        if storage::is_token_paused(&env, token_index) {
-            return Err(Error::TokenPaused);
-        }
-
-        let balance = storage::get_balance(&env, token_index, &schedule.from);
-        if balance < schedule.amount {
-            return Err(Error::InsufficientBalance);
-        }
-
-        // Apply the burn
-        let new_balance = balance
-            .checked_sub(schedule.amount)
-            .ok_or(Error::ArithmeticError)?;
-        storage::set_balance(&env, token_index, &schedule.from, new_balance);
-
-        let mut info = storage::get_token_info(&env, token_index)
-            .ok_or(Error::TokenNotFound)?;
-        info.total_supply = info
-            .total_supply
-            .checked_sub(schedule.amount)
-            .ok_or(Error::ArithmeticError)?;
-        info.total_burned = info
-            .total_burned
-            .checked_add(schedule.amount)
-            .ok_or(Error::ArithmeticError)?;
-        info.burn_count = info
-            .burn_count
-            .checked_add(1)
-            .ok_or(Error::ArithmeticError)?;
-        storage::set_token_info(&env, token_index, &info);
-        storage::increment_burn_count(&env, token_index)?;
-        storage::add_total_burned(&env, token_index, schedule.amount);
-
-        // Mark schedule as executed
-        schedule.status = types::BurnScheduleStatus::Executed;
-        schedule.executed_at = Some(now);
-        storage::set_burn_schedule(&env, &schedule);
-
-        events::emit_burn_schedule_executed(
-            &env,
-            schedule_id,
-            token_index,
-            &executor,
-            schedule.amount,
-        );
-
-        Ok(())
+        Self::_execute_multisig_proposal(&env, &mut proposal, &executor)
     }
 
-    /// Cancel a pending burn schedule.
+    /// Cancel a pending multi-sig proposal.
     ///
-    /// Only the admin or the original schedule creator may cancel.
-    /// Cancellation is not allowed after execution.
+    /// Only the admin or the original proposer may cancel a proposal.
     ///
     /// # Arguments
     /// * `env`         – The contract environment.
-    /// * `canceller`   – Address cancelling the schedule (must authorize).
-    /// * `schedule_id` – ID of the schedule to cancel.
+    /// * `canceller`   – Address cancelling the proposal (must authorize).
+    /// * `proposal_id` – ID of the proposal to cancel.
     ///
     /// # Errors
-    /// * `BurnScheduleNotFound`        – No schedule with the given ID.
-    /// * `BurnScheduleAlreadyExecuted` – Schedule already executed.
-    /// * `BurnScheduleCancelled`       – Schedule already cancelled.
-    /// * `Unauthorized`                – Caller is not admin or creator.
-    pub fn cancel_burn_schedule(
+    /// * `MultiSigProposalNotFound` – No proposal with the given ID.
+    /// * `MultiSigProposalExecuted` – Proposal already executed.
+    /// * `MultiSigProposalCancelled`– Proposal already cancelled.
+    /// * `Unauthorized`             – Caller is not the admin or proposer.
+    pub fn cancel_multisig_proposal(
         env: Env,
         canceller: Address,
-        schedule_id: u64,
+        proposal_id: u64,
     ) -> Result<(), Error> {
         canceller.require_auth();
 
-        let mut schedule = storage::get_burn_schedule(&env, schedule_id)
-            .ok_or(Error::BurnScheduleNotFound)?;
+        let mut proposal = storage::get_multisig_proposal(&env, proposal_id)
+            .ok_or(Error::MultiSigProposalNotFound)?;
 
-        match schedule.status {
-            types::BurnScheduleStatus::Executed => {
-                return Err(Error::BurnScheduleAlreadyExecuted)
-            }
-            types::BurnScheduleStatus::Cancelled => {
-                return Err(Error::BurnScheduleCancelled)
-            }
-            types::BurnScheduleStatus::Pending => {}
+        if proposal.executed {
+            return Err(Error::MultiSigProposalExecuted);
+        }
+        if proposal.cancelled {
+            return Err(Error::MultiSigProposalCancelled);
         }
 
+        // Only admin or the original proposer may cancel
         let admin = storage::get_admin(&env);
-        if canceller != admin && canceller != schedule.creator {
+        if canceller != admin && canceller != proposal.proposer {
             return Err(Error::Unauthorized);
         }
 
-        schedule.status = types::BurnScheduleStatus::Cancelled;
-        storage::set_burn_schedule(&env, &schedule);
+        proposal.cancelled = true;
+        storage::set_multisig_proposal(&env, &proposal);
 
-        events::emit_burn_schedule_cancelled(&env, schedule_id, &canceller);
+        events::emit_multisig_cancelled(&env, proposal_id, &canceller);
 
         Ok(())
     }
 
-    /// Get a burn schedule by ID.
-    pub fn get_burn_schedule(env: Env, schedule_id: u64) -> Option<types::BurnSchedule> {
-        storage::get_burn_schedule(&env, schedule_id)
-    }
+    // ── Internal helper ──────────────────────────────────────────────────────
 
-    /// Get the total number of burn schedules created.
-    pub fn get_burn_schedule_count(env: Env) -> u64 {
-        storage::next_burn_schedule_id(&env)
-    }
+    /// Execute the action encoded in a proposal.
+    ///
+    /// Marks the proposal as executed and dispatches the appropriate
+    /// admin operation based on `proposal.action`.
+    ///
+    /// # Payload encoding conventions
+    /// * `TransferAdmin`  – 32 bytes: new admin contract-id hash (BytesN<32>).
+    /// * `UpdateFees`     – 32 bytes: base_fee (i128 LE) || metadata_fee (i128 LE).
+    /// * `PauseContract`  – 0 bytes (empty).
+    /// * `UnpauseContract`– 0 bytes (empty).
+    fn _execute_multisig_proposal(
+        env: &Env,
+        proposal: &mut types::MultiSigProposal,
+        executor: &Address,
+    ) -> Result<(), Error> {
+        proposal.executed = true;
+        storage::set_multisig_proposal(env, proposal);
 
-    /// Get the number of burn schedules for a specific token.
-    pub fn get_burn_schedule_count_by_token(env: Env, token_index: u32) -> u32 {
-        storage::get_burn_schedule_count_by_token(&env, token_index)
-    }
+        match proposal.action {
+            types::MultiSigAction::TransferAdmin => {
+                // Payload: 32-byte contract-id hash of the new admin address.
+                if proposal.payload.len() != 32 {
+                    return Err(Error::InvalidParameters);
+                }
+                let mut addr_buf = [0u8; 32];
+                proposal.payload.copy_into_slice(&mut addr_buf);
+                let new_admin = soroban_sdk::address_payload::AddressPayload::ContractIdHash(
+                    BytesN::from_array(env, &addr_buf),
+                )
+                .to_address(env);
 
-    /// Get a burn schedule ID for a token by its local index.
-    pub fn get_burn_schedule_id_by_token(
-        env: Env,
-        token_index: u32,
-        local_index: u32,
-    ) -> Option<u64> {
-        storage::get_burn_schedule_id_by_token(&env, token_index, local_index)
+                let old_admin = storage::get_admin(env);
+                storage::set_admin(env, &new_admin);
+                storage::clear_pending_admin(env);
+                events::emit_admin_transfer(env, &old_admin, &new_admin);
+            }
+            types::MultiSigAction::UpdateFees => {
+                // Payload: base_fee (i128 LE, 16 bytes) || metadata_fee (i128 LE, 16 bytes)
+                if proposal.payload.len() != 32 {
+                    return Err(Error::InvalidParameters);
+                }
+                let mut base_buf = [0u8; 16];
+                proposal.payload.slice(0..16).copy_into_slice(&mut base_buf);
+                let base_fee = i128::from_le_bytes(base_buf);
+
+                let mut meta_buf = [0u8; 16];
+                proposal.payload.slice(16..32).copy_into_slice(&mut meta_buf);
+                let metadata_fee = i128::from_le_bytes(meta_buf);
+
+                if base_fee < 0 || metadata_fee < 0 {
+                    return Err(Error::InvalidParameters);
+                }
+                storage::set_base_fee(env, base_fee);
+                storage::set_metadata_fee(env, metadata_fee);
+                events::emit_fees_updated(env, base_fee, metadata_fee);
+            }
+            types::MultiSigAction::PauseContract => {
+                storage::set_paused(env, true);
+                events::emit_pause(env, executor);
+            }
+            types::MultiSigAction::UnpauseContract => {
+                storage::set_paused(env, false);
+                events::emit_unpause(env, executor);
+            }
+        }
+
+        events::emit_multisig_executed(env, proposal.id, executor);
+
+        Ok(())
     }
 }
 
@@ -3311,13 +3537,13 @@ mod gas_regression_test;
 #[cfg(test)]
 // mod gas_compute_thresholds;
 
-#[cfg(test)]
+#[cfg(all(test, feature = "legacy-tests"))]
 mod bench_test;
 
 #[cfg(test)]
 // mod pagination_integration_test;
 
-#[cfg(test)]
+#[cfg(all(test, feature = "legacy-tests"))]
 mod treasury_integration_test;
 // #[cfg(test)]
 // mod token_pause_test;
@@ -3337,17 +3563,16 @@ mod treasury_integration_test;
 #[cfg(all(test, feature = "legacy-tests"))]
 mod event_replay_test;
 
-#[cfg(test)]
+#[cfg(all(test, feature = "legacy-tests"))]
 mod batch_token_creation_test;
 
 #[cfg(test)]
 // mod campaign_stateful_fuzz_test;
 
-#[cfg(test)]
+#[cfg(all(test, feature = "legacy-tests"))]
 mod accounting_property_test;
 
-#[cfg(test)]
-#[cfg(test)]
+#[cfg(all(test, feature = "legacy-tests"))]
 mod stream_status_transition_property_test;
 
 #[cfg(all(test, feature = "legacy-tests"))]

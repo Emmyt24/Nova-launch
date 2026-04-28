@@ -518,3 +518,229 @@ fn test_versioned_event_names_compile() {
     // If this test compiles, all event names are valid
     assert!(true, "All versioned event names compile successfully");
 }
+
+// ── Commission Rate Updated Event Tests ──────────────────────────────────────
+
+#[test]
+fn test_commission_rate_updated_event_emitted() {
+    let env = Env::default();
+    env.mock_all_auths();
+    let (client, admin, _) = setup_factory(&env);
+
+    let before = count_events(&env);
+    client.set_commission_rate(&admin, &500_u32);
+    let after = count_events(&env);
+
+    assert_eq!(after - before, 1, "set_commission_rate must emit exactly one event");
+}
+
+#[test]
+fn test_com_rt_v1_schema() {
+    let env = Env::default();
+    env.mock_all_auths();
+    let (client, admin, _) = setup_factory(&env);
+
+    let rate_bps: u32 = 500;
+    client.set_commission_rate(&admin, &rate_bps);
+
+    let events = env.events().all();
+    let event = events.get(events.len() - 1).unwrap();
+
+    // Validate topic
+    let topics = &event.0;
+    assert_eq!(topics.len(), 1, "com_rt_v1 must have exactly 1 topic");
+    assert_eq!(
+        topics.get(0).unwrap(),
+        soroban_sdk::Val::from(symbol_short!("com_rt_v1")),
+        "Event name must be 'com_rt_v1'"
+    );
+
+    // Validate payload: (admin, rate_bps)
+    let payload: (Address, u32) = soroban_sdk::FromVal::from_val(&env, &event.1);
+    assert_eq!(payload.0, admin, "Payload admin must match");
+    assert_eq!(payload.1, rate_bps, "Payload rate_bps must match");
+}
+
+#[test]
+fn test_commission_rate_updated_event_data_accuracy() {
+    let env = Env::default();
+    env.mock_all_auths();
+    let (client, admin, _) = setup_factory(&env);
+
+    client.set_commission_rate(&admin, &1000_u32);
+
+    let events = env.events().all();
+    let event = events.get(events.len() - 1).unwrap();
+    let payload: (Address, u32) = soroban_sdk::FromVal::from_val(&env, &event.1);
+    assert_eq!(payload.1, 1000_u32, "rate_bps must be 1000 in event payload");
+}
+
+// ── Treasury Policy Initialized Event Tests ───────────────────────────────────
+
+#[test]
+fn test_treasury_policy_initialized_event_emitted() {
+    let env = Env::default();
+    env.mock_all_auths();
+    let (client, admin, _) = setup_factory(&env);
+
+    let before = count_events(&env);
+    client.initialize_treasury_policy(&admin, &Some(100_000_000_i128), &true);
+    let after = count_events(&env);
+
+    assert_eq!(after - before, 1, "initialize_treasury_policy must emit exactly one event");
+}
+
+#[test]
+fn test_trs_ini_v1_schema() {
+    let env = Env::default();
+    env.mock_all_auths();
+    let (client, admin, _) = setup_factory(&env);
+
+    let daily_cap: i128 = 100_000_000;
+    let allowlist_enabled = true;
+    client.initialize_treasury_policy(&admin, &Some(daily_cap), &allowlist_enabled);
+
+    let events = env.events().all();
+    let event = events.get(events.len() - 1).unwrap();
+
+    // Validate topic
+    let topics = &event.0;
+    assert_eq!(topics.len(), 1, "trs_ini_v1 must have exactly 1 topic");
+    assert_eq!(
+        topics.get(0).unwrap(),
+        soroban_sdk::Val::from(symbol_short!("trs_ini_v1")),
+        "Event name must be 'trs_ini_v1'"
+    );
+
+    // Validate payload: (daily_cap, allowlist_enabled)
+    let payload: (i128, bool) = soroban_sdk::FromVal::from_val(&env, &event.1);
+    assert_eq!(payload.0, daily_cap, "Payload daily_cap must match");
+    assert_eq!(payload.1, allowlist_enabled, "Payload allowlist_enabled must match");
+}
+
+#[test]
+fn test_treasury_policy_initialized_allowlist_disabled() {
+    let env = Env::default();
+    env.mock_all_auths();
+    let (client, admin, _) = setup_factory(&env);
+
+    client.initialize_treasury_policy(&admin, &Some(50_000_000_i128), &false);
+
+    let events = env.events().all();
+    let event = events.get(events.len() - 1).unwrap();
+    let payload: (i128, bool) = soroban_sdk::FromVal::from_val(&env, &event.1);
+    assert!(!payload.1, "allowlist_enabled must be false in event payload");
+}
+
+// ── Dynamic Quorum Configured Event Tests ─────────────────────────────────────
+
+#[test]
+fn test_dynamic_quorum_configured_event_emitted() {
+    let env = Env::default();
+    env.mock_all_auths();
+    let (client, admin, _) = setup_factory(&env);
+
+    let config = crate::types::DynamicQuorumConfig {
+        enabled: true,
+        min_quorum_percent: 10,
+        max_quorum_percent: 60,
+        target_participation: 40,
+        window_size: 5,
+    };
+
+    let before = count_events(&env);
+    client.configure_dynamic_quorum(&admin, &config);
+    let after = count_events(&env);
+
+    assert_eq!(after - before, 1, "configure_dynamic_quorum must emit exactly one event");
+}
+
+#[test]
+fn test_dq_cfg_v1_schema() {
+    let env = Env::default();
+    env.mock_all_auths();
+    let (client, admin, _) = setup_factory(&env);
+
+    let config = crate::types::DynamicQuorumConfig {
+        enabled: true,
+        min_quorum_percent: 10,
+        max_quorum_percent: 60,
+        target_participation: 40,
+        window_size: 5,
+    };
+    client.configure_dynamic_quorum(&admin, &config);
+
+    let events = env.events().all();
+    let event = events.get(events.len() - 1).unwrap();
+
+    // Validate topic
+    let topics = &event.0;
+    assert_eq!(topics.len(), 1, "dq_cfg_v1 must have exactly 1 topic");
+    assert_eq!(
+        topics.get(0).unwrap(),
+        soroban_sdk::Val::from(symbol_short!("dq_cfg_v1")),
+        "Event name must be 'dq_cfg_v1'"
+    );
+
+    // Validate payload: (admin, enabled, min_quorum_percent, max_quorum_percent)
+    let payload: (Address, bool, u32, u32) = soroban_sdk::FromVal::from_val(&env, &event.1);
+    assert_eq!(payload.0, admin, "Payload admin must match");
+    assert_eq!(payload.1, true, "Payload enabled must be true");
+    assert_eq!(payload.2, 10_u32, "Payload min_quorum_percent must be 10");
+    assert_eq!(payload.3, 60_u32, "Payload max_quorum_percent must be 60");
+}
+
+#[test]
+fn test_dynamic_quorum_configured_disabled() {
+    let env = Env::default();
+    env.mock_all_auths();
+    let (client, admin, _) = setup_factory(&env);
+
+    let config = crate::types::DynamicQuorumConfig {
+        enabled: false,
+        min_quorum_percent: 10,
+        max_quorum_percent: 60,
+        target_participation: 40,
+        window_size: 5,
+    };
+    client.configure_dynamic_quorum(&admin, &config);
+
+    let events = env.events().all();
+    let event = events.get(events.len() - 1).unwrap();
+    let payload: (Address, bool, u32, u32) = soroban_sdk::FromVal::from_val(&env, &event.1);
+    assert!(!payload.1, "enabled must be false in event payload");
+}
+
+// ── Role Granted / Revoked Event Tests ────────────────────────────────────────
+
+#[test]
+fn test_new_event_names_within_limit() {
+    // Verify all new versioned event names are ≤ 10 characters
+    let new_event_names = vec![
+        "role_gr_v1",  // 10 chars
+        "role_rv_v1",  // 10 chars
+        "com_rt_v1",   // 9 chars
+        "trs_ini_v1",  // 10 chars
+        "dq_cfg_v1",   // 9 chars
+    ];
+
+    for name in new_event_names {
+        assert!(
+            name.len() <= 10,
+            "Event name '{}' exceeds 10-character limit (length: {})",
+            name,
+            name.len()
+        );
+    }
+}
+
+#[test]
+fn test_new_versioned_event_names_compile() {
+    let _env = Env::default();
+    let _ = symbol_short!("role_gr_v1");
+    let _ = symbol_short!("role_rv_v1");
+    let _ = symbol_short!("com_rt_v1");
+    let _ = symbol_short!("trs_ini_v1");
+    let _ = symbol_short!("dq_cfg_v1");
+    assert!(true, "All new versioned event names compile successfully");
+}

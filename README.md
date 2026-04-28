@@ -643,6 +643,97 @@ pub fn get_token_info(
 ) -> Result<TokenInfo, Error>
 ```
 
+#### Multi-Signature Admin Operations
+
+Critical admin operations can be gated behind a configurable multi-sig approval system. A minimum number of authorized signers must approve a proposal before it executes.
+
+##### `configure_multisig`
+
+Set up the multi-sig system with a list of signers and an approval threshold (admin only).
+
+```rust
+pub fn configure_multisig(
+    env: Env,
+    admin: Address,
+    signers: Vec<Address>,
+    threshold: u32,
+) -> Result<(), Error>
+```
+
+##### `propose_multisig_action`
+
+Any authorized signer can create a proposal for an admin action.
+
+```rust
+pub fn propose_multisig_action(
+    env: Env,
+    proposer: Address,
+    action: MultiSigAction,  // TransferAdmin | UpdateFees | PauseContract | UnpauseContract
+    payload: Bytes,
+) -> Result<u64, Error>  // returns proposal ID
+```
+
+**Payload encoding:**
+
+| Action           | Payload                                                    |
+| ---------------- | ---------------------------------------------------------- |
+| `TransferAdmin`  | 32 bytes – new admin contract-id hash                      |
+| `UpdateFees`     | 32 bytes – base_fee (i128 LE, 16 B) \|\| metadata_fee (i128 LE, 16 B) |
+| `PauseContract`  | 0 bytes (empty)                                            |
+| `UnpauseContract`| 0 bytes (empty)                                            |
+
+##### `approve_multisig_proposal`
+
+Approve a pending proposal. Automatically executes when the threshold is reached.
+
+```rust
+pub fn approve_multisig_proposal(
+    env: Env,
+    approver: Address,
+    proposal_id: u64,
+) -> Result<(), Error>
+```
+
+##### `execute_multisig_proposal`
+
+Explicitly execute a proposal that has already reached the approval threshold.
+
+```rust
+pub fn execute_multisig_proposal(
+    env: Env,
+    executor: Address,
+    proposal_id: u64,
+) -> Result<(), Error>
+```
+
+##### `cancel_multisig_proposal`
+
+Cancel a pending proposal (admin or original proposer only).
+
+```rust
+pub fn cancel_multisig_proposal(
+    env: Env,
+    canceller: Address,
+    proposal_id: u64,
+) -> Result<(), Error>
+```
+
+##### `get_multisig_config`
+
+Returns the current multi-sig configuration, or `None` if not yet configured.
+
+```rust
+pub fn get_multisig_config(env: Env) -> Option<MultiSigConfig>
+```
+
+##### `get_multisig_proposal`
+
+Returns a proposal by ID, or `None` if it does not exist.
+
+```rust
+pub fn get_multisig_proposal(env: Env, proposal_id: u64) -> Option<MultiSigProposal>
+```
+
 #### Error Codes
 
 | Code | Error                      | Description                                                  |
@@ -657,6 +748,19 @@ pub fn get_token_info(
 | 8    | `BurnNotEnabled`           | Burn functionality not enabled                               |
 | 9    | `InvalidBurnAmount`        | Burn amount is zero or negative                              |
 | 54   | `MetadataNotSet`           | Metadata has never been set; call `set_token_metadata` first |
+
+##### Multi-Sig Error Codes
+
+| Code | Error                        | Description                                          |
+| ---- | ---------------------------- | ---------------------------------------------------- |
+| 72   | `MultiSigNotConfigured`      | Multi-sig has not been configured yet                |
+| 73   | `MultiSigProposalNotFound`   | No proposal with the given ID                        |
+| 74   | `MultiSigAlreadyApproved`    | Signer already approved this proposal                |
+| 75   | `MultiSigProposalExecuted`   | Proposal has already been executed                   |
+| 76   | `MultiSigProposalCancelled`  | Proposal has been cancelled                          |
+| 77   | `MultiSigThresholdNotMet`    | Not enough approvals to execute                      |
+| 78   | `NotASigner`                 | Caller is not in the authorized signer list          |
+| 79   | `InvalidThreshold`           | Threshold is 0 or exceeds the number of signers      |
 
 ##### Vault Error Codes
 
@@ -1222,7 +1326,7 @@ chore: build/tooling changes
 ### Phase 4: Pro Features (Q4 2026)
 
 - [ ] Clawback functionality
-- [ ] Multi-sig support
+- [x] Multi-sig support
 - [ ] Advanced token management
 - [ ] API access
 - [ ] White-label solutions

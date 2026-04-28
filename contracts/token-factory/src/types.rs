@@ -623,34 +623,50 @@ pub enum DataKey {
     ReferralInfo(Address),
     ReferralCommissionRate,
     ReferralTotalEarned(Address),
-    // Role-based access control
-    TokenRole(u32, Address, u32), // (token_index, address, role_discriminant)
-    // Metadata history
-    MetadataHistory(u32, u32), // (token_index, version)
-    MetadataHistoryCount(u32), // token_index
-    // Multi-sig
-    MultiSigConfig,
-    MultiSigProposal(u64),
-    MultiSigProposalCount,
-    MultiSigApproval(u64, Address), // (proposal_id, approver)
-    // Fractionalization
-    FractionalVault(u64),
-    FractionalVaultCount,
-    FractionalVaultByOwner(Address, u32),
-    OwnerFractionalVaultCount(Address),
-    AssetToVault(soroban_sdk::BytesN<32>),
-    // Reentrancy guard
-    ReentrancyLock,
-    // Freeze
-    FrozenAddress(Address, Address), // (token_address, frozen_address)
-    // Priority queue
-    QueueEntry(u32),
-    QueueSize,
-    // Burn scheduling
-    BurnSchedule(u64),
-    BurnScheduleCount,
-    BurnSchedulesByToken(u32, u32), // (token_index, local_index) -> schedule_id
-    BurnScheduleCountByToken(u32),  // token_index -> count
+    // Token snapshot mechanism
+    /// Number of balance snapshots for (token_index, holder)
+    BalanceSnapshotCount(u32, Address),
+    /// Individual balance snapshot: (token_index, holder, snapshot_index)
+    BalanceSnapshot(u32, Address, u32),
+    /// Number of supply snapshots for token_index
+    SupplySnapshotCount(u32),
+    /// Individual supply snapshot: (token_index, snapshot_index)
+    SupplySnapshot(u32, u32),
+}
+
+/// A point-in-time record of a token holder's balance.
+///
+/// Snapshots are taken automatically on every mint and burn that affects
+/// a holder's balance, enabling historical balance queries at any ledger
+/// sequence number.
+///
+/// # Fields
+/// * `ledger` - Ledger sequence number when the snapshot was taken
+/// * `timestamp` - Unix timestamp when the snapshot was taken
+/// * `balance` - Token balance at this point in time
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct BalanceSnapshot {
+    pub ledger: u32,
+    pub timestamp: u64,
+    pub balance: i128,
+}
+
+/// A point-in-time record of a token's total supply.
+///
+/// Taken automatically on every mint and burn, enabling historical
+/// supply queries at any ledger sequence number.
+///
+/// # Fields
+/// * `ledger` - Ledger sequence number when the snapshot was taken
+/// * `timestamp` - Unix timestamp when the snapshot was taken
+/// * `total_supply` - Total circulating supply at this point in time
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct SupplySnapshot {
+    pub ledger: u32,
+    pub timestamp: u64,
+    pub total_supply: i128,
 }
 
 /// Lifecycle status of a scheduled burn
