@@ -82,21 +82,33 @@ export class IPFSService {
         const formData = new FormData();
         formData.append('file', file);
 
-        const response = await fetch(`${IPFS_CONFIG.pinataApiUrl}/pinning/pinFileToIPFS`, {
-            method: 'POST',
-            headers: {
-                pinata_api_key: this.apiKey,
-                pinata_secret_api_key: this.apiSecret,
-            },
-            body: formData,
-        });
+        try {
+            const response = await fetch(`${IPFS_CONFIG.pinataApiUrl}/pinning/pinFileToIPFS`, {
+                method: 'POST',
+                headers: {
+                    pinata_api_key: this.apiKey,
+                    pinata_secret_api_key: this.apiSecret,
+                },
+                body: formData,
+                signal: AbortSignal.timeout(30000), // 30s timeout for uploads
+            });
 
-        if (!response.ok) {
-            throw new Error(`IPFS upload failed: ${response.statusText}`);
+            if (!response.ok) {
+                const errorText = await response.text().catch(() => 'Unknown error');
+                throw new Error(`IPFS upload failed (${response.status}): ${errorText || response.statusText}`);
+            }
+
+            const data = await response.json();
+            if (!data.IpfsHash) {
+                throw new Error('IPFS upload succeeded but no hash was returned');
+            }
+            return data.IpfsHash;
+        } catch (error) {
+            if (error instanceof Error && error.name === 'TimeoutError') {
+                throw new Error('IPFS upload timed out. Please check your connection and try again.');
+            }
+            throw error;
         }
-
-        const data = await response.json();
-        return data.IpfsHash;
     }
 
     async uploadImage(file: File): Promise<string> {
