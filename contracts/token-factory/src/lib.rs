@@ -66,6 +66,9 @@ mod payload_validation_fuzz_test;
 mod event_tests;
 #[cfg(test)]
 mod rbac_test;
+#[cfg(test)]
+mod token_lifecycle_tests;
+mod snapshot;
 
 #[cfg(test)]
 // mod buyback_integration_test;
@@ -99,6 +102,7 @@ use types::{
     StreamParams, TokenCreationParams, TokenInfo, TokenStats, Vault, VaultStatus,
 };
 use crate::milestone_verification::MilestoneVerifier;
+use crate::snapshot;
 
 #[contract]
 pub struct TokenFactory;
@@ -1652,6 +1656,121 @@ impl TokenFactory {
             clawback_enabled: false,
             freeze_enabled: false,
         })
+    }
+
+    // ── Token Snapshot API ────────────────────────────────────────────────────
+
+    /// Query a holder's token balance at a specific historical ledger sequence number.
+    ///
+    /// Uses binary search over recorded snapshots to find the balance at or
+    /// immediately before the given ledger. Snapshots are recorded automatically
+    /// on every mint and burn operation.
+    ///
+    /// # Arguments
+    /// * `env` - The contract environment
+    /// * `token_index` - Index of the token
+    /// * `holder` - Address of the token holder
+    /// * `ledger` - Target ledger sequence number (must not be in the future)
+    ///
+    /// # Returns
+    /// * `Ok(i128)` - Balance at the target ledger (0 if no history exists)
+    /// * `Err(Error::InvalidParameters)` - If ledger is in the future
+    pub fn get_balance_at(
+        env: Env,
+        token_index: u32,
+        holder: Address,
+        ledger: u32,
+    ) -> Result<i128, Error> {
+        snapshot::get_balance_at_ledger(&env, token_index, &holder, ledger)
+    }
+
+    /// Query a token's total supply at a specific historical ledger sequence number.
+    ///
+    /// Uses binary search over recorded snapshots to find the supply at or
+    /// immediately before the given ledger. Snapshots are recorded automatically
+    /// on every mint and burn operation.
+    ///
+    /// # Arguments
+    /// * `env` - The contract environment
+    /// * `token_index` - Index of the token
+    /// * `ledger` - Target ledger sequence number (must not be in the future)
+    ///
+    /// # Returns
+    /// * `Ok(i128)` - Total supply at the target ledger (0 if no history exists)
+    /// * `Err(Error::InvalidParameters)` - If ledger is in the future
+    pub fn get_supply_at(
+        env: Env,
+        token_index: u32,
+        ledger: u32,
+    ) -> Result<i128, Error> {
+        snapshot::get_supply_at_ledger(&env, token_index, ledger)
+    }
+
+    /// Get the total number of balance snapshots recorded for a holder.
+    ///
+    /// # Arguments
+    /// * `env` - The contract environment
+    /// * `token_index` - Index of the token
+    /// * `holder` - Address of the token holder
+    ///
+    /// # Returns
+    /// Number of snapshots (0 if none)
+    pub fn get_balance_snapshot_count(
+        env: Env,
+        token_index: u32,
+        holder: Address,
+    ) -> u32 {
+        snapshot::get_balance_snapshot_count(&env, token_index, &holder)
+    }
+
+    /// Get the total number of supply snapshots recorded for a token.
+    ///
+    /// # Arguments
+    /// * `env` - The contract environment
+    /// * `token_index` - Index of the token
+    ///
+    /// # Returns
+    /// Number of snapshots (0 if none)
+    pub fn get_supply_snapshot_count(env: Env, token_index: u32) -> u32 {
+        snapshot::get_supply_snapshot_count(&env, token_index)
+    }
+
+    /// Get a specific balance snapshot by index.
+    ///
+    /// # Arguments
+    /// * `env` - The contract environment
+    /// * `token_index` - Index of the token
+    /// * `holder` - Address of the token holder
+    /// * `snapshot_index` - Zero-based index of the snapshot
+    ///
+    /// # Returns
+    /// * `Some(BalanceSnapshot)` if the snapshot exists
+    /// * `None` if the index is out of bounds
+    pub fn get_balance_snapshot(
+        env: Env,
+        token_index: u32,
+        holder: Address,
+        snapshot_index: u32,
+    ) -> Option<types::BalanceSnapshot> {
+        snapshot::get_balance_snapshot(&env, token_index, &holder, snapshot_index)
+    }
+
+    /// Get a specific supply snapshot by index.
+    ///
+    /// # Arguments
+    /// * `env` - The contract environment
+    /// * `token_index` - Index of the token
+    /// * `snapshot_index` - Zero-based index of the snapshot
+    ///
+    /// # Returns
+    /// * `Some(SupplySnapshot)` if the snapshot exists
+    /// * `None` if the index is out of bounds
+    pub fn get_supply_snapshot(
+        env: Env,
+        token_index: u32,
+        snapshot_index: u32,
+    ) -> Option<types::SupplySnapshot> {
+        snapshot::get_supply_snapshot(&env, token_index, snapshot_index)
     }
 
     /// Return a paginated list of token indices where beneficiary is the creator.

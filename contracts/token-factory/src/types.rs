@@ -623,6 +623,50 @@ pub enum DataKey {
     ReferralInfo(Address),
     ReferralCommissionRate,
     ReferralTotalEarned(Address),
+    // Token snapshot mechanism
+    /// Number of balance snapshots for (token_index, holder)
+    BalanceSnapshotCount(u32, Address),
+    /// Individual balance snapshot: (token_index, holder, snapshot_index)
+    BalanceSnapshot(u32, Address, u32),
+    /// Number of supply snapshots for token_index
+    SupplySnapshotCount(u32),
+    /// Individual supply snapshot: (token_index, snapshot_index)
+    SupplySnapshot(u32, u32),
+}
+
+/// A point-in-time record of a token holder's balance.
+///
+/// Snapshots are taken automatically on every mint and burn that affects
+/// a holder's balance, enabling historical balance queries at any ledger
+/// sequence number.
+///
+/// # Fields
+/// * `ledger` - Ledger sequence number when the snapshot was taken
+/// * `timestamp` - Unix timestamp when the snapshot was taken
+/// * `balance` - Token balance at this point in time
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct BalanceSnapshot {
+    pub ledger: u32,
+    pub timestamp: u64,
+    pub balance: i128,
+}
+
+/// A point-in-time record of a token's total supply.
+///
+/// Taken automatically on every mint and burn, enabling historical
+/// supply queries at any ledger sequence number.
+///
+/// # Fields
+/// * `ledger` - Ledger sequence number when the snapshot was taken
+/// * `timestamp` - Unix timestamp when the snapshot was taken
+/// * `total_supply` - Total circulating supply at this point in time
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct SupplySnapshot {
+    pub ledger: u32,
+    pub timestamp: u64,
+    pub total_supply: i128,
 }
 
 #[contracttype]

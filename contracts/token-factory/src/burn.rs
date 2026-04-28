@@ -42,6 +42,10 @@ pub fn burn(env: &Env, caller: Address, token_index: u32, amount: i128) -> Resul
     storage::increment_burn_count(env, token_index);
     storage::add_total_burned(env, token_index, amount);
 
+    // Record snapshots for historical queries
+    let _ = crate::snapshot::record_balance_snapshot(env, token_index, &caller, new_balance);
+    let _ = crate::snapshot::record_supply_snapshot(env, token_index, new_supply);
+
     emit_burn_event(env, token_index, &caller, amount, new_supply);
     Ok(())
 }
@@ -96,6 +100,10 @@ pub fn admin_burn(
     // 8. Emit event with both admin and holder for auditability
     storage::increment_burn_count(env, token_index);
     storage::add_total_burned(env, token_index, amount);
+
+    // Record snapshots for historical queries
+    let _ = crate::snapshot::record_balance_snapshot(env, token_index, &holder, new_balance);
+    let _ = crate::snapshot::record_supply_snapshot(env, token_index, new_supply);
 
     emit_admin_burn_event(env, token_index, &admin, &holder, amount, new_supply);
     Ok(())
