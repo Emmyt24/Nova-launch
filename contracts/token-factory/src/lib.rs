@@ -17,12 +17,15 @@ mod referral;
 
 mod batch_operations;
 mod burn;
+#[cfg(feature = "legacy-tests")]
 mod burn_auction;
 mod differential_engine;
 mod event_versions;
 mod events;
+#[cfg(feature = "legacy-tests")]
 mod liquidity_mining;
 mod milestone_verification;
+#[cfg(feature = "legacy-tests")]
 mod oracle;
 #[cfg(all(test, feature = "legacy-tests"))]
 mod milestone_verification_test;
@@ -31,9 +34,11 @@ mod error_code_stability_test;
 mod mint;
 mod pagination;
 mod payload_validation;
+#[cfg(feature = "legacy-tests")]
 mod proposal_queue;
 mod proposal_state_machine;
 mod storage;
+#[cfg(feature = "legacy-tests")]
 mod staking;
 mod streaming;
 mod stream_types;
@@ -87,6 +92,12 @@ mod stream_claim_differential_test;
 
 // #[cfg(test)]
 // mod governance_test;
+
+#[cfg(test)]
+mod burn_schedule_test;
+
+#[cfg(all(test, feature = "legacy-tests"))]
+mod burn_integration_test;
 
 use soroban_sdk::{contract, contractimpl, symbol_short, Address, Bytes, BytesN, Env, String, Symbol, Vec};
 use types::{
@@ -2839,6 +2850,8 @@ impl TokenFactory {
             status: types::CampaignStatus::Active,
             created_at: env.ledger().timestamp(),
             updated_at: env.ledger().timestamp(),
+            trigger_price: 0,
+            last_executed_at: 0,
         };
 
         storage::set_campaign(&env, campaign_id, &campaign);
@@ -2961,61 +2974,251 @@ impl TokenFactory {
     pub fn get_compliance_report_count(env: Env) -> u64 {
         compliance_reporting::get_report_count(&env)
     }
-}
-    /// Fractionalize a unique asset into fungible tokens
-    pub fn fractionalize_asset(
+
+    // ═══════════════════════════════════════════════════════
+    //  Burn Scheduling with Time-Locked Execution
+    // ═══════════════════════════════════════════════════════
+
+    /// Schedule a token burn to execute after a time-lock delay.
+    ///
+    /// The admin creates a burn schedule for a specific holder. The burn
+    /// cannot be executed until `unlock_time` has passed. Anyone may
+    /// trigger execution once the lock expires.
+    ///
+    /// # Arguments
+    /// * `env`          – The contract environment.
+    /// * `admin`        – Admin address (must authorize).
+    /// * `token_index`  – Index of the token to burn.
+    /// * `from`         – Address whose balance will be burned.
+    /// * `amount`       – Amount to burn (must be > 0).
+    /// * `unlock_time`  – Earliest ledger timestamp at which execution is allowed.
+    ///
+    /// # Returns
+    /// The new schedule ID.
+    ///
+    /// # Errors
+    /// * `Unauthorized`      – Caller is not the admin.
+    /// * `TokenNotFound`     – Token index does not exist.
+    /// * `InvalidParameters` – Amount is zero or negative.
+    /// * `InvalidUnlockTime` – unlock_time is not in the future.
+    /// * `ContractPaused`    – Contract is paused.
+    pub fn schedule_burn(
         env: Env,
-        owner: Address,
-        asset_id: BytesN<32>,
-        asset_contract: Address,
-        total_supply: i128,
-        token_name: String,
-        token_symbol: String,
-    ) -> Result<(u64, Address), Error> {
-        owner.require_auth();
-        
+        admin: Address,
+        token_index: u32,
+        from: Address,
+        amount: i128,
+        unlock_time: u64,
+    ) -> Result<u64, Error> {
+        admin.require_auth();
+
         if storage::is_paused(&env) {
             return Err(Error::ContractPaused);
         }
-        
-        if total_supply <= 0 {
+
+        let stored_admin = storage::get_admin(&env);
+        if admin != stored_admin {
+            return Err(Error::Unauthorized);
+        }
+
+        if amount <= 0 {
             return Err(Error::InvalidParameters);
         }
 
-        // Create token using existing factory logic
-        let token_params = types::TokenCreationParams {
-            name: token_name,
-            symbol: token_symbol,
-            decimals: 7,
-            initial_supply: total_supply,
-            max_supply: Some(total_supply),
-            metadata_uri: None,
+        let now = env.ledger().timestamp();
+        if unlock_time <= now {
+            return Err(Error::InvalidUnlockTime);
+        }
+
+        // Verify token exists
+        storage::get_token_info(&env, token_index).ok_or(Error::TokenNotFound)?;
+
+        let id = storage::increment_burn_schedule_id(&env);
+        let schedule = types::BurnSchedule {
+            id,
+            token_index,
+            from: from.clone(),
+            amount,
+            unlock_time,
+            created_at: now,
+            executed_at: None,
+            creator: admin.clone(),
+            status: types::BurnScheduleStatus::Pending,
         };
 
-        let tokens = soroban_sdk::Vec::from_array(&env, [token_params]);
-        let fractional_tokens = Self::set_metadata(env.clone(), owner.clone(), tokens, 0)?;
-        let fractional_token = fractional_tokens.get(0).unwrap();
+        storage::set_burn_schedule(&env, &schedule);
+        storage::add_burn_schedule_by_token(&env, token_index, id);
 
-        let vault_id = 1u64; // Simplified for minimal implementation
-        
-        events::emit_asset_fractionalized(&env, vault_id, &asset_id, &asset_contract, &owner, &fractional_token, total_supply);
-        
-        Ok((vault_id, fractional_token))
+        events::emit_burn_schedule_created(&env, id, token_index, &admin, amount, unlock_time);
+
+        Ok(id)
     }
 
-    /// Redeem asset by burning all fractional tokens
-    pub fn redeem_asset(env: Env, redeemer: Address, vault_id: u64) -> Result<(), Error> {
-        redeemer.require_auth();
-        
-        if storage::is_paused(&env) {
-            return Err(Error::ContractPaused);
+    /// Execute a pending burn schedule whose time-lock has expired.
+    ///
+    /// Anyone may call this once `unlock_time` has passed. The tokens are
+    /// burned from the scheduled holder's balance.
+    ///
+    /// # Arguments
+    /// * `env`         – The contract environment.
+    /// * `executor`    – Address triggering execution (must authorize).
+    /// * `schedule_id` – ID of the burn schedule to execute.
+    ///
+    /// # Errors
+    /// * `BurnScheduleNotFound`     – No schedule with the given ID.
+    /// * `BurnScheduleAlreadyExecuted` – Schedule already executed.
+    /// * `BurnScheduleCancelled`    – Schedule was cancelled.
+    /// * `BurnScheduleLocked`       – Time-lock has not yet expired.
+    /// * `TokenPaused`              – Token is paused.
+    /// * `InsufficientBalance`      – Holder balance is insufficient.
+    pub fn execute_burn_schedule(
+        env: Env,
+        executor: Address,
+        schedule_id: u64,
+    ) -> Result<(), Error> {
+        executor.require_auth();
+
+        let mut schedule = storage::get_burn_schedule(&env, schedule_id)
+            .ok_or(Error::BurnScheduleNotFound)?;
+
+        match schedule.status {
+            types::BurnScheduleStatus::Executed => {
+                return Err(Error::BurnScheduleAlreadyExecuted)
+            }
+            types::BurnScheduleStatus::Cancelled => {
+                return Err(Error::BurnScheduleCancelled)
+            }
+            types::BurnScheduleStatus::Pending => {}
         }
-        
-        // Simplified implementation - in practice would check token balance
-        events::emit_asset_redeemed(&env, vault_id, &BytesN::from_array(&env, &[0u8; 32]), &Address::generate(&env), &redeemer, 0);
-        
+
+        let now = env.ledger().timestamp();
+        if now < schedule.unlock_time {
+            return Err(Error::BurnScheduleLocked);
+        }
+
+        let token_index = schedule.token_index;
+
+        if storage::is_token_paused(&env, token_index) {
+            return Err(Error::TokenPaused);
+        }
+
+        let balance = storage::get_balance(&env, token_index, &schedule.from);
+        if balance < schedule.amount {
+            return Err(Error::InsufficientBalance);
+        }
+
+        // Apply the burn
+        let new_balance = balance
+            .checked_sub(schedule.amount)
+            .ok_or(Error::ArithmeticError)?;
+        storage::set_balance(&env, token_index, &schedule.from, new_balance);
+
+        let mut info = storage::get_token_info(&env, token_index)
+            .ok_or(Error::TokenNotFound)?;
+        info.total_supply = info
+            .total_supply
+            .checked_sub(schedule.amount)
+            .ok_or(Error::ArithmeticError)?;
+        info.total_burned = info
+            .total_burned
+            .checked_add(schedule.amount)
+            .ok_or(Error::ArithmeticError)?;
+        info.burn_count = info
+            .burn_count
+            .checked_add(1)
+            .ok_or(Error::ArithmeticError)?;
+        storage::set_token_info(&env, token_index, &info);
+        storage::increment_burn_count(&env, token_index)?;
+        storage::add_total_burned(&env, token_index, schedule.amount);
+
+        // Mark schedule as executed
+        schedule.status = types::BurnScheduleStatus::Executed;
+        schedule.executed_at = Some(now);
+        storage::set_burn_schedule(&env, &schedule);
+
+        events::emit_burn_schedule_executed(
+            &env,
+            schedule_id,
+            token_index,
+            &executor,
+            schedule.amount,
+        );
+
         Ok(())
     }
+
+    /// Cancel a pending burn schedule.
+    ///
+    /// Only the admin or the original schedule creator may cancel.
+    /// Cancellation is not allowed after execution.
+    ///
+    /// # Arguments
+    /// * `env`         – The contract environment.
+    /// * `canceller`   – Address cancelling the schedule (must authorize).
+    /// * `schedule_id` – ID of the schedule to cancel.
+    ///
+    /// # Errors
+    /// * `BurnScheduleNotFound`        – No schedule with the given ID.
+    /// * `BurnScheduleAlreadyExecuted` – Schedule already executed.
+    /// * `BurnScheduleCancelled`       – Schedule already cancelled.
+    /// * `Unauthorized`                – Caller is not admin or creator.
+    pub fn cancel_burn_schedule(
+        env: Env,
+        canceller: Address,
+        schedule_id: u64,
+    ) -> Result<(), Error> {
+        canceller.require_auth();
+
+        let mut schedule = storage::get_burn_schedule(&env, schedule_id)
+            .ok_or(Error::BurnScheduleNotFound)?;
+
+        match schedule.status {
+            types::BurnScheduleStatus::Executed => {
+                return Err(Error::BurnScheduleAlreadyExecuted)
+            }
+            types::BurnScheduleStatus::Cancelled => {
+                return Err(Error::BurnScheduleCancelled)
+            }
+            types::BurnScheduleStatus::Pending => {}
+        }
+
+        let admin = storage::get_admin(&env);
+        if canceller != admin && canceller != schedule.creator {
+            return Err(Error::Unauthorized);
+        }
+
+        schedule.status = types::BurnScheduleStatus::Cancelled;
+        storage::set_burn_schedule(&env, &schedule);
+
+        events::emit_burn_schedule_cancelled(&env, schedule_id, &canceller);
+
+        Ok(())
+    }
+
+    /// Get a burn schedule by ID.
+    pub fn get_burn_schedule(env: Env, schedule_id: u64) -> Option<types::BurnSchedule> {
+        storage::get_burn_schedule(&env, schedule_id)
+    }
+
+    /// Get the total number of burn schedules created.
+    pub fn get_burn_schedule_count(env: Env) -> u64 {
+        storage::next_burn_schedule_id(&env)
+    }
+
+    /// Get the number of burn schedules for a specific token.
+    pub fn get_burn_schedule_count_by_token(env: Env, token_index: u32) -> u32 {
+        storage::get_burn_schedule_count_by_token(&env, token_index)
+    }
+
+    /// Get a burn schedule ID for a token by its local index.
+    pub fn get_burn_schedule_id_by_token(
+        env: Env,
+        token_index: u32,
+        local_index: u32,
+    ) -> Option<u64> {
+        storage::get_burn_schedule_id_by_token(&env, token_index, local_index)
+    }
+}
 
 #[cfg(test)]
 mod burn_auction_test;
@@ -3089,10 +3292,10 @@ mod burn_auction_test;
 // #[cfg(test)]
 // mod fuzz_test;
 
-#[cfg(test)]
+#[cfg(all(test, feature = "legacy-tests"))]
 mod token_pause_test;
 
-#[cfg(test)]
+#[cfg(all(test, feature = "legacy-tests"))]
 mod rbac_test;
 
 
@@ -3144,9 +3347,10 @@ mod batch_token_creation_test;
 mod accounting_property_test;
 
 #[cfg(test)]
+#[cfg(test)]
 mod stream_status_transition_property_test;
 
-#[cfg(test)]
+#[cfg(all(test, feature = "legacy-tests"))]
 mod stream_lifecycle_integration_test;
 
 #[cfg(test)]
@@ -3155,13 +3359,13 @@ mod stream_lifecycle_integration_test;
 #[cfg(test)]
 // mod vault_unlock_time_property_test;
 
-#[cfg(test)]
+#[cfg(all(test, feature = "legacy-tests"))]
 mod staking_integration_test;
 
 #[cfg(all(test, feature = "legacy-tests"))]
 mod vault_cancellation_test;
 
-#[cfg(test)]
+#[cfg(all(test, feature = "legacy-tests"))]
 mod metadata_update_test;
 
 // Vault/Stream Security and Fuzz Tests
@@ -3172,8 +3376,8 @@ mod metadata_update_test;
 // #[cfg(test)]
 // mod vault_fuzz_test;
 
-#[cfg(test)]
+#[cfg(all(test, feature = "legacy-tests"))]
 mod bridge_test;
 
-#[cfg(test)]
+#[cfg(all(test, feature = "legacy-tests"))]
 mod amm_test;

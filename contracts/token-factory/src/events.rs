@@ -1056,3 +1056,128 @@ pub fn emit_commission_paid(env: &Env, referrer: &Address, token_index: u32, amo
     env.events()
         .publish((symbol_short!("com_paid"),), (referrer, token_index, amount));
 }
+
+/// Emit role granted event.
+pub fn emit_role_granted(
+    env: &soroban_sdk::Env,
+    token_index: u32,
+    creator: &soroban_sdk::Address,
+    grantee: &soroban_sdk::Address,
+    role: crate::types::Role,
+) {
+    use soroban_sdk::symbol_short;
+    env.events()
+        .publish((symbol_short!("role_gr"),), (token_index, creator, grantee, role as u32));
+}
+
+/// Emit role revoked event.
+pub fn emit_role_revoked(
+    env: &soroban_sdk::Env,
+    token_index: u32,
+    creator: &soroban_sdk::Address,
+    revokee: &soroban_sdk::Address,
+    role: crate::types::Role,
+) {
+    use soroban_sdk::symbol_short;
+    env.events()
+        .publish((symbol_short!("role_rv"),), (token_index, creator, revokee, role as u32));
+}
+
+/// Emit multi-sig proposal created event.
+pub fn emit_multisig_proposed(
+    env: &soroban_sdk::Env,
+    proposal_id: u64,
+    proposer: &soroban_sdk::Address,
+) {
+    use soroban_sdk::symbol_short;
+    env.events()
+        .publish((symbol_short!("ms_prop"),), (proposal_id, proposer));
+}
+
+/// Emit multi-sig approval event.
+pub fn emit_multisig_approved(
+    env: &soroban_sdk::Env,
+    proposal_id: u64,
+    approver: &soroban_sdk::Address,
+    approval_count: u32,
+) {
+    use soroban_sdk::symbol_short;
+    env.events()
+        .publish((symbol_short!("ms_appr"),), (proposal_id, approver, approval_count));
+}
+
+/// Emit multi-sig executed event.
+pub fn emit_multisig_executed(
+    env: &soroban_sdk::Env,
+    proposal_id: u64,
+    executor: &soroban_sdk::Address,
+) {
+    use soroban_sdk::symbol_short;
+    env.events()
+        .publish((symbol_short!("ms_exec"),), (proposal_id, executor));
+}
+
+/// Emit multi-sig cancelled event.
+pub fn emit_multisig_cancelled(
+    env: &soroban_sdk::Env,
+    proposal_id: u64,
+    canceller: &soroban_sdk::Address,
+) {
+    use soroban_sdk::symbol_short;
+    env.events()
+        .publish((symbol_short!("ms_cncl"),), (proposal_id, canceller));
+}
+
+/// Emit multi-sig configured event.
+pub fn emit_multisig_configured(
+    env: &soroban_sdk::Env,
+    admin: &soroban_sdk::Address,
+    threshold: u32,
+    signer_count: u32,
+) {
+    use soroban_sdk::symbol_short;
+    env.events()
+        .publish((symbol_short!("ms_cfg"),), (admin, threshold, signer_count));
+}
+
+/// Emit burn schedule created event.
+pub fn emit_burn_schedule_created(
+    env: &soroban_sdk::Env,
+    schedule_id: u64,
+    token_index: u32,
+    creator: &soroban_sdk::Address,
+    amount: i128,
+    unlock_time: u64,
+) {
+    use soroban_sdk::symbol_short;
+    env.events().publish(
+        (symbol_short!("bs_crt"),),
+        (schedule_id, token_index, creator, amount, unlock_time),
+    );
+}
+
+/// Emit burn schedule executed event.
+pub fn emit_burn_schedule_executed(
+    env: &soroban_sdk::Env,
+    schedule_id: u64,
+    token_index: u32,
+    executor: &soroban_sdk::Address,
+    amount: i128,
+) {
+    use soroban_sdk::symbol_short;
+    env.events().publish(
+        (symbol_short!("bs_exec"),),
+        (schedule_id, token_index, executor, amount),
+    );
+}
+
+/// Emit burn schedule cancelled event.
+pub fn emit_burn_schedule_cancelled(
+    env: &soroban_sdk::Env,
+    schedule_id: u64,
+    canceller: &soroban_sdk::Address,
+) {
+    use soroban_sdk::symbol_short;
+    env.events()
+        .publish((symbol_short!("bs_cncl"),), (schedule_id, canceller));
+}
