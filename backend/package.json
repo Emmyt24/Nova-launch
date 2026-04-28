@@ -22,7 +22,7 @@
     "format": "prettier --write \"src/**/*.{ts,tsx,js,jsx,json}\"",
     "format:check": "prettier --check \"src/**/*.{ts,tsx,js,jsx,json}\"",
     "type-check": "tsc --noEmit",
-    "docs:generate": "tsx scripts/generate-openapi.ts",
+    "docs:generate": "tsx scripts/generate-openapi.ts && tsx scripts/generate-docs.ts",
     "incident:test": "vitest run --config ../monitoring/pagerduty/vitest.config.ts ../monitoring/pagerduty/incident-response.test.ts"
   },
   "dependencies": {
