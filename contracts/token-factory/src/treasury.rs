@@ -49,6 +49,8 @@ pub fn initialize_treasury_policy(
 
     storage::set_withdrawal_period(env, &period);
 
+    crate::events::emit_treasury_policy_initialized(env, cap, allowlist_enabled);
+
     Ok(())
 }
 
