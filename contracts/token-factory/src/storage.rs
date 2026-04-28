@@ -1510,3 +1510,178 @@ pub fn set_asset_to_vault(env: &Env, asset_id: &soroban_sdk::BytesN<32>, vault_i
 pub fn remove_asset_to_vault(env: &Env, asset_id: &soroban_sdk::BytesN<32>) {
     env.storage().persistent().remove(&crate::types::DataKey::AssetToVault(asset_id.clone()));
 }
+
+// ============================================================
+// Role-Based Access Control
+// ============================================================
+
+fn role_discriminant(role: crate::types::Role) -> u32 {
+    match role {
+        crate::types::Role::MetadataManager => 0,
+        crate::types::Role::Pauser => 1,
+        crate::types::Role::Minter => 2,
+    }
+}
+
+pub fn has_role(env: &Env, token_index: u32, address: &Address, role: crate::types::Role) -> bool {
+    let key = crate::types::DataKey::TokenRole(token_index, address.clone(), role_discriminant(role));
+    env.storage().persistent().get::<_, bool>(&key).unwrap_or(false)
+}
+
+pub fn grant_role(env: &Env, token_index: u32, address: &Address, role: crate::types::Role) {
+    let key = crate::types::DataKey::TokenRole(token_index, address.clone(), role_discriminant(role));
+    env.storage().persistent().set(&key, &true);
+}
+
+pub fn revoke_role(env: &Env, token_index: u32, address: &Address, role: crate::types::Role) {
+    let key = crate::types::DataKey::TokenRole(token_index, address.clone(), role_discriminant(role));
+    env.storage().persistent().remove(&key);
+}
+
+// ============================================================
+// Metadata History
+// ============================================================
+
+pub fn push_metadata_history(
+    env: &Env,
+    token_index: u32,
+    record: &crate::types::MetadataRecord,
+) -> Result<(), crate::types::Error> {
+    let count_key = crate::types::DataKey::MetadataHistoryCount(token_index);
+    let count: u32 = env.storage().persistent().get(&count_key).unwrap_or(0);
+    let new_count = count.checked_add(1).ok_or(crate::types::Error::ArithmeticError)?;
+    let entry_key = crate::types::DataKey::MetadataHistory(token_index, count);
+    env.storage().persistent().set(&entry_key, record);
+    env.storage().persistent().set(&count_key, &new_count);
+    Ok(())
+}
+
+pub fn get_metadata_history(
+    env: &Env,
+    token_index: u32,
+    version: u32,
+) -> Option<crate::types::MetadataRecord> {
+    // version is 1-based; stored at index version-1
+    let idx = version.checked_sub(1)?;
+    let key = crate::types::DataKey::MetadataHistory(token_index, idx);
+    env.storage().persistent().get(&key)
+}
+
+// ============================================================
+// Reentrancy Guard
+// ============================================================
+
+pub fn acquire_reentrancy_lock(env: &Env) -> Result<(), crate::types::Error> {
+    let key = crate::types::DataKey::ReentrancyLock;
+    if env.storage().instance().get::<_, bool>(&key).unwrap_or(false) {
+        return Err(crate::types::Error::InvalidParameters);
+    }
+    env.storage().instance().set(&key, &true);
+    Ok(())
+}
+
+pub fn release_reentrancy_lock(env: &Env) {
+    env.storage().instance().remove(&crate::types::DataKey::ReentrancyLock);
+}
+
+// ============================================================
+// Multi-Sig Storage
+// ============================================================
+
+pub fn get_multisig_config(env: &Env) -> Option<crate::types::MultiSigConfig> {
+    env.storage().instance().get(&crate::types::DataKey::MultiSigConfig)
+}
+
+pub fn set_multisig_config(env: &Env, config: &crate::types::MultiSigConfig) {
+    env.storage().instance().set(&crate::types::DataKey::MultiSigConfig, config);
+}
+
+pub fn has_multisig_config(env: &Env) -> bool {
+    env.storage().instance().has(&crate::types::DataKey::MultiSigConfig)
+}
+
+pub fn next_multisig_proposal_id(env: &Env) -> u64 {
+    let key = crate::types::DataKey::MultiSigProposalCount;
+    env.storage().instance().get::<_, u64>(&key).unwrap_or(0)
+}
+
+pub fn increment_multisig_proposal_id(env: &Env) -> u64 {
+    let key = crate::types::DataKey::MultiSigProposalCount;
+    let id: u64 = env.storage().instance().get(&key).unwrap_or(0);
+    env.storage().instance().set(&key, &(id + 1));
+    id
+}
+
+pub fn get_multisig_proposal(env: &Env, id: u64) -> Option<crate::types::MultiSigProposal> {
+    env.storage().instance().get(&crate::types::DataKey::MultiSigProposal(id))
+}
+
+pub fn set_multisig_proposal(env: &Env, proposal: &crate::types::MultiSigProposal) {
+    env.storage().instance().set(&crate::types::DataKey::MultiSigProposal(proposal.id), proposal);
+}
+
+pub fn has_multisig_approval(env: &Env, proposal_id: u64, approver: &Address) -> bool {
+    let key = crate::types::DataKey::MultiSigApproval(proposal_id, approver.clone());
+    env.storage().instance().get::<_, bool>(&key).unwrap_or(false)
+}
+
+pub fn set_multisig_approval(env: &Env, proposal_id: u64, approver: &Address) {
+    let key = crate::types::DataKey::MultiSigApproval(proposal_id, approver.clone());
+    env.storage().instance().set(&key, &true);
+}
+
+// ============================================================
+// Burn Schedule Storage
+// ============================================================
+
+pub fn next_burn_schedule_id(env: &Env) -> u64 {
+    env.storage()
+        .instance()
+        .get::<_, u64>(&crate::types::DataKey::BurnScheduleCount)
+        .unwrap_or(0)
+}
+
+pub fn increment_burn_schedule_id(env: &Env) -> u64 {
+    let id = next_burn_schedule_id(env);
+    env.storage()
+        .instance()
+        .set(&crate::types::DataKey::BurnScheduleCount, &(id + 1));
+    id
+}
+
+pub fn get_burn_schedule(env: &Env, id: u64) -> Option<crate::types::BurnSchedule> {
+    env.storage()
+        .instance()
+        .get(&crate::types::DataKey::BurnSchedule(id))
+}
+
+pub fn set_burn_schedule(env: &Env, schedule: &crate::types::BurnSchedule) {
+    env.storage()
+        .instance()
+        .set(&crate::types::DataKey::BurnSchedule(schedule.id), schedule);
+}
+
+pub fn get_burn_schedule_count_by_token(env: &Env, token_index: u32) -> u32 {
+    env.storage()
+        .instance()
+        .get::<_, u32>(&crate::types::DataKey::BurnScheduleCountByToken(token_index))
+        .unwrap_or(0)
+}
+
+pub fn add_burn_schedule_by_token(env: &Env, token_index: u32, schedule_id: u64) {
+    let count = get_burn_schedule_count_by_token(env, token_index);
+    env.storage().instance().set(
+        &crate::types::DataKey::BurnSchedulesByToken(token_index, count),
+        &schedule_id,
+    );
+    env.storage().instance().set(
+        &crate::types::DataKey::BurnScheduleCountByToken(token_index),
+        &(count + 1),
+    );
+}
+
+pub fn get_burn_schedule_id_by_token(env: &Env, token_index: u32, local_index: u32) -> Option<u64> {
+    env.storage()
+        .instance()
+        .get(&crate::types::DataKey::BurnSchedulesByToken(token_index, local_index))
+}

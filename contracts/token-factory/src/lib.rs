@@ -112,6 +112,12 @@ mod multisig_test;
 // #[cfg(test)]
 // mod governance_test;
 
+#[cfg(test)]
+mod burn_schedule_test;
+
+#[cfg(all(test, feature = "legacy-tests"))]
+mod burn_integration_test;
+
 use soroban_sdk::{contract, contractimpl, symbol_short, Address, Bytes, BytesN, Env, String, Symbol, Vec};
 use types::{
     AuctionStatus, BurnAuction, BuybackCampaign, CampaignStatus, ContractMetadata,
