@@ -11,12 +11,29 @@ const router = Router();
 // Public route contract: all paths are relative to the /api/campaigns mount point.
 // Response shapes are defined in ../contracts/apiSchemas.ts.
 
+/** Serializes BigInt fields in a campaign projection to strings for JSON output. */
+function serializeCampaign(c: any) {
+  return {
+    ...c,
+    targetAmount: c.targetAmount?.toString?.() ?? c.targetAmount,
+    currentAmount: c.currentAmount?.toString?.() ?? c.currentAmount,
+  };
+}
+
+/** Serializes BigInt fields in campaign stats to strings for JSON output. */
+function serializeCampaignStats(s: any) {
+  return {
+    ...s,
+    totalVolume: s.totalVolume?.toString?.() ?? s.totalVolume,
+  };
+}
+
 /** @contract CampaignStats */
 router.get("/stats/:tokenId?", async (req, res) => {
   try {
     const { tokenId } = req.params;
     const stats = await campaignProjectionService.getCampaignStats(tokenId);
-    res.json(stats);
+    res.json(serializeCampaignStats(stats));
   } catch (error) {
     res.status(500).json({ error: "Failed to fetch campaign stats" });
   }
@@ -27,7 +44,7 @@ router.get("/token/:tokenId", async (req, res) => {
   try {
     const { tokenId } = req.params;
     const campaigns = await campaignProjectionService.getCampaignsByToken(tokenId);
-    res.json(campaigns);
+    res.json(campaigns.map(serializeCampaign));
   } catch (error) {
     res.status(500).json({ error: "Failed to fetch campaigns" });
   }
@@ -38,7 +55,7 @@ router.get("/creator/:creator", async (req, res) => {
   try {
     const { creator } = req.params;
     const campaigns = await campaignProjectionService.getCampaignsByCreator(creator);
-    res.json(campaigns);
+    res.json(campaigns.map(serializeCampaign));
   } catch (error) {
     res.status(500).json({ error: "Failed to fetch campaigns" });
   }
@@ -73,7 +90,7 @@ router.get("/:campaignId", validateCampaignId, async (req, res) => {
       return res.status(404).json({ error: "Campaign not found" });
     }
 
-    res.json(campaign);
+    res.json(serializeCampaign(campaign));
   } catch (error) {
     res.status(500).json({ error: "Failed to fetch campaign" });
   }
