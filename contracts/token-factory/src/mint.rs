@@ -127,6 +127,10 @@ pub fn mint(env: &Env, token_index: u32, to: &Address, amount: i128) -> Result<(
     // Save updated token info
     storage::set_token_info(env, token_index, &token_info);
 
+    // Record snapshots for historical queries
+    let _ = crate::snapshot::record_balance_snapshot(env, token_index, to, new_balance);
+    let _ = crate::snapshot::record_supply_snapshot(env, token_index, token_info.total_supply);
+
     // Emit mint event
     crate::events::emit_mint(env, token_index, to, amount);
 
