@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import type { AppError, DeploymentResult, DeploymentStatus, TokenDeployParams, TokenInfo } from '../types';
+import type { AppError, DeploymentResult, DeploymentStatus, TokenDeployParams, TokenInfo, WalletState } from '../types';
 import { ErrorCode } from '../types';
 import { createError, ErrorHandler, getErrorMessage } from '../utils/errors';
 import {
@@ -29,7 +29,8 @@ interface UseTokenDeployOptions {
     metadataFee?: number;
 }
 
-export function useTokenDeploy(network: 'testnet' | 'mainnet', options: UseTokenDeployOptions = {}) {
+export function useTokenDeploy(wallet: WalletState, options: UseTokenDeployOptions = {}) {
+    const { network, address } = wallet;
     const { maxRetries = 3, retryDelay = 2000, baseFee, metadataFee } = options;
     const [status, setStatus] = useState<DeploymentStatus>('idle');
     const [error, setError] = useState<AppError | null>(null);
@@ -40,6 +41,22 @@ export function useTokenDeploy(network: 'testnet' | 'mainnet', options: UseToken
     const stellarService = useMemo(() => new StellarService(network), [network]);
     const ipfsService = useMemo(() => new IPFSService(), []);
     const { trackTokenDeployed, trackTokenDeployFailed } = useAnalytics();
+
+    useEffect(() => {
+        if ((status === 'uploading' || status === 'deploying') && lastParams) {
+            if (address !== lastParams.adminWallet || !wallet.connected) {
+                const appError = createError(ErrorCode.WALLET_NOT_CONNECTED, 'Wallet disconnected or changed during deployment. Please try again.');
+                setError(appError);
+                setStatus('error');
+            }
+        } else if (status === 'error' && (!wallet.connected || address !== lastParams?.adminWallet)) {
+            // Reset if they change wallet after an error to avoid confusion
+            setStatus('idle');
+            setError(null);
+            setRetryCount(0);
+            setLastParams(null);
+        }
+    }, [wallet.connected, address, network, status, lastParams]);
 
     const deploy = async (params: TokenDeployParams): Promise<DeploymentResult> => {
         setError(null);

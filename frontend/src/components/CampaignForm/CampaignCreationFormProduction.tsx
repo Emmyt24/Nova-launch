@@ -41,8 +41,7 @@ export function CampaignCreationFormProduction({
 }: CampaignCreationFormProductionProps) {
   const { wallet } = useWallet();
   const { createCampaign, reset, cleanup, status, error, result, transactionState, isLoading } =
-    useCampaignCreation({
-      network: wallet.network,
+    useCampaignCreation(wallet, {
       onSuccess: (res) => onSuccess?.(res.campaignId, res.transactionHash),
       onError: (err) => onError?.(new Error(err.message)),
     });
