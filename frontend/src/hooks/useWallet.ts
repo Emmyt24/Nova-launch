@@ -5,7 +5,7 @@ import { ACTIVE_NETWORK, STELLAR_CONFIG } from '../config/stellar';
 import { checkNetworkContractMismatch } from '../utils/validation';
 import type { WalletState } from '../types';
 
-const WALLET_CONNECTED_KEY = 'nova_wallet_connected';
+export const WALLET_CONNECTED_KEY = 'nova_wallet_connected';
 
 interface UseWalletOptions {
     network?: 'testnet' | 'mainnet';

@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import type { CampaignParams, CampaignCreationResult, CampaignStatus, CampaignTransactionState } from '../types/campaign';
-import type { AppError } from '../types';
+import type { AppError, WalletState } from '../types';
 import { ErrorCode } from '../types';
 import { CampaignService } from '../services/campaignService';
 import { ErrorHandler, createError } from '../utils/errors';
@@ -12,17 +12,41 @@ interface UseCampaignCreationOptions {
   onError?: (error: AppError) => void;
 }
 
-export function useCampaignCreation(options: UseCampaignCreationOptions = {}) {
-  const { network = 'testnet', onSuccess, onError } = options;
+export function useCampaignCreation(wallet: WalletState, options: UseCampaignCreationOptions = {}) {
+  const { network, address } = wallet;
+  const { onSuccess, onError } = options;
   
   const [status, setStatus] = useState<CampaignStatus>('idle');
   const [error, setError] = useState<AppError | null>(null);
   const [result, setResult] = useState<CampaignCreationResult | null>(null);
   const [transactionState, setTransactionState] = useState<CampaignTransactionState | null>(null);
+  const [lastCreatorAddress, setLastCreatorAddress] = useState<string | null>(null);
   
   const campaignServiceRef = useRef(new CampaignService(network));
   const monitorRef = useRef(new TransactionMonitor());
   const currentHashRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    campaignServiceRef.current = new CampaignService(network);
+  }, [network]);
+
+  useEffect(() => {
+    if (status === 'validating' || status === 'submitting') {
+      if (!wallet.connected || address !== lastCreatorAddress) {
+        const appError = createError(ErrorCode.WALLET_NOT_CONNECTED, 'Wallet disconnected or changed during campaign creation. Please try again.');
+        setError(appError);
+        setStatus('error');
+        if (currentHashRef.current) {
+          monitorRef.current.stopMonitoring(currentHashRef.current);
+          currentHashRef.current = null;
+        }
+      }
+    } else if (status === 'error' && (!wallet.connected || address !== lastCreatorAddress)) {
+        setStatus('idle');
+        setError(null);
+        setLastCreatorAddress(null);
+    }
+  }, [wallet.connected, address, network, status, lastCreatorAddress]);
 
   const createCampaign = useCallback(
     async (params: CampaignParams): Promise<CampaignCreationResult> => {
@@ -30,6 +54,7 @@ export function useCampaignCreation(options: UseCampaignCreationOptions = {}) {
       setError(null);
       setResult(null);
       setTransactionState(null);
+      setLastCreatorAddress(params.creatorAddress);
 
       try {
         // Validate parameters
