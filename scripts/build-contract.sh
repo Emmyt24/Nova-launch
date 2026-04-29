@@ -153,24 +153,25 @@ optimize_wasm() {
     fi
 }
 
-# Emit ABI artifact: list of exported function names for frontend drift detection
-emit_abi_artifact() {
-    local abi_file="$PROJECT_ROOT/frontend/src/contracts/factoryAbi.json"
-    log_info "Emitting ABI artifact to $abi_file..."
+# Emit interface snapshot: full contract interface for frontend ABI drift detection
+emit_interface_snapshot() {
+    log_info "Extracting contract interface snapshot..."
 
-    # Extract pub fn names from lib.rs (excluding env: Env — those are the contract methods)
-    local lib_rs="$CONTRACT_DIR/src/lib.rs"
-    local methods
-    methods=$(grep -oP 'pub fn \K[a-z_]+(?=\s*\()' "$lib_rs" | sort | uniq | jq -R . | jq -s .)
+    # Check if Node.js is available
+    if ! command -v node &> /dev/null; then
+        log_warning "Node.js not found — skipping interface snapshot generation"
+        log_info "Install Node.js to enable contract-to-frontend ABI validation"
+        return 0
+    fi
 
-    cat > "$abi_file" <<EOF
-{
-  "contract": "token_factory",
-  "generatedAt": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
-  "methods": $methods
-}
-EOF
-    log_success "ABI artifact written to $abi_file"
+    # Run the interface extraction script
+    cd "$PROJECT_ROOT"
+    if node scripts/extract-contract-interface.js; then
+        log_success "Contract interface snapshot generated successfully"
+    else
+        log_error "Failed to generate interface snapshot (non-blocking)"
+        # Don't exit — snapshot generation is a quality-of-life feature
+    fi
 }
 
 # Generate build report
@@ -259,7 +260,7 @@ main() {
     AFTER_SIZE=$(get_file_size "$WASM_FILE")
     log_info "Binary size after optimization: $AFTER_SIZE bytes"
 
-    emit_abi_artifact
+    emit_interface_snapshot
     generate_report "$BEFORE_SIZE" "$AFTER_SIZE"
     
     echo ""
