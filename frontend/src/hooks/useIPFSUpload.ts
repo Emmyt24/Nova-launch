@@ -29,6 +29,7 @@ export function useIPFSUpload(): UseIPFSUploadReturn {
         const ipfsService = new IPFSService();
 
         try {
+            // ... (rest of the try block remains mostly same but we want to ensure errors are descriptive)
             // Simulate progress for image upload (0-50%)
             setProgress(10);
             const imageUploadPromise = ipfsService.uploadImage(image);
@@ -48,7 +49,13 @@ export function useIPFSUpload(): UseIPFSUploadReturn {
                 setEstimatedTimeMs(remaining);
             }, 200);
 
-            await imageUploadPromise;
+            try {
+                await imageUploadPromise;
+            } catch (imageErr) {
+                clearInterval(progressInterval);
+                throw imageErr;
+            }
+            
             clearInterval(progressInterval);
             setProgress(50);
 
@@ -61,9 +68,16 @@ export function useIPFSUpload(): UseIPFSUploadReturn {
             
             return metadataUri;
         } catch (err) {
-            const message = err instanceof Error ? err.message : 'IPFS upload failed';
+            let message = 'IPFS upload failed';
+            if (err instanceof Error) {
+                if (err.name === 'TimeoutError' || err.message.includes('timeout')) {
+                    message = 'Upload timed out. Please check your connection and try again.';
+                } else {
+                    message = err.message;
+                }
+            }
             setError(message);
-            throw err;
+            throw new Error(message); // Re-throw with descriptive message
         } finally {
             setUploading(false);
         }
