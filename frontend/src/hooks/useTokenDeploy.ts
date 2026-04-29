@@ -10,9 +10,6 @@ import {
 import { IPFSService, isValidIpfsUri } from '../services/IPFSService';
 import { StellarService } from '../services/stellar.service';
 import { TransactionHistoryStorage } from '../services/TransactionHistoryStorage';
-import { IPFSService } from '../services/IPFSService';
-import { StellarService } from '../services/stellar.service';
-import { TransactionHistoryStorage } from '../services/TransactionHistoryStorage';
 import { getDeploymentFeeBreakdown } from '../utils/feeCalculation';
 import { analytics, AnalyticsEvent } from '../services/analytics';
 import { useAnalytics } from './useAnalytics';
