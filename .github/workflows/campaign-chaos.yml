@@ -21,7 +21,7 @@ jobs:
         seed: [12345, 54321, 11111, 22222, 33333, 44444, 99999]
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v6
 
       - name: Setup Node.js
         uses: actions/setup-node@v3

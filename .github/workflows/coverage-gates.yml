@@ -37,7 +37,7 @@ jobs:
     name: Install cargo-llvm-cov
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install Rust stable
         uses: actions-rs/toolchain@v1
@@ -68,7 +68,7 @@ jobs:
         working-directory: contracts/token-factory
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install Rust stable
         uses: actions-rs/toolchain@v1
@@ -132,7 +132,7 @@ jobs:
         working-directory: contracts/token-factory
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install Rust stable
         uses: actions-rs/toolchain@v1
@@ -204,7 +204,7 @@ jobs:
       PROPTEST_MAX_SHRINK_ITERS: 1000
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install Rust stable
         uses: actions-rs/toolchain@v1
@@ -270,7 +270,7 @@ jobs:
         working-directory: contracts/token-factory
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install Rust stable
         uses: actions-rs/toolchain@v1
@@ -343,7 +343,7 @@ jobs:
         working-directory: contracts/token-factory
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install Rust stable
         uses: actions-rs/toolchain@v1
@@ -479,7 +479,7 @@ jobs:
     if: always()
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Download all coverage artifacts
         uses: actions/download-artifact@v8
