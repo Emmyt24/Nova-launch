@@ -37,7 +37,7 @@ jobs:
     name: Lint Shell Scripts
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install shellcheck
         run: sudo apt-get install -y shellcheck
@@ -66,7 +66,7 @@ jobs:
       run:
         working-directory: backend
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - uses: actions/setup-node@v4
         with:
@@ -91,7 +91,7 @@ jobs:
     name: Validate docker-compose.elk.yml
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Validate compose file
         run: docker compose -f docker-compose.yml -f docker-compose.elk.yml config --quiet
@@ -115,7 +115,7 @@ jobs:
           --health-timeout 5s
           --health-retries 5
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install pg tools
         run: sudo apt-get install -y postgresql-client
@@ -148,7 +148,7 @@ jobs:
     if: github.ref == 'refs/heads/develop' && github.event_name == 'push'
     environment: testnet
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Run canary deployment (dry-run)
         env:
