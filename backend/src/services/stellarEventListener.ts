@@ -30,12 +30,21 @@ const _env = validateEnv();
 const HORIZON_URL = _env.STELLAR_HORIZON_URL;
 const FACTORY_CONTRACT_ID = _env.FACTORY_CONTRACT_ID;
 
-const POLL_INTERVAL_MS = 5000; // Poll every 5 seconds
+const POLL_INTERVAL_MS = 5000;
 
-// Global lag tracking windows
-const LAG_WINDOW_SIZE_MS = 60000; // 1 minute rolling window
+const LAG_WINDOW_SIZE_MS = 60000;
 const globalLagWindow = new LagWindow(LAG_WINDOW_SIZE_MS);
 const eventKindLagWindows = new Map<string, LagWindow>();
+
+export interface HorizonTransport {
+  getEvents(url: string, params: any): Promise<{ data: { _embedded?: { records: StellarEvent[] } } }>;
+}
+
+export class DefaultHorizonTransport implements HorizonTransport {
+  async getEvents(url: string, params: any): Promise<any> {
+    return axios.get(url, { params, timeout: 30000 });
+  }
+}
 
 interface StellarEvent {
   type: string;
@@ -59,15 +68,21 @@ export class StellarEventListener {
   private cursorStore: EventCursorStore;
   private streamEventParser: StreamEventParser;
   private recentLagMetrics: ProjectionLagMetrics[] = [];
-  private lastAlertTime: Map<string, number> = new Map(); // Debounce alerts per event kind
-  private alertDebounceMs = 5000; // Don't alert more than once per 5s per event kind
+  private lastAlertTime: Map<string, number> = new Map();
+  private alertDebounceMs = 5000;
+  private transport: HorizonTransport;
 
-  constructor() {
+  constructor(transport?: HorizonTransport) {
     this.prisma = new PrismaClient();
     this.governanceParser = new GovernanceEventParser(this.prisma);
     this.tokenEventParser = new TokenEventParser(this.prisma);
     this.cursorStore = new EventCursorStore(this.prisma);
     this.streamEventParser = new StreamEventParser(this.prisma);
+    this.transport = transport || new DefaultHorizonTransport();
+  }
+
+  setTransport(transport: HorizonTransport): void {
+    this.transport = transport;
   }
 
   /**
@@ -180,11 +195,7 @@ export class StellarEventListener {
     }
 
     try {
-      const response = await axios.get(url, { 
-        params,
-        timeout: 30000, // 30 second timeout
-      });
-      
+      const response = await this.transport.getEvents(url, params);
       const events: StellarEvent[] = response.data._embedded?.records || [];
 
       if (events.length === 0) {
@@ -199,18 +210,17 @@ export class StellarEventListener {
         await this.cursorStore.save(this.lastCursor);
       }
     } catch (error) {
-      // Enhance error with context for better retry decisions
       if (axios.isAxiosError(error)) {
         const status = error.response?.status;
         if (status === 429) {
           console.warn("Rate limited by Horizon API (429)");
-          throw error; // Will be retried with backoff
+          throw error;
         } else if (status && status >= 500) {
           console.warn(`Horizon API server error (${status})`);
-          throw error; // Will be retried with backoff
+          throw error;
         } else if (status && status >= 400 && status < 500) {
           console.error(`Horizon API client error (${status}):`, error.message);
-          throw error; // Terminal error, won't retry
+          throw error;
         }
       }
       

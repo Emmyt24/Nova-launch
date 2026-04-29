@@ -93,10 +93,18 @@ receivers:
           *Runbook:* {{ .Annotations.runbook_url }}
           {{ end }}
         send_resolved: true
-    # Uncomment and configure for PagerDuty:
-    # pagerduty_configs:
-    #   - service_key: '${PAGERDUTY_SERVICE_KEY}'
-    #     description: '{{ .CommonLabels.alertname }}: {{ .CommonAnnotations.summary }}'
+    pagerduty_configs:
+      - routing_key: "${PAGERDUTY_ROUTING_KEY}"
+        description: "{{ .CommonLabels.alertname }}: {{ .CommonAnnotations.summary }}"
+        severity: "{{ .CommonLabels.severity }}"
+        details:
+          service: "nova-launch"
+          cluster: "{{ .CommonLabels.cluster }}"
+          runbook: "{{ .CommonAnnotations.runbook_url }}"
+        links:
+          - href: "{{ .CommonAnnotations.runbook_url }}"
+            text: "Runbook"
+        send_resolved: true
 
   - name: warning-receiver
     slack_configs:

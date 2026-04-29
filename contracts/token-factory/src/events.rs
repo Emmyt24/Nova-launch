@@ -1056,3 +1056,123 @@ pub fn emit_commission_paid(env: &Env, referrer: &Address, token_index: u32, amo
     env.events()
         .publish((symbol_short!("com_paid"),), (referrer, token_index, amount));
 }
+
+/// Emit role granted event (v1)
+///
+/// **Schema Version**: 1
+/// **Event Name**: role_gr_v1
+///
+/// **Topics** (indexed):
+/// - Event name: "role_gr_v1"
+/// - token_index: u32 - The token this role applies to
+///
+/// **Payload** (non-indexed):
+/// - creator: Address - The token creator granting the role
+/// - grantee: Address - The address receiving the role
+/// - role: Role - The role being granted
+///
+/// **Schema Stability**: This schema is immutable. Any changes require a new version.
+pub fn emit_role_granted(
+    env: &Env,
+    token_index: u32,
+    creator: &Address,
+    grantee: &Address,
+    role: crate::types::Role,
+) {
+    env.events().publish(
+        (symbol_short!("role_gr_v1"), token_index),
+        (creator.clone(), grantee.clone(), role),
+    );
+}
+
+/// Emit role revoked event (v1)
+///
+/// **Schema Version**: 1
+/// **Event Name**: role_rv_v1
+///
+/// **Topics** (indexed):
+/// - Event name: "role_rv_v1"
+/// - token_index: u32 - The token this role applies to
+///
+/// **Payload** (non-indexed):
+/// - creator: Address - The token creator revoking the role
+/// - revokee: Address - The address losing the role
+/// - role: Role - The role being revoked
+///
+/// **Schema Stability**: This schema is immutable. Any changes require a new version.
+pub fn emit_role_revoked(
+    env: &Env,
+    token_index: u32,
+    creator: &Address,
+    revokee: &Address,
+    role: crate::types::Role,
+) {
+    env.events().publish(
+        (symbol_short!("role_rv_v1"), token_index),
+        (creator.clone(), revokee.clone(), role),
+    );
+}
+
+/// Emit commission rate updated event (v1)
+///
+/// **Schema Version**: 1
+/// **Event Name**: com_rt_v1
+///
+/// **Topics** (indexed):
+/// - Event name: "com_rt_v1"
+///
+/// **Payload** (non-indexed):
+/// - admin: Address - The admin who updated the rate
+/// - rate_bps: u32 - New commission rate in basis points
+///
+/// **Schema Stability**: This schema is immutable. Any changes require a new version.
+pub fn emit_commission_rate_updated(env: &Env, admin: &Address, rate_bps: u32) {
+    env.events()
+        .publish((symbol_short!("com_rt_v1"),), (admin.clone(), rate_bps));
+}
+
+/// Emit treasury policy initialized event (v1)
+///
+/// **Schema Version**: 1
+/// **Event Name**: trs_ini_v1
+///
+/// **Topics** (indexed):
+/// - Event name: "trs_ini_v1"
+///
+/// **Payload** (non-indexed):
+/// - daily_cap: i128 - The daily withdrawal cap in stroops
+/// - allowlist_enabled: bool - Whether the allowlist is active
+///
+/// **Schema Stability**: This schema is immutable. Any changes require a new version.
+pub fn emit_treasury_policy_initialized(env: &Env, daily_cap: i128, allowlist_enabled: bool) {
+    env.events()
+        .publish((symbol_short!("trs_ini_v1"),), (daily_cap, allowlist_enabled));
+}
+
+/// Emit dynamic quorum configured event (v1)
+///
+/// **Schema Version**: 1
+/// **Event Name**: dq_cfg_v1
+///
+/// **Topics** (indexed):
+/// - Event name: "dq_cfg_v1"
+///
+/// **Payload** (non-indexed):
+/// - admin: Address - The admin who configured dynamic quorum
+/// - enabled: bool - Whether dynamic quorum is enabled
+/// - min_quorum_percent: u32 - Minimum quorum floor
+/// - max_quorum_percent: u32 - Maximum quorum ceiling
+///
+/// **Schema Stability**: This schema is immutable. Any changes require a new version.
+pub fn emit_dynamic_quorum_configured(
+    env: &Env,
+    admin: &Address,
+    enabled: bool,
+    min_quorum_percent: u32,
+    max_quorum_percent: u32,
+) {
+    env.events().publish(
+        (symbol_short!("dq_cfg_v1"),),
+        (admin.clone(), enabled, min_quorum_percent, max_quorum_percent),
+    );
+}

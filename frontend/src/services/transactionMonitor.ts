@@ -14,9 +14,9 @@ export interface TransactionStatusUpdate {
 }
 
 export interface MonitoringConfig {
-    pollingInterval: number; // milliseconds
+    pollingInterval: number;
     maxRetries: number;
-    timeout: number; // milliseconds
+    timeout: number;
     backoffMultiplier: number;
 }
 
@@ -33,8 +33,38 @@ export interface MonitoringSession {
 
 export type StatusCallback = (update: TransactionStatusUpdate) => void;
 export type ErrorCallback = (error: Error) => void;
-/** Called once when a transaction reaches a terminal on-chain state (success or failed). */
 export type PostConfirmationHook = (update: TransactionStatusUpdate) => void;
+
+export interface RPCTransport {
+    getTransaction(hash: string): Promise<any>;
+}
+
+export class DefaultRPCTransport implements RPCTransport {
+    async getTransaction(hash: string): Promise<any> {
+        const network = import.meta.env.VITE_NETWORK || 'testnet';
+        const rpcUrl = network === 'mainnet' 
+            ? 'https://soroban-mainnet.stellar.org' 
+            : 'https://soroban-testnet.stellar.org';
+        
+        const response = await fetch(rpcUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                jsonrpc: '2.0', id: 1, method: 'getTransaction', params: [hash],
+            }),
+        });
+
+        if (!response.ok) {
+            throw new Error(`RPC request failed: ${response.statusText}`);
+        }
+
+        const data = await response.json();
+        if (data.error) {
+            throw new Error(data.error.message || 'RPC error');
+        }
+        return data.result;
+    }
+}
 
 /**
  * Default monitoring configuration
@@ -57,12 +87,18 @@ export class TransactionMonitor {
     private postConfirmationHooks: Map<string, Set<PostConfirmationHook>> = new Map();
     private pollTimers: Map<string, NodeJS.Timeout> = new Map();
     private config: MonitoringConfig;
+    private transport: RPCTransport;
 
-    constructor(config: Partial<MonitoringConfig> = {}) {
+    constructor(config: Partial<MonitoringConfig> = {}, transport?: RPCTransport) {
         this.config = {
             ...DEFAULT_MONITORING_CONFIG,
             ...config,
         };
+        this.transport = transport || new DefaultRPCTransport();
+    }
+
+    setTransport(transport: RPCTransport): void {
+        this.transport = transport;
     }
 
     /**
@@ -259,47 +295,14 @@ export class TransactionMonitor {
         transactionHash: string
     ): Promise<'pending' | 'success' | 'failed'> {
         try {
-            const response = await this.fetchTransactionFromRPC(transactionHash);
+            const response = await this.transport.getTransaction(transactionHash);
             return this.mapRPCStatusToMonitorStatus(response);
         } catch (error) {
-            // If transaction not found, it's still pending
             if (error instanceof Error && error.message.includes('not found')) {
                 return 'pending';
             }
             throw error;
         }
-    }
-
-    /**
-     * Fetch transaction from Soroban RPC
-     */
-    private async fetchTransactionFromRPC(hash: string): Promise<any> {
-        const rpcUrl = this.getRPCUrl();
-        
-        const response = await fetch(rpcUrl, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                jsonrpc: '2.0',
-                id: 1,
-                method: 'getTransaction',
-                params: [hash],
-            }),
-        });
-
-        if (!response.ok) {
-            throw new Error(`RPC request failed: ${response.statusText}`);
-        }
-
-        const data = await response.json();
-        
-        if (data.error) {
-            throw new Error(data.error.message || 'RPC error');
-        }
-
-        return data.result;
     }
 
     /**

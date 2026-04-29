@@ -181,6 +181,7 @@ pub fn set_commission_rate_bps(env: &Env, admin: &Address, rate_bps: u32) -> Res
     }
 
     set_commission_rate(env, rate_bps);
+    crate::events::emit_commission_rate_updated(env, admin, rate_bps);
     Ok(())
 }
 

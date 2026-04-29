@@ -9,11 +9,10 @@ import {
 } from '../utils/validation';
 import { IPFSService, isValidIpfsUri } from '../services/IPFSService';
 import { StellarService } from '../services/stellar.service';
-import { TransactionHistoryStorage } from '../services/TransactionHistoryStorage';
+import { TransactionHistoryStorage, transactionHistoryStorage } from '../services/TransactionHistoryStorage';
 import { getDeploymentFeeBreakdown } from '../utils/feeCalculation';
 import { analytics, AnalyticsEvent } from '../services/analytics';
 import { useAnalytics } from './useAnalytics';
-import { transactionHistoryStorage } from '../services/TransactionHistoryStorage';
 
 const STATUS_MESSAGES: Record<DeploymentStatus, string> = {
     idle: '',
@@ -37,6 +36,7 @@ export function useTokenDeploy(wallet: WalletState, options: UseTokenDeployOptio
     const [error, setError] = useState<AppError | null>(null);
     const [retryCount, setRetryCount] = useState(0);
     const [lastParams, setLastParams] = useState<TokenDeployParams | null>(null);
+    const [uploadedMetadataUri, setUploadedMetadataUri] = useState<string | null>(null);
 
     const stellarService = useMemo(() => new StellarService(network), [network]);
     const ipfsService = useMemo(() => new IPFSService(), []);
@@ -60,9 +60,17 @@ export function useTokenDeploy(wallet: WalletState, options: UseTokenDeployOptio
 
     const deploy = async (params: TokenDeployParams): Promise<DeploymentResult> => {
         setError(null);
-        setStatus('idle');
+        // Only reset status if not already in a process or if it's a fresh start
+        if (status !== 'uploading' && status !== 'deploying') {
+            setStatus('idle');
+        }
         setLastParams(params);
-        setRetryCount(0);
+        
+        // If it's a new set of params (not a retry), reset retry count and uploaded URI
+        if (lastParams && (params.name !== lastParams.name || params.symbol !== lastParams.symbol)) {
+            setRetryCount(0);
+            setUploadedMetadataUri(null);
+        }
 
         if (!params.adminWallet) {
             const appError = createError(ErrorCode.WALLET_NOT_CONNECTED, 'Connect your wallet before deploying.');
@@ -97,8 +105,8 @@ export function useTokenDeploy(wallet: WalletState, options: UseTokenDeployOptio
             throw appError;
         }
 
-        let metadataUri = params.metadataUri;
-        if (params.metadata) {
+        let metadataUri = params.metadataUri || uploadedMetadataUri;
+        if (params.metadata && !metadataUri) {
             const imageValidation = isValidImageFile(params.metadata.image);
             if (!imageValidation.valid) {
                 const appError = createError(
@@ -130,6 +138,7 @@ export function useTokenDeploy(wallet: WalletState, options: UseTokenDeployOptio
                 if (!isValidIpfsUri(metadataUri)) {
                     throw new Error('IPFS upload returned an invalid URI');
                 }
+                setUploadedMetadataUri(metadataUri);
             } catch (uploadError) {
                 ErrorHandler.handle(uploadError instanceof Error ? uploadError : new Error(getErrorMessage(uploadError)), {
                     action: 'upload-metadata',

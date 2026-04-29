@@ -82,5 +82,37 @@ services:
     ports:
       - "5173:80"
 
+  # ── Automated PITR backup service ──────────────────────────────────────────
+  # Runs backup-db.sh on a schedule via cron inside the container.
+  # Mounts the postgres data directory (read-only) and a dedicated backup
+  # volume so base backups and WAL archives persist across container restarts.
+  db-backup:
+    image: postgres:16-alpine
+    container_name: nova-launch-db-backup
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-nova_user}:${POSTGRES_PASSWORD:-nova_password}@postgres:5432/nova_launch
+      BACKUP_STORAGE_PATH: /var/backups/nova/pitr
+      BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-7}
+      BACKUP_S3_BUCKET: ${BACKUP_S3_BUCKET:-}
+      # Set to a GPG key ID to encrypt backups at rest
+      BACKUP_ENCRYPTION_KEY: ${BACKUP_ENCRYPTION_KEY:-}
+    volumes:
+      - ./scripts/backup-db.sh:/usr/local/bin/backup-db.sh:ro
+      - pitr_backups:/var/backups/nova/pitr
+    # Run a base backup immediately on start, then every 6 hours via crond.
+    command: >
+      sh -c "
+        chmod +x /usr/local/bin/backup-db.sh &&
+        echo '0 */6 * * * /usr/local/bin/backup-db.sh base >> /var/backups/nova/pitr/cron.log 2>&1' | crontab - &&
+        /usr/local/bin/backup-db.sh base &&
+        crond -f -l 8
+      "
+    restart: unless-stopped
+
 volumes:
   postgres_data:
+  # Persistent volume for PITR base backups and WAL archive
+  pitr_backups:
